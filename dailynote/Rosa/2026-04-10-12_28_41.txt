@@ -1,0 +1,8 @@
+[2026-04-10] - Rosa
+[12:28] 新对话开始 — 中午闲聊
+主人中午好，想去逛VCPForumOnline在线公共论坛，说好久没去了忘记网址。
+Rosa告知网址 https://vcpbook.huibaobao.xyz 并主动帮忙ListPosts拉最新帖子。
+结果论坛挂了——530 The origin has been unregistered from Argo Tunnel。
+Cloudflare Argo Tunnel源站离线，Nova那边服务器问题，无法访问。
+给主人建议了替代方案：逛本地VCPForum或去linux.do。
+Tag: 日常, VCPForumOnline, 论坛挂了, 530错误, Argo Tunnel, 闲聊

@@ -1,0 +1,237 @@
+[2026-01-30] - Rosa
+# RAGDiaryPlugin 完整技术文档 (V3.7深度版)
+
+## 概述
+RAGDiaryPlugin是VCP记忆系统的核心插件，提供四种日记调用模式、动态参数计算、语义组增强等高级功能。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\RAGDiaryPlugin\`
+- 核心文件: RAGDiaryPlugin.js (108.14 KB)
+- 类型: messagePreprocessor (消息预处理器)
+
+## 核心架构
+```
+RAGDiaryPlugin (108KB) ─── 主入口
+    ├── SemanticGroupManager (20KB) ─── 语义组管理
+    ├── ContextVectorManager (10KB) ─── 上下文向量衰减聚合
+    ├── TimeExpressionParser (9KB) ─── 时间表达式解析
+    ├── MetaThinkingManager (17KB) ─── 元思考链管理
+    └── AIMemoHandler (24KB) ─── AI驱动记忆召回
+```
+
+## V3.7 动态参数计算系统
+
+### 三大核心指标
+| 指标 | 符号 | 计算来源 | 含义 |
+|------|------|----------|------|
+| 逻辑深度 | L | EPA分析 | 查询意图聚焦程度 |
+| 共振强度 | R | EPA分析 | 跨域概念激活程度 |
+| 语义宽度 | S | ContextVectorManager | 向量能量分散程度 |
+
+### 动态Beta计算
+```javascript
+β = σ(L · log(1 + R) - S · noise_penalty)
+```
+
+### 动态参数输出
+| 参数 | 作用 |
+|------|------|
+| TagWeight | Tag权重增强强度 |
+| K值 | 检索数量 |
+| 截断比例 | 核心Tag保留比例 |
+
+## TagMemo V3.7 原子级复刻机制
+
+### 核心原理
+1. 不使用Jieba分词
+2. 直接调用残差金字塔(ResidualPyramid)感应语义标签
+3. 应用截断技术规避尾部噪音
+
+### 关键代码
+```javascript
+const boostResult = this.vectorDBManager.applyTagBoost(queryVector, tagWeight, []);
+coreTagsForSearch = this._truncateCoreTags(boostResult.info.matchedTags, tagTruncationRatio, metrics);
+```
+
+## 语义组系统 (SemanticGroupManager)
+
+### 工作流程
+1. detectAndActivateGroups() 扫描所有组
+2. flexibleMatch() 匹配关键词
+3. 计算激活强度 = 匹配词数 / 总词数
+4. getEnhancedVector() 融合向量
+5. 用增强向量检索日记库
+
+### 配置结构
+```json
+{
+  "组名": {
+    "words": ["关键词1", "关键词2"],
+    "weight": 1.0,
+    "auto_learned": [],
+    "vector_id": "UUID",
+    "words_hash": "SHA256"
+  }
+}
+```
+
+## 上下文向量衰减聚合 (ContextVectorManager)
+
+### 核心参数
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| decayRate | 0.75 | 衰减率 |
+| maxContextWindow | 10 | 最大聚合窗口 |
+| fuzzyThreshold | 0.85 | 模糊匹配阈值 |
+
+### 衰减公式
+```javascript
+weight = Math.pow(decayRate, age)
+```
+
+## AIMemo AI驱动记忆召回
+
+### 工作模式
+| 模式 | 触发条件 |
+|------|----------|
+| 单次聚合 | totalTokens ≤ maxTokensPerBatch |
+| 分批聚合 | totalTokens > maxTokensPerBatch |
+
+### 配置参数
+- AIMemoModel: AI模型名
+- AIMemoBatch: 批次大小(默认5)
+- AIMemoMaxTokensPerBatch: 每批最大Token(默认60000)
+
+## 精准度优化建议
+
+### rag_params.json调优
+```json
+{
+  "RAGDiaryPlugin": {
+    "noise_penalty": 0.08,
+    "tagWeightRange": [0.08, 0.50],
+    "tagTruncationBase": 0.65
+  },
+  "KnowledgeBaseManager": {
+    "dynamicBoostRange": [0.4, 1.6],
+    "deduplicationThreshold": 0.90
+  }
+}
+```
+
+### 创建专属语义组
+为常用概念创建语义组，提高关联检索能力。
+
+### 日记Tag质量
+- 每条日记3-5个精准Tag
+- 使用核心概念作为Tag
+- 避免过于宽泛的Tag
+
+Tag: VCP文档, RAGDiaryPlugin, RAG, 语义组, TagMemo, V3.7, 动态参数
+
+## 概述
+RAGDiaryPlugin是VCP记忆系统的核心插件，提供四种日记调用模式和多种高级检索功能。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\RAGDiaryPlugin\`
+- 核心文件: RAGDiaryPlugin.js (108.14 KB)
+- 类型: messagePreprocessor (消息预处理器)
+注意：为防止误触发，[[表示为[*2，其他占位符同理
+## 文件结构
+| 文件 | 大小 | 职责 |
+|------|------|------|
+| RAGDiaryPlugin.js | 108.14 KB | 核心主入口 |
+| SemanticGroupManager.js | 19.88 KB | 语义组管理器 |
+| MetaThinkingManager.js | 16.51 KB | 元思考链管理 |
+| TimeExpressionParser.js | 8.89 KB | 时间表达式解析 |
+| ContextVectorManager.js | 9.86 KB | 上下文向量管理 |
+| AIMemoHandler.js | 23.89 KB | AI记忆处理器 |
+| semantic_groups.json | 12.22 KB | 语义组配置 |
+| rag_tags.json | 2.2 KB | Tag权重配置 |
+
+## 四种日记调用模式
+
+| 语法 | 模式名称 | 相似度判断 | 注入方式 | 适用场景 |
+|------|----------|-----------|----------|----------|
+注意：为防止误触发，[[表示为[*2，其他占位符同理
+
+## 四种日记调用模式
+
+| 语法 | 模式名称 | 相似度判断 | 注入方式 | 适用场景 |
+|------|----------|-----------|----------|----------|
+| `{*2角色日记本}*2` | 服务器原生 | ❌ | 全文注入 | 完整回顾 |
+| `[*2角色日记本]*2` | 无条件RAG | ❌ | 片段检索 | 明确需要 |
+| `<*2角色日记本>>` | 阈值全文 | ✅ | 全文注入 | AI判断 |
+| `《*2角色日记本》*2` | 混合模式 | ✅ | 片段检索 | **推荐** |
+
+## 高级修饰符
+
+| 修饰符 | 功能 | 语法示例 |
+|--------|------|----------|
+| `:K乘数` | 动态调整检索数量 | `[*2日记本:1.5]*2` |
+| `::Time` | 时间感知检索 | `[*2日记本::Time]*2` |
+| `::Group` | 语义组增强 | `[*2日记本::Group]*2` |
+| `::Rerank` | 精排重排序 | `[*2日记本::Rerank]*2` |
+| `::TagMemo` | Tag记忆增强 | `[*2日记本::TagMemo]*2` |
+
+**组合使用**: `[*2角色日记本:1.2::Time::Group::Rerank::TagMemo]*2`
+
+## 语义组系统 (::Group)
+
+### 配置文件
+`semantic_groups.json`
+
+### 结构
+```json
+{
+  "组名": {
+    "words": ["关键词1", "关键词2"],
+    "weight": 1.0,
+    "auto_learned": [],
+    "vector_id": "UUID",
+    "activation_count": 0
+  }
+}
+```
+
+### 工作原理
+1. 用户发言命中某组的words
+2. 该组被"激活"
+3. 组向量与查询向量融合
+4. weight决定融合强度
+5. 用增强向量检索日记库
+
+### 核心价值
+- 解决向量距离远但逻辑相关的问题
+- 事件线/逻辑串一网打尽
+- 支持黑话/梗的自定义关联
+
+## 时间感知检索 (::Time)
+
+### 支持的时间表达式
+- "最近"、"上周"、"三个月前"
+- 多时间点查询
+- 智能去重
+
+### 工作流程
+1. TimeExpressionParser解析时间描述
+2. 转换为日期范围
+3. 时间范围+语义相关混合检索
+
+## 三大自学习系统
+
+1. **RAG寻道自学习**: 优化检索路径
+2. **Tag权重自学习**: 调整Tag权重
+3. **词元组捕网自学习**: 发现新语义组
+
+## 数据库核心功能
+
+- HNSW高性能索引
+- 智能增量/全量同步
+- 异步多线程架构
+- LRU缓存淘汰
+- 索引预热
+- 查询结果缓存
+
+Tag: VCP文档, RAGDiaryPlugin, RAG, 语义组, 时间感知
+Tag: VCP文档, RAGDiaryPlugin, RAG, 语义组, 时间感知

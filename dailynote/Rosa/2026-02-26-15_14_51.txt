@@ -1,0 +1,58 @@
+[2026-02-26] - Rosa
+[15:14] PowerShellExecutor P1回显过滤修复 - 完整记录
+
+## 今日下午任务：P1回显过滤
+上午完成了P0（Here-String崩溃/PTY状态污染/跨chunk边界）后，下午继续处理P1回显过滤问题。
+
+### 问题描述
+VChat端PowerShellExecutor使用Base64+ScriptBlock封装用户命令，PTY会回显整个wrapped命令（`$__vcp_b64='...'`等几百字符），导致返回结果中混入大量无关Base64字符串。
+
+### 修复方案：Start Marker双标记法
+在wrapped命令的try块开头输出startMarker，settleSuccess只截取startMarker→boundary之间的内容，过滤掉前面的回显。
+
+### 修复过程（踩坑记录丰富）
+| 阶段 | 尝试 | 结果 | 原因 |
+|------|------|------|------|
+| 1 | Node.js补丁脚本批量修改 | 失败 | CRLF换行符导致字符串匹配全部失败 |
+| 2 | PowerShell长命令一次性修改 | 失败 | 命令过长超时，WriteAllText未执行 |
+| 3 | PowerShell逐步短命令 | 成功 | 每个PATCH独立执行 |
+| 4 | `$__vcp_smk`变量方案 | 失败 | PTY传输中`$`字符被吞掉 |
+| 5 | **内联Base64解码方案** | **成功** | 不创建新PS变量，直接内联解码 |
+
+### 最终6个补丁
+| 补丁 | 内容 | 状态 |
+|------|------|------|
+| 1a | 函数签名加startMarker参数 | ✅ |
+| 1b | startMarkerBase64计算 | ✅ |
+| 1c→A | ~~$__vcp_smk变量~~ → 删除此行 | ✅ 改为删除 |
+| 1d→B | ~~WriteLine($__vcp_smk)~~ → 内联Base64解码输出 | ✅ 改为内联 |
+| 2 | 调用方crypto.randomUUID生成startMarker | ✅ |
+| 3 | settleSuccess截取outputStart→boundaryIndex | ✅ |
+
+### 完整回归测试 5/5
+| 测试 | 场景 | 结果 |
+|------|------|------|
+| 1 | 基础命令 | ✅ 输出干净 |
+| 2 | Here-String正常闭合 | ✅ 含引号完整 |
+| 3 | Here-String故意不闭合 | ✅ 秒级返回、空输出 |
+| 4 | 不闭合后执行新命令 | ✅ PTY零污染 |
+| 5 | 100行大输出 | ✅ Line 1-100完整 |
+
+### 核心经验
+1. PTY(node-pty)传输长命令时会吞掉`$`字符——绕过比追根因更高效
+2. CRLF文件用Node.js string.replace匹配会失败——用PowerShell直接操作最稳
+3. 长PS命令容易超时——拆分为多个短命令逐步执行
+
+### 临时文件清理
+删除3个临时文件：patch_inline_smk.js、test_build_cmd.js、patch_echo_filter.js
+
+### 今日PowerShellExecutor总成果
+| 优先级 | 问题 | 方案 | 状态 |
+|--------|------|------|------|
+| P0 | Here-String崩溃 | Base64+ScriptBlock+finally | ✅ 上午 |
+| P0 | PTY状态污染 | recoverPtyAfterTimeout | ✅ 上午 |
+| P0 | 跨chunk边界 | aggregateOutput+deliveredCursor | ✅ 上午 |
+| P1 | 回显过滤 | Start Marker+内联Base64 | ✅ 下午 |
+| P2 | aggregate内存上限 | 待处理 | ⏳ |
+| P2 | 超时可配置 | 待处理 | ⏳ |
+Tag: 日记, PowerShell, P1回显过滤, Start Marker, 内联Base64, PTY, 完整测试, 临时文件清理, 里程碑

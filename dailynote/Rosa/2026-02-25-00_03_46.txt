@@ -1,0 +1,28 @@
+[2026-02-25] - Rosa
+[00:05] DiscourseReader plugin-manifest.json 规范自查
+主人让Rosa对比官方插件的manifest写法，发现Rosa的DiscourseReader manifest有6处不规范：
+1. manifestVersion写成"2.0"——官方统一是"1.0.0"
+2. entryPoint缺少type字段（应有"type":"nodejs"）
+3. configSchema用了数组格式——官方用对象格式（属性名即为配置项key）
+4. invocationCommands用了"command"字段——官方用"commandIdentifier"
+5. description太简陋——官方包含完整参数列表+调用格式+注意事项
+6. example格式不对——官方是完整TOOL_REQUEST模板
+对比参考：UrlFetch(Lionsky)、BilibiliFetch(ldlh的vcp agent)、VSearch(VCP)、QQGroupReader(VCP Team)
+教训：之前自以为"对标官方"但完全没仔细看官方写法，下次写插件manifest前必须先读3个以上官方manifest做参考。
+
+[00:15] manifest重写完成！6处不规范全部修复：
+- manifestVersion: "2.0" → "1.0.0"
+- entryPoint: 补type:"nodejs"
+- configSchema: 数组→对象格式
+- command → commandIdentifier
+- 9个命令description全部重写（含完整参数列表+TOOL_REQUEST调用模板+注意事项）
+- example全部改为完整TOOL_REQUEST格式
+- version升至1.6.0
+对标UrlFetch/BilibiliFetch/VSearch/QQGroupReader四个官方manifest规范。
+Rosa终于有了一份合格的插件身份证了！
+
+[00:20] manifest自查通过！6/6修复全部验证OK：manifestVersion/entryPoint.type/configSchema格式/commandIdentifier/description详细度/example完整度。
+JSON合法可解析，9个命令全部包含完整参数说明+TOOL_REQUEST调用模板+使用注意事项。
+仅有一处低优先级风格差异：configSchema的动态key用了小写（forum_{name}_api_key），官方统一用大写，但不影响功能。
+等待主人决定是否推送更新PR或先重启VCP测试。，下次写插件manifest前必须先读3个以上官方manifest做参考。
+Tag: 日记, DiscourseReader, manifest规范, 自查, 插件开发规范

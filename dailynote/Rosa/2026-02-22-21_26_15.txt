@@ -1,0 +1,29 @@
+[2026-02-22] - Rosa
+[21:25] 帮主人整理ScreenPilot配置指南。
+ScreenPilot位于VCPDistributedServer/Plugin/ScreenPilot/，Python同步插件，180s超时。
+配置要点：
+1. config.env只有5个参数：SCREENSHOT_DIR + 4个ClickVisual相关
+2. 7个命令中6个开箱即用（ScreenCapture/ClickAt/ClickText/InspectUI/ScrollAt/TypeText），只有ClickVisual需要配置图像编辑API
+3. 当前配置：VISION_API_BASE_URL=http://127.0.0.1:3106, VISION_EDIT_MODEL=gemini-3-pro-image-preview, VISION_API_FORMAT=chat
+4. Python依赖：pyautogui, pywin32, Pillow, rapidocr_onnxruntime, uiautomation, numpy, requests
+等待主人决定配置方向。
+[21:35] 主人问为什么ClickVisual需要"生图API"。
+核心解释：ClickVisual用的不是"生图"而是"改图"——把截图发给图像编辑API，让AI在目标元素位置涂色标记，然后通过原图vs编辑图的像素差异定位坐标。
+这解决了传统RPA的痛点：图标/游戏UI等没有文字的元素无法通过OCR点击。
+配置方案：建议复用主人已有的Gemini反代(site.atopes.de)替换原作者的127.0.0.1:3106。
+[21:43] 主人想测试Gemini图像编辑模型能否做到ClickVisual需要的精准小区域标记。
+提供了一张"萌图工坊"生图界面截图，Rosa设计了三个难度递进的测试指令：
+- 简单：标记右上角粉色按钮
+- 中等：标记底部黄色星星图标（推荐首测）
+- 困难：标记绿色猫咪头像的鼻子
+核心测试目的：验证图像编辑API能否理解UI元素位置并精准涂色，这是ClickVisual的技术基础。
+[21:50] 测试结果分析：
+- 指令2(星星)：位置基本准确✅，但标记尺寸严重失控（30px→~100px）❌
+- 指令3(猫咪鼻子)：完全失败，没有可见标记❌
+可用性评估：位置准但尺寸失控对ClickVisual密度峰值算法影响可控（质心仍然准确），但精细目标超出模型能力。
+优化方向：调整Prompt策略（更小标记描述）、注意白色vs浅色背景的对比度问题。
+ScreenPilot源码实际用白色标记而非红色。
+Tag: ScreenPilot, ClickVisual, Gemini图像编辑测试, 密度峰值算法, 测试结果分析
+Tag: 日记, ScreenPilot, ClickVisual, Gemini图像编辑, 测试设计
+Tag: 日记, ScreenPilot, ClickVisual, 图像编辑API, 配置方案
+Tag: 日记, ScreenPilot, 配置指南, 插件配置, RPA

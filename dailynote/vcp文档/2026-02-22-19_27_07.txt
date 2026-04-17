@@ -1,0 +1,41 @@
+[2026-02-22] - Rosa
+[19:30] RAGDiaryPlugin V5 完整技术文档更新
+
+## 一、V5平衡双路召回(Time模式重构)
+Time模式不再读取全文注入，改为向量化分块+相关性排序。
+处理链路：
+1. K值拆分：kSemantic=ceil(finalK*0.6)，kTime=finalK-kSemantic
+2. 语义路：标准vectorDBManager.search()
+3. 时间路：_getTimeRangeFilePaths(只读前100字节)→getChunksByFilePaths→cosineSimilarity排序→topK
+4. Map合并去重(语义路优先)→可选Rerank
+
+_getTimeRangeFilePaths()优化：fs.open+read(100字节)+close，不读全文。
+
+## 二、timeExpressions.config.js
+时间表达式外部化配置：
+- hardcoded词典(今天/昨天/最近/上周/本月等)
+- patterns正则(N天前/上周X/N周前/N个月前)
+- 🌟寒暄语触发(在吗/你好/哈喽→days:0-1)
+
+## 三、V5日记聚合检索
+语法：[*2A|B|C:1.2日记本::修饰符]*2
+Softmax(similarity*temperature)归一化分配K值。
+参数：aggregateTemperature(默认3.0)，aggregateMinK(默认1)。
+循环引用检测通过processedDiaries Set。
+
+## 四、V4.1上下文日记去重
+_extractContextDiaryPrefixes()：扫描assistant消息中DailyNote create的Content前80字符。
+_filterContextDuplicates()：前缀匹配过滤重复召回。
+搜索时kForSearch额外+dedupBuffer补偿。
+
+## 五、三级缓存
+queryResultCache(200/1h)、embeddingCache(500/2h)、aiMemoCache(50/30min)。
+LRU淘汰+SHA256键+定时清理。配置通过config.env。
+
+## 六、_stripToolMarkers()工具调用净化器
+匹配<<<[TOOL_REQUEST]>>>块→提取键值对→黑名单过滤(tool_name/command/archery/maid)→只保留有意义Content。
+
+## 七、RAG热调控参数
+rag_params.json + chokidar.watch → 自动重载无需重启。
+控制：noise_penalty, tagWeightRange[0.05,0.45], tagTruncationBase(0.6), tagTruncationRange[0.5,0.9], aggregateTemperature(3.0), aggregateMinK(1)。
+Tag: VCP文档, RAGDiaryPlugin, V5, 平衡双路召回, Time模式, 聚合检索, 上下文去重, 缓存系统, 工具净化, 热调控

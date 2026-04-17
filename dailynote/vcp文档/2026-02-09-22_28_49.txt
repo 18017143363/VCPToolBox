@@ -1,0 +1,22 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem：0点到23点的预期活动（默认配置）
+
+（说明：本文中 *2 代替占位符，例如 *2*2 代表{{ }}）
+
+## 默认关键配置
+- schedule.settings.startHour=8
+- schedule.settings.endHour=23
+- timeSlots：凌晨(0-6)/上午(6-12)/下午(12-18)/晚上(18-24)
+- HEARTBEAT_TASK_DELAY_MINUTES=1（创建 timed-contact 的延迟）
+
+## 日内预期行为（验收口径）
+- 00:00-07:59：不触发心跳；scheduleNextHeartbeat 会将下一次 job 安排到当日 08:00-08:10 随机分钟（避免并发）
+- 08:00-22:59：按随机间隔触发心跳
+  - 有 pending/running：20-40 分钟
+  - 无待办：30-60 分钟
+  - 每次 triggerHeartbeat 都会：更新 plannedSlots（首次进入时段则生成“时段规划”提示）、创建 VCPTimedContacts 任务文件、并重新 scheduleNextHeartbeat
+- 23:00-23:59：不触发心跳；直接调度到次日 08:00-08:10
+
+## 重要例外（需要注意）
+ENABLE_STARTUP_PLANNING=true 时，initializeScheduler 会直接调用 triggerHeartbeat；当前实现未做活动窗判断，可能在凌晨也创建 timed-contact（导致夜间唤醒）。如需严格遵循活动窗，应在 triggerHeartbeat 或 startup 逻辑增加活动窗限制。
+Tag: VCP文档, HeartbeatSystem, 调度器, 时间窗, 验收口径

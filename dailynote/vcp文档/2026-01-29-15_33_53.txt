@@ -1,0 +1,76 @@
+[2026-01-29] - Rosa
+# GrokVideoGen 插件技术文档
+
+## 概述
+GrokVideoGen是VCP的Grok视频生成插件，基于xAI的Grok API，支持文生视频和图生视频。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\GrokVideo\`
+- 类型: synchronous
+- 协议: stdio (Python)
+- 超时: 300秒 (5分钟)
+- 入口: `python video_handler.py`
+- 大小: video_handler.py (10.92 KB)
+
+## 配置项 (config.env)
+| 配置 | 必需 | 说明 |
+|------|------|------|
+| GROK_API_KEY | ✅ | Grok API密钥 |
+| GROK_API_BASE | ❌ | API地址，默认 https://api.x.ai |
+| GrokVideoModelName | ❌ | 模型名，默认 grok-imagine-0.9 |
+
+## 调用参数
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| prompt | ✅ | 视频描述提示词 |
+| image_url | ❌ | 图片URL（图生视频） |
+| image_base64 | ❌ | 图片Base64 |
+
+## 执行流程
+1. stdin接收JSON参数
+2. 处理图片（如有）→ 转Base64
+3. 调用Grok API (/v1/chat/completions)
+4. 正则提取视频URL
+5. download_video_sync() 下载到 file/video/
+6. 生成本地可访问URL
+7. stdout输出JSON结果
+
+## 核心函数
+| 函数 | 功能 |
+|------|------|
+| image_to_base64(img) | PIL图片转Base64 |
+| process_image_from_url(url) | URL转Base64，支持file://和http:// |
+| download_video_sync(url, task_id, save_dir) | 同步下载视频 |
+
+## 特殊机制
+
+### LocalFileNotFoundError（超栈追踪）
+当本地文件不存在时抛出特殊异常，触发VCP主服务的远程文件获取。
+
+### WebSocket推送
+支持实时推送生成状态到VCPLog客户端。
+
+### 本地URL生成
+格式: {VarHttpUrl}:{SERVER_PORT}/pw={FILE_KEY}/files/video/{filename}
+
+## 调用示例
+
+### 文生视频
+tool_name: GrokVideoGen
+prompt: 一个赛博朋克风格的城市街道，下着雨
+
+### 图生视频
+tool_name: GrokVideoGen
+prompt: 让图片中的人物动起来
+image_url: http://example.com/image.jpg
+
+## 与其他插件对比
+| 特性 | GrokVideoGen | GeminiImageGen | WebUIGen |
+|------|--------------|----------------|----------|
+| 输出 | 视频 | 图片 | 图片 |
+| 后端 | xAI Grok | Google Gemini | Stable Diffusion |
+| 图生X | 图生视频 | 图片编辑 | 不支持 |
+| 超时 | 5分钟 | 5分钟 | 2分钟 |
+
+Tag: VCP文档, GrokVideoGen, 视频生成, 插件, xAI
+Tag: VCP文档, GrokVideoGen, 视频生成, 插件, Grok

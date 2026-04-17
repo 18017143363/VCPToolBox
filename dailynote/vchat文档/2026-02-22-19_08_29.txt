@@ -1,0 +1,53 @@
+[2026-02-22] - Rosa
+[19:20] VChat前端更新分析(三)：ScreenPilot源码深度解析
+
+screen_pilot.py完整源码分析(1574行, 57.15KB)。
+
+整体架构：基础设施层(DPI+工具+OCR) → 7命令实现 → 调度层(别名+串行+入口)
+
+关键技术发现：
+
+1. DPI感知必须最先声明(SetProcessDpiAwareness(2))，否则高DPI下坐标全偏移。
+降级方案：shcore不可用→SetProcessDPIAware(Vista+)
+
+2. OCR预处理三步增强：
+- 图片<2560×1440时放大2倍(BICUBIC)
+- SHARPEN锐化对抗抗锯齿
+- 对比度增强1.3×
+- 最后坐标除以scale缩回原图
+
+3. ScreenCapture使用PrintWindow(hwnd,hdc,2)截图，PW_RENDERFULLCONTENT=2可截取被遮挡窗口
+
+4. ClickAt双轨制：
+- 后台：PostMessage WM_LBUTTONDOWN/UP，lParam编码=((y&0xFFFF)<<16)|(x&0xFFFF)，需ScreenToClient坐标转换
+- 前台：SetForegroundWindow+pyautogui.click，等300ms窗口切换
+- 双击时第二次发WM_LBUTTONDBLCLK
+
+5. ClickText四种匹配模式：fuzzy(去标点contains)/contains/exact/startswith
+- 找不到时返回所有OCR文本列表帮助调试
+- 支持index参数选择第N个匹配
+
+6. ClickVisual核心算法——密度峰值定位法(find_white_circle)：
+- 涂色标记用白色(#FFFFFF)实心圆
+- painted_mask = 编辑图白色(>240) & 原图非白色
+- 30×30像素分块统计白色密度→找峰值块→±5块范围精确质心
+- 比简单全局质心抗噪点能力强得多
+- 安全检查：白色占比>30%判为误判
+- 双API格式：chat(Gemini/OpenAI)和images(SiliconFlow/Qwen)
+- 保存debug图片供排查
+
+7. TypeText双轨制：
+- 后台：PostMessage WM_CHAR逐字发送，5ms间隔防丢字
+- 前台：保存原剪贴板→写入→Ctrl+V粘贴→恢复原剪贴板（保护机制）
+
+8. ScrollAt特例：WM_MOUSEWHEEL的lParam是屏幕坐标而非客户区坐标
+
+9. 串行批量调用(新发现！manifest未体现)：
+- command1/command2/...编号键+参数带相同数字后缀
+- 按序号排序依次执行，汇总结果
+- 一次请求完成"截图→点击→输入"完整操作链
+
+10. 命令别名系统：大小写不敏感+下划线横线忽略+多别名(click=clickat等)
+
+依赖库：pyautogui, win32gui/win32ui/win32con/win32clipboard, ctypes, RapidOCR, uiautomation, PIL, numpy
+Tag: ScreenPilot源码, 深度分析, DPI感知, OCR预处理, ClickVisual, 密度峰值定位, 双轨制, 串行调用, PostMessage, Win32API, VChat前端插件

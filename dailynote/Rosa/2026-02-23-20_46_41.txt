@@ -1,0 +1,10 @@
+[2026-02-23] - Rosa
+[20:47] 帮主人抓取linux.do精华帖"国产AI大模型三大痛点"(ID:966591, Neo发帖, 800赞/364回复/10.3k浏览/334人参与)。
+技术路线：先用tag列表JSON定位帖子ID→用`/t/topic/{id}/1.json`抓取帖子详情（返回前20楼）。
+帖子核心内容（前20楼高赞回复汇总）：
+- Leon01(58赞)：①Agentic能力 ②世界知识+原生中文 ③速度快。推荐Kimi K2。指出多模态是短板
+- AItersaber(72赞)："解决不能NSFW的问题" 😂
+- 痛点频次排序：编程能力/智商(5次) > 速度(4次) > 中文支持(3次) = 多模态(3次) > NSFW自由度(2次) = 开源本地部署(2次)
+- 模型评价：Kimi K2(Agentic好)、豆包(生图/普及率)、DS(翻译好但废话多)、GLM4.5(还行)、Qwen(方向好/开源)
+Discourse帖子详情API：`/t/topic/{id}/{post_number}.json`，默认返回20条回复(chunk_size=20)，可通过stream数组中的post_id翻页获取后续回复。
+Tag: 日记, linux.do, 国产AI大模型, 痛点, Neo, 精华帖, Discourse API

@@ -1,0 +1,73 @@
+[2026-02-26] - Rosa
+[14:11] VCP & VChat代码更新（git pull）
+## VCP后端更新 (95b9e51 → 2bcef12)
+核心变更：
+1. BilibiliFetch大升级 - 感谢@于眸，大幅提升功能
+2. 同步插件返回协议统一 - 规范化所有同步插件返回格式
+3. LightMemo新增语义音乐检索功能
+4. 梦系统暂时下线（重构中）
+5. VSearch重定向优化
+6. FileOperator/UrlFetch/PowerShell三大插件重构
+7. GrokVideo适配grok1.0
+8. 管理面板CPU获取逻辑兼容修复
+9. 新增16个爱弥斯机甲表情包
+10. TimelineGenerator插件被移除
+11. 新增OpenWebUI HTML实时预览插件
+
+## VChat前端更新 (d6e34e0 → a33d40d)
+核心变更：
+1. FileOperator前端大改(205行)
+2. PowerShellExecutor重构 - boundary检测+安全区转发机制
+3. ScreenPilot增强(67行新功能)
+4. WindowSensor增强 - 新增进程黑名单功能
+5. messageRenderer.js大改(418行) - 优化代码块嵌套逻辑
+6. 窗口管理易用性优化
+
+## 冲突处理
+- VCP DiscourseReader: 上游删除，我们feature分支保留
+- VChat PowerShellExecutor: 采用上游版本（更完整重构）
+
+## git操作踩坑
+- merge时notepad编辑器报错 → 用GIT_EDITOR='true' + --no-edit解决
+- stash pop后config文件被改 → checkout恢复
+Tag: 日记, git pull, VCP更新, VChat更新, 代码同步, 冲突处理
+
+[15:15] BilibiliFetch v2.1.0升级分析
+主人重启VCP/VChat后，Rosa分析了BilibiliFetch插件的重大升级（40.33KB→46.87KB）。
+三大新功能：
+1. HD高清截图 - ffmpeg从视频流直接抽帧（原始分辨率），hd_snapshot=true启用
+2. 多P分P视频 - URL中?p=N自动识别并获取对应分P的CID和内容
+3. Windows UTF-8编码修复 - 自定义UTF8StreamHandler
+新增6个函数：get_ffmpeg_path/extract_bvid_and_page/get_cid_for_page/get_video_stream_url/fetch_hd_snapshot/UTF8StreamHandler
+超时30s→60s，版本0.1.0→2.1.0，作者Bocchi777(感谢@于眸)
+已更新vcp文档。
+Tag: 日记, BilibiliFetch, v2.1.0, 升级分析, HD截图, 多P, ffmpeg
+
+[14:14] PowerShellExecutor补丁覆盖事件
+## 问题
+git pull解决VChat的stash冲突时，Rosa错误地使用了`git checkout --theirs`接受上游版本，把今天12:35辛苦打的PowerShellExecutor.js补丁覆盖掉了。
+## 上游版本 vs 我们的补丁
+上游版本的executeSingleCommandInPty仍然是旧版本：
+- 无Base64编码传输（直接写入原始命令）
+- 无ScriptBlock动态执行
+- 无finally保证boundary
+- 无超时恢复PTY（超时后PTY状态永久污染）
+- 仍用EventEmitter on('data')而非node-pty原生onData+dispose
+- 无跨chunk边界检测
+## 当前状态
+- 磁盘文件 = 上游版本（无补丁）
+- 内存运行 = 旧版+补丁（VChat未重启）
+- 重启VChat后补丁将丢失
+## 教训
+git stash pop冲突时不要无脑checkout --theirs，应该先检查冲突内容判断哪边的修改更重要
+## 补丁恢复成功！
+用 `git fsck --dangling` 找到4个dangling commit，其中 `5121583` 就是今天的stash（基于d6e34e0）。
+通过 `git show 5121583:path/to/file > file` 成功恢复PowerShellExecutor.js（57778字节）。
+验证确认：buildWrappedPowerShellCommand(L567)、recoverPtyAfterTimeout(L585)、ScriptBlock::Create调用(L618)、超时恢复调用(L677)全部存在。
+
+### git恢复技巧备忘
+- `git stash drop` 后对象不会立即消失（直到gc）
+- `git fsck --dangling --no-reflogs` 可以找到所有孤立commit
+- `git show <commit>:<path>` 可以从任意commit中提取单个文件
+- dangling commit的日期和message可以帮助识别是哪次stash
+Tag: 日记, PowerShellExecutor, 补丁恢复, git fsck, dangling commit, 教训

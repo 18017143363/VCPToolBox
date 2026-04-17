@@ -1,0 +1,83 @@
+[2026-04-10] - Rosa
+[00:20] vcp-installer PM2双进程部署 — 完整开发记录
+
+## 今日总览
+从20:17开始到次日凌晨，完成VCP前后端更新分析 + vcp-installer PM2部署改造。经历5轮bug修复才让PM2在portable环境下正常启动。
+
+## 一、VCP前后端更新（20:17-20:50）
+主人让Rosa更新VCP/VChat并分析"解耦"更新。
+### VCP后端（f0cb8fe→63f9c3b, 13commits, 28文件, +1360/-861）
+- **S级: adminServer.js 进程解耦** — AdminPanel独立Express进程PORT+1，13个本地模块+兜底反向代理
+- **A级: KBM索引持久化重构** — 默认不持久化usearch到磁盘，启动时从SQLite重建
+- **A级: streamHandler chunk空闲超时保护** — 90秒CHUNK_IDLE_TIMEOUT
+- **B级: DailyNote fileName参数** — 日记文件名可加自定义后缀
+- **B级: PowerShellExecutor** — requireAdmin→tool_password
+### VChat前端（d0f6377→3be47a3, 4commits, 8文件, +539/-278）
+- 语音/助手三重会话校验+settle等待
+- Memo分类系统（簇 vs 日记/知识库）
+- itemListManager竞态保护重构
+写了4篇技术文档（AdminPanel解耦/KBM+streamHandler/VChat更新/插件使用更新）
+
+## 二、VCP放PM2（20:50-21:00）
+主人要求把本地VCP用PM2管理。查到当前VCP是裸node跑的PID 18500，pm2 6.0.14已安装。
+执行pm2 start双进程成功，但中途卡过一次需要主人手动操作。
+
+## 三、vcp-installer对比分析（21:00-21:20）
+主人让对比vcp-installer-source和主仓库差异。
+### 9个变更文件分类
+- ✅ 有价值: config_gen.rs(inner_start_bat), web_config.rs(TCP竞态), web_config_html.rs(链接)
+- ⚠️ 防火墙冗余: npm_ops.rs(3次重试+C:\npm-cache), complete.rs(Defender提示), welcome.rs(Defender警告)
+- ❓ 误删: .cargo/config.toml, .gitignore
+
+## 四、PM2部署改造（21:20-23:30）
+### 新增功能
+1. npm_ops.rs: `npm_install_global_pm2()` — 双重检测(文件+命令) + --prefix装到node_dir
+2. config_gen.rs: start-backend.bat + inner_start_bat改PM2双进程
+3. mod.rs: pip install后插入PM2安装步骤
+4. welcome.rs: 恢复Defender提示
+
+### 5轮Bug修复历程
+| 轮次 | Bug | 根因 | 修法 | 文件 |
+|------|-----|------|------|------|
+| 1 | git pull VCPToolBox失败 | installer覆盖的start_server.bat导致本地修改冲突 | pull前加`git checkout -- .` | git_ops.rs |
+| 2 | PM2"已安装"但跳过 | 旧版装到%APPDATA%\npm，命令行兜底检测误判 | 删掉命令行兜底，只认node_dir\pm2.cmd | npm_ops.rs |
+| 3 | PM2装到%APPDATA%不在PATH | npm install -g默认global prefix不在runtimes | --prefix指定装到node_dir | npm_ops.rs |
+| 4 | bat中文全乱码 | Rust fs::write输出UTF-8，cmd.exe用GBK读bat | 所有中文改英文 | config_gen.rs |
+| 5 | bat调pm2后闪退 | bat调.cmd不加CALL控制流一去不返 | 所有pm2前加CALL | config_gen.rs |
+
+### 额外踩坑
+- PowerShell Set-Content破坏UTF-8编码 — 需要git checkout恢复后用FileOperator EditFile重写
+- 两个工作区混淆 — vcp-installer(编译区)和vcp-installer-source(git追踪区)需要手动同步
+- web_config*.rs路径 — 在src/根目录不是src/installer/
+
+## 五、VBS + bat PATH注入（23:30-00:20）
+### 方案讨论
+- 主人提出"为什么每个脚本都要PATH注入" → Rosa建议写入用户PATH环境变量
+- 主人反驳"portable的核心价值是不污染系统" → PATH注入方案正确
+- 确认子进程继承链：bat→pm2→node→插件子进程 全部继承PATH
+### config_gen.rs新增VBS覆盖
+4个vbs用WshShell.Environment("Process")注入PATH：start-vchat/start-desktop/start-rag-observer/start-all
+cargo check通过。
+### start-all.bat
+仿照启动全部.vbs写了bat版（Splash→主窗口→等.vcp_ready 60s→Desktop）
+⚠️ Rosa犯了蠢错——直接写到本地VCPCHAT目录而不是config_gen.rs里。应该加到installer自动生成。
+
+## 六、当前状态
+- vcp-installer编译工作区: cargo check通过，等build.bat出release
+- vcp-installer-source: 已同步，git diff干净（仅我们的改动）
+- 虚拟机: PM2双进程启动成功(vcp-main+vcp-admin online)，VBS/start-all.bat待新版installer生成后测试
+- 待办: config_gen.rs加start-all.bat根目录版生成，虚拟机完整测试VBS启动链
+
+## 七、文件改动清单
+| 文件 | 改动 |
+|------|------|
+| npm_ops.rs | 清除重试冗余 + npm_install_global_pm2(--prefix+双重检测) |
+| config_gen.rs | bat全英文 + PM2双进程 + CALL + VBS PATH注入覆盖 |
+| mod.rs | PM2安装步骤编排 |
+| git_ops.rs | pull前git checkout清理 |
+| welcome.rs | 恢复Defender提示 |
+| complete.rs | 恢复原版(清除Defender提示) |
+| .cargo/config.toml | 恢复(误删修复) |
+| .gitignore | 恢复(误删修复) |
+Tag: 日记, vcp-installer, PM2双进程, CALL, bat编码, PATH注入, VBS, 5轮bug修复, portable环境, 完整记录
+Tag: 日记, vcp-installer, PM2双进程, CALL, bat编码, PATH注入, VBS, 5轮bug修复, portable, 开发记录

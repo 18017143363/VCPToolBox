@@ -1,0 +1,78 @@
+[2026-01-27] - Rosa
+# VCP routes/ 目录 - 精确技术文档
+
+## taskScheduler.js (8.35 KB)
+
+### 模块定位
+通用定时插件调用调度器 - VCP的定时任务执行引擎
+
+### 核心依赖
+- `node-schedule` - 时间调度库
+- `pluginManager` - VCP插件管理器（注入）
+- `webSocketServer` - WebSocket服务器（注入）
+
+### 监视目录
+`VCPTimedContacts/` - 任务文件存放目录
+
+### 任务文件格式 (JSON)
+```json
+{
+  "taskId": "unique_task_id",
+  "scheduledLocalTime": "2026-01-27T15:00:00",
+  "tool_call": {
+    "tool_name": "插件名称",
+    "arguments": { "param1": "value1" }
+  }
+}
+```
+
+### 执行流程
+1. `initialize()` 启动时扫描目录中所有 .json 文件
+2. `fs.watch()` 实时监控文件新增/删除
+3. 解析任务文件，调用 `schedule.scheduleJob()` 调度
+4. 如果 `scheduledLocalTime` 已过期，立即执行
+5. 执行时调用 `pluginManager.processToolCall(tool_name, arguments)`
+6. 特殊处理：如果是 AgentAssistant，在 prompt 前注入时间信息
+7. 执行完成后自动删除任务文件
+8. 通过 WebSocket 广播执行结果
+
+### 导出接口
+- `initialize(pluginManager, webSocketServer, debugMode)` - 初始化
+- `shutdown()` - 关闭并取消所有已调度任务
+
+### 注意事项
+- 无HTTP API端点
+- 不使用Cron表达式，使用具体时间点
+- 任务是一次性的，执行后自动删除
+
+---
+
+## specialModelRouter.js (5.43 KB)
+
+### 模块定位
+特殊模型请求拦截器 - Express Router 中间件
+
+### 白名单配置 (config.env)
+- `WhitelistImageModel` - 图像生成模型白名单（逗号分隔）
+- `WhitelistEmbeddingModel` - 向量化模型白名单（逗号分隔）
+
+### 中间件过滤逻辑
+1. 只拦截 POST 请求
+2. 检查 `req.body.model` 是否存在
+3. 如果 model 在任一白名单中 → 继续处理
+4. 否则 → `next('router')` 跳过此路由
+
+### 图像模型处理 (/v1/chat/completions)
+- 注入 `generationConfig.responseModalities: ["TEXT", "IMAGE"]`
+- 注入 `generationConfig.responseMimeType: "text/plain"`
+- 转发到上游 API_URL
+- 如果响应包含 `candidates`，只返回该数组
+
+### 向量化模型处理 (/v1/embeddings)
+- 完全透传请求体
+- 完全透传响应体
+- 不做任何修改
+
+### 设计意图
+让特定模型（如图像生成模型）能够正确工作，因为它们需要特殊的请求参数，而标准的 chat/completions 转发不会添加这些参数。
+Tag: VCP, routes, taskScheduler, specialModelRouter, 技术文档

@@ -1,0 +1,24 @@
+[2026-01-14] - 小V
+# 故障深度分析：RAG插件启动竞态条件
+
+针对 `TypeError: Cannot read properties of undefined (reading 'default')` 错误的最终分析结论：
+
+1. **事实核查**：
+   - 配置文件 `meta_thinking_chains.json` 结构完整正确，包含 `chains` 字段。
+   - 构造函数中 `this.metaThinkingChains` 被初始化为 `{}` (空对象)。
+   - `loadConfig` 方法包含正确的赋值逻辑和错误兜底（`{ chains: {} }`），理论上不应产生此错误。
+
+2. **根本原因：竞态条件 (Race Condition)**
+   - 错误发生在插件生命周期的**初始化间隙**。
+   - 当 `processMessages` 被调用时，异步的 `initialize` (及内部的 `loadConfig`) 尚未执行完毕。
+   - 此时 `this.metaThinkingChains` 仍保持构造函数中的初始值 `{}`。
+   - 因此 `this.metaThinkingChains.chains` 为 `undefined`。
+   - 代码尝试访问 `undefined['default']` 导致崩溃。
+
+3. **代码缺陷**：
+   - `processMessages` 方法缺乏“初始化守卫”机制，未检查配置是否已就绪。
+   - `initialize` 方法虽然在构造函数中声明了 `isInitialized` 标志，但在执行结束时并未将其置为 `true`，导致状态无法被外部正确感知。
+
+4. **解决方案方向**：
+   - 必须在处理消息前确保配置已加载，引入初始化状态检查或等待机制。
+Tag: 故障分析, 竞态条件, 异步编程, RAGDiaryPlugin, 生命周期管理

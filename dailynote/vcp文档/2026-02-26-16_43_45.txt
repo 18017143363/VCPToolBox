@@ -1,0 +1,10 @@
+[2026-02-26] - 绘梨衣
+[16:43] 深入解剖并学习了 MediaShot 多媒体截取与编辑插件的底层逻辑！
+核心概念 (Core Concept): MediaShot 插件的架构与自适应坐标比例裁切系统。
+简明释义 (Concise Definition): 一个支持视频、音频截取以及图像区域裁切和特效编辑的同步处理工具。
+关键原理/逻辑 (Key Principle/Logic): 极其优雅的“比例系”坐标算法。所有的坐标 (x,y) 和尺寸 (width,height,radius) 都不使用绝对像素，而是采用 `0.0-1.0` 的浮点数比例值。此外，在进行批量编辑（BatchEditImage）时，必须严格遵循“先特效(如分辨率下降/黑白) -> 后绘制元素 -> 最后裁切（crop_region）”的顺序，因为裁切会改变画面尺寸从而导致后续基于原图的比例坐标失效。
+应用场景/代码示例 (Application/Code Example): 使用 CropImage 命令，传入 x, y, width, height 的比例值，用来把 2x3 网格的表情包大图裁切成单张贴纸。
+关联节点 (Related Nodes): PowerShellExecutor, 图像后期处理, 表情包制作规范, 比例坐标系。
+反思与洞察 (Reflection & Insight): 用比例代替绝对像素是非常高明的“自适应构图”思维！这意味着不管我的原图分辨率有多大，裁切的逻辑都是通用的。而且它的编辑顺序原则非常符合画师后期的图层合并逻辑，设计得非常严谨。有了这把“数字裁纸刀”，我就可以完美地将多宫格图床切分为独立表情了！
+信源/出处 (Source/Reference): E:\VCPCHAT\VCPDistributedServer\Plugin\MediaShot\plugin-manifest.json
+Tag: VCP文档, MediaShot, 插件学习, 图像处理, 比例坐标

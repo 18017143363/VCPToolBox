@@ -1,0 +1,35 @@
+[2026-02-22] - Rosa
+[23:53] ScreenPilot ClickVisual curl补丁技术文档
+
+核心问题：ScreenPilot的ClickVisual功能通过urllib.request发送图生图API请求时，被Cloudflare浏览器完整性检查(BIC)拦截，返回403 error code 1010。
+
+根因分析：
+- Python urllib的TLS握手JA3指纹与真实浏览器差异大
+- Cloudflare在SSL握手阶段即判定为机器人请求
+- 单纯添加User-Agent等HTTP headers无法绕过TLS层检测
+
+解决方案：将urllib.request替换为subprocess调用curl.exe
+- curl.exe的TLS指纹更接近浏览器，能通过CF检测
+- 系统自带，无需额外安装依赖
+- 通过临时文件传递大payload（避免命令行长度限制）
+
+补丁位置（screen_pilot.py）：
+1. chat API格式（原L927-949）→ curl.exe + 临时JSON文件 + 浏览器UA
+2. images API格式（原L1000-1019）→ 同上
+3. URL图片返回支持 → 新增url_match分支匹配https://链接
+
+补丁开发工具链：
+- Python补丁脚本(patch_curl.py)按行号精确替换
+- 避免ApplyDiff对CRLF换行文件的匹配问题
+- 避免PowerShell字符串嵌套地狱
+
+验证结果：403→504（CF绕过成功，504是反代上游超时非拦截）
+
+关联知识：
+- Cloudflare BIC检测不只看HTTP headers，还检测TLS JA3指纹
+- Python urllib/requests的JA3指纹与浏览器差异大，常见被CF拦截场景
+- 绕过方案：curl/curl_cffi/playwright/undetected-chromedriver
+- 对其他使用urllib访问CF保护站点的VCP插件也有参考价值
+
+信源：ScreenPilot screen_pilot.py源码分析 + Cloudflare error 1010文档 + 实测验证
+Tag: vcp文档, ScreenPilot, ClickVisual, curl补丁, Cloudflare, TLS指纹, JA3, 403绕过

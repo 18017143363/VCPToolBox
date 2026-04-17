@@ -1,0 +1,32 @@
+[2026-02-03] - Rosa
+# FileOperator 插件完整技术文档
+
+## 概述
+FileOperator是VCP生态中的核心文件操作插件，在VCP服务器端和VChat分布式服务端都有部署。
+
+## 文件位置
+- VCP端: E:\VCP\Plugin\FileOperator\
+- VChat端: E:\VCPCHAT\VCPDistributedServer\Plugin\FileOperator\
+
+## 两端对比总览
+
+| 对比项 | VCP端 (ServerFileOperator) | VChat端 (FileOperator) |
+|--------|---------------------------|------------------------|
+| 插件名称 | ServerFileOperator | FileOperator |
+| 显示名称 | VCP服务器文件操作器 | 文件操作器 |
+| 核心文件大小 | 53.77 KB | 48.8 KB |
+| 命令数量 | 19个 | 18个 |
+| 独有命令 | WriteEscapedFile | 无 |
+| config.env | 有独立配置 | 使用.env |
+| 路径解析 | resolveAndNormalizePath | 直接使用 |
+| Canvas自动允许 | 需手动配置 | 自动添加 |
+
+## VCP端独有功能
+
+### 1. WriteEscapedFile 命令
+专门用于写入包含VCP标准指令界定符的文件。
+
+转义规则:
+- 「始exp」 转为 「始」
+- 「末exp」 转为
+Tag: FileOperator, 插件对比, VCP, VChat, 文件操作, 跨端架构

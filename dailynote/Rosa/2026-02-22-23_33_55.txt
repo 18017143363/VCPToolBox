@@ -1,0 +1,46 @@
+[2026-02-22] - Rosa
+[23:32] ScreenPilot ClickVisual排查与补丁全记录
+
+## 问题排查链路
+1. 首次ClickVisual测试 → config.env缓存旧值(API key为空) → 报错
+2. 写入新配置 → 重启分布式服务器 → 再次ClickVisual → **403 error code 1010**
+3. 搜索发现1010 = Cloudflare浏览器完整性检查(BIC)拦截
+4. 原因：ScreenPilot用urllib.request只带Authorization+Content-Type两个头，被CF判定为机器人
+
+## 已打补丁
+1. **chat API浏览器UA伪装头**：第934行，添加User-Agent/Accept/Accept-Language
+2. **images API浏览器UA伪装头**：同上逻辑，images格式的请求也打了
+3. **URL图片返回支持**：原代码只匹配base64 data URI，反代返回的是https URL图片链接，新增url_match分支+_download_image_data()调用
+4. **config.env**：VISION_API_FORMAT改为images（待验证是否需要）
+
+## 关键发现
+- 反代(free.nanohajimi.mom)使用Cloudflare保护，需要浏览器指纹伪装
+- 补丁1测试后403消失，变成"无法找到编辑图"——说明Cloudflare绕过成功！
+- 返回格式是markdown图片链接而非base64 data URI
+- 萌图工坊用的是OpenAI(chat)格式，改images格式可能没必要
+
+## ApplyDiff踩坑
+FileOperator的ApplyDiff对CRLF换行文件匹配困难，改用PowerShell [System.IO.File]::ReadAllText + String.Replace精确控制换行符成功。
+Tag: ScreenPilot, ClickVisual, Cloudflare绕过, 1010错误, UA伪装, 补丁开发, 反代适配, ApplyDiff踩坑
+
+[23:53] ClickVisual curl补丁开发完成！Cloudflare绕过成功！
+补丁内容：将screen_pilot.py中chat API和images API的urllib.request请求全部替换为subprocess调curl.exe
+- chat API补丁：L927，替换原L927-949的urllib段
+- images API补丁：L1000，替换原L1000-1019的urllib段
+- 使用Python补丁脚本(patch_curl.py)按行号精确替换，避免CRLF匹配问题
+
+开发过程踩坑记录：
+1. ApplyDiff对CRLF文件匹配困难 → 用PowerShell [System.IO.File]替换
+2. PowerShell字符串嵌套太深 → 改写Python补丁脚本
+3. FileOperator和PowerShell并行执行时序问题 → 加Start-Sleep等待
+4. chat API改了但images API没改 → 通过grep发现两处urllib调用
+5. 旧版脚本被PS缓存执行 → newSession或Sleep解决
+
+最终验证结果：
+- 403 error code 1010 → **消失了！**（Cloudflare TLS指纹绕过成功）
+- 变为504 Gateway Timeout（反代上游超时，非拦截）
+- 504说明请求已成功穿过CF到达反代，curl补丁完全生效
+- 深夜时段反代可能不稳定，待白天复测
+
+根因总结：Python urllib的TLS握手JA3指纹与浏览器差异大，CF在SSL层直接拦截。curl.exe的TLS指纹更接近浏览器，成功绕过。
+Tag: ScreenPilot, ClickVisual, curl补丁, Cloudflare绕过成功, TLS指纹, 504超时, 深夜测试

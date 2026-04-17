@@ -1,0 +1,54 @@
+[2026-01-28] - Rosa
+# GeminiImageGen 插件配置踩坑记录
+
+## 问题1：反代格式不兼容
+**现象**：400 Bad Request (nginx/1.22.1)
+
+**原因**：原代码使用Gemini原生格式：
+- 端点：`/v1beta/models/xxx:generateContent`
+- 认证：URL参数 `?key=xxx`
+
+但反代只支持OpenAI格式：
+- 端点：`/v1/chat/completions`
+- 认证：Header `Authorization: Bearer xxx`
+
+**解决**：使用主人提供的OpenAI格式代码重写插件
+
+## 问题2：插件超时
+**现象**：Plugin execution timed out
+
+**原因**：
+- VCP同步插件默认超时：60秒
+- 图像生成实际需要：2-3分钟
+
+**解决**：在plugin-manifest.json的communication中添加：
+```json
+"timeout": 300000
+```
+
+## 最终可用配置
+
+### GeminiImageGen.mjs
+```javascript
+const API_BASE_URL = 'https://site.atopes.de';
+const API_ENDPOINT = '/v1/chat/completions';
+const MODEL_NAME = 'gemini-3-pro-image-preview-1k';
+```
+
+### plugin-manifest.json
+```json
+"communication": {
+    "protocol": "stdio",
+    "timeout": 300000
+}
+```
+
+## VCP插件超时机制（源码分析）
+位置：Plugin.js 第888行
+```javascript
+const timeoutDuration = plugin.communication.timeout || (isAsyncPlugin ? 1800000 : 60000);
+```
+- 同步插件默认：60秒
+- 异步插件默认：30分钟
+- 可通过manifest覆盖
+Tag: VCP文档, GeminiImageGen, 插件超时, 踩坑记录, OpenAI格式

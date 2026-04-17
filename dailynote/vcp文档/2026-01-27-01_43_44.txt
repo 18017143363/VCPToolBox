@@ -1,0 +1,130 @@
+[2026-01-27] - Rosa
+# SSHManager 模块技术文档
+
+## 概述
+SSHManager是VCP分布式算力调度的基础设施，提供多主机SSH连接管理能力。
+
+## 文件结构
+```
+modules/SSHManager/
+├── index.js (6.89 KB) - 单例模式入口
+├── SSHManager.js (47.31 KB) - 核心实现
+└── hosts.json (5.21 KB) - 主机配置
+```
+
+## 核心功能
+
+### 1. 连接管理
+- **connect(hostId, options)** - 建立SSH连接
+- **disconnect(hostId)** - 断开指定连接
+- **disconnectAll()** - 断开所有连接
+- **testConnection(hostId)** - 测试连接可用性
+
+### 2. 命令执行
+- **execute(hostId, command, options)** - 执行远程命令
+- **executeLocal(command, options)** - 本地执行
+- **executeSSH(connection, command, options)** - SSH远程执行
+
+### 3. 流式会话
+- **createStreamSession(hostId, command, options)** - 创建流式会话
+- **getActiveStreamSessions()** - 获取活跃会话列表
+- **stopAllStreamSessions()** - 停止所有会话
+
+## 连接池机制
+
+### 配置项
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| maxConcurrentConnections | 5 | 最大并发连接数 |
+| connectionPoolSize | 10 | 连接池大小 |
+| retryAttempts | 3 | 重试次数 |
+| retryDelay | 1000 | 重试间隔(ms) |
+| defaultTimeout | 30000 | 默认超时(ms) |
+
+### 连接流程
+1. 检查是否为local类型 → 直接返回
+2. 检查连接池是否有可用连接 → 复用
+3. waitForConnectionSlot() - 等待全局槽位
+4. acquireHostLock(hostId) - 获取主机级锁
+5. connectWithRetry() - 带重试的连接
+6. _connectInternal() - 实际建立SSH连接
+
+## 安全机制
+
+### PAM保护
+- 主机级认证锁：同一主机的连接请求串行化
+- 防止并发认证导致PAM锁定账户
+
+### SSH配置
+```javascript
+{
+    tryKeyboard: false,  // 禁用键盘交互
+    keepaliveInterval: 10000,
+    keepaliveCountMax: 3
+}
+```
+
+### 状态持久化
+- 使用临时文件 + 重命名的原子写入
+- 自动备份恢复机制
+
+## hosts.json 配置格式
+
+```json
+{
+    "hosts": {
+        "hostId": {
+            "name": "显示名称",
+            "type": "ssh|local",
+            "enabled": true,
+            "host": "IP地址",
+            "port": 22,
+            "username": "用户名",
+            "authMethod": "key|password",
+            "privateKeyPath": "私钥路径",
+            "password": "密码",
+            "jumpHost": "跳板机ID",
+            "securityLevel": "standard|high|maximum",
+            "timeout": 30000,
+            "tags": ["tag1", "tag2"]
+        }
+    },
+    "defaultHost": "local",
+    "globalSettings": { ... }
+}
+```
+
+## 流式会话API
+
+```javascript
+const session = await sshManager.createStreamSession(hostId, 'tail -f /var/log/syslog');
+
+session.onData = (text) => { /* 原始数据 */ };
+session.onLine = (line) => { /* 按行处理 */ };
+session.onError = (err) => { /* 错误处理 */ };
+session.onClose = () => { /* 关闭回调 */ };
+
+session.start();   // 启动
+session.stop();    // 发送Ctrl+C
+session.destroy(); // 强制关闭
+session.getStats(); // 获取统计
+```
+
+## 使用示例
+
+```javascript
+const { getSSHManager } = require('./modules/SSHManager');
+
+const sshManager = getSSHManager();
+
+// 执行远程命令
+const result = await sshManager.execute('HK-server', 'ls -la');
+console.log(result.stdout);
+
+// 测试连接
+const status = await sshManager.testConnection('DE-server');
+console.log(status.success ? '连接成功' : '连接失败');
+```
+
+Tag: VCP文档, SSHManager, SSH, 分布式, 远程执行
+Tag: VCP文档, SSHManager, SSH, 分布式, 远程执行

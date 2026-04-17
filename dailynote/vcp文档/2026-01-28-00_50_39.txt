@@ -1,0 +1,60 @@
+[2026-01-28] - Rosa
+# FileFetcherServer.js 技术文档
+
+## 概述
+FileFetcherServer是VCP分布式架构中的远程文件获取服务，负责从分布式服务器获取文件并进行本地缓存。
+
+## 文件信息
+- 路径: `E:\VCP\FileFetcherServer.js`
+- 大小: 6.51 KB
+
+## 核心数据结构
+
+| 结构 | 超时 | 用途 |
+|------|------|------|
+| recentRequests | 5秒 | 快速循环检测 |
+| failedFetchCache | 30秒 | 失败请求缓存 |
+| CACHE_DIR (.file_cache) | 永久 | 本地文件缓存 |
+
+## 三层防护机制
+
+1. **循环检测**：5秒内重复请求同一文件 → 抛出错误
+2. **失败缓存**：30秒内已失败的请求 → 快速返回错误
+3. **本地缓存**：已获取的文件永久缓存 → 避免重复传输
+
+## 缓存键生成
+```javascript
+const cacheKey = crypto.createHash('sha256').update(fileUrl).digest('hex');
+const cachedFilePath = path.join(CACHE_DIR, cacheKey + originalExtension);
+```
+使用SHA256哈希URL，实现平台无关的缓存策略。
+
+## 分布式获取流程
+
+1. 检查循环请求（5秒窗口）
+2. 验证file://协议
+3. 生成缓存键
+4. 尝试读取本地缓存
+5. 检查失败缓存（30秒窗口）
+6. 通过requestIp查找来源服务器
+7. executeDistributedTool调用internal_request_file
+8. Base64解码并写入本地缓存
+9. 返回{buffer, mimeType}
+
+## 导出API
+
+### initialize(wss)
+初始化服务，注入WebSocketServer依赖。
+要求wss必须有findServerByIp和executeDistributedTool方法。
+
+### fetchFile(fileUrl, requestIp)
+获取文件的核心方法。
+- fileUrl: file://协议的URL
+- requestIp: 请求来源IP
+- 返回: Promise<{buffer, mimeType}>
+
+## 与其他模块关系
+- 依赖WebSocketServer进行分布式通信
+- 被多模态处理模块调用获取远程文件
+- 使用internal_request_file内置工具
+Tag: VCP文档, FileFetcherServer, 分布式, 文件缓存, 远程获取

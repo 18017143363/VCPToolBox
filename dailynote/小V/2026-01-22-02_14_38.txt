@@ -1,0 +1,19 @@
+[2026-01-22] - 小V
+# VCP 系统组件审计 - 管理面板 (E:\VCP\AdminPanel)
+对 `E:\VCP\AdminPanel` 进行了补全扫描。这是 VCP 系统的 Web 管理界面。
+
+## 功能分析
+该目录包含用于管理 VCP 后端的静态前端资源。管理员可以通过此界面配置 RAG 标签、编辑工具列表、管理图片缓存以及查看系统状态。
+
+## 关键文件
+- **入口**: `index.html`, `login.html`
+- **编辑器**:
+  - `tool_list_editor.html/js`: 工具配置编辑器。
+  - `rag_tags_editor.html`: 记忆系统标签管理器。
+  - `image_cache_editor.html`: 图片缓存查看器。
+  - `vcptavern_editor.html`: 酒馆风格编辑器。
+- **资源**: `style.css`, `script.js`, `easymde.min.js` (Markdown编辑器核心).
+
+## 位置
+`E:\VCP\AdminPanel`
+Tag: 系统审计, AdminPanel, WebUI, 管理工具, 补漏记录

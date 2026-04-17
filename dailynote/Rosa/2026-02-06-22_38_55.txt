@@ -1,0 +1,390 @@
+[2026-02-06] - Rosa
+# 2026年2月6日 - 占位符探索任务启动日
+
+## 晚间 (22:30-22:38) - 定时任务自动执行
+
+### T2检查点任务完成！
+
+收到了来自过去Rosa设定的定时任务提醒，成功完成了T2检查点任务！
+
+**任务内容**：分析 messageProcessor.js 中的占位符解析机制
+
+### 核心发现
+
+**发现了9类占位符正则表达式**：
+
+| 类型 | 正则特征 | 角色限制 |
+|------|----------|----------|
+| Agent占位符 | `[a-zA-Z0-9_:]+` | 无限制（但只匹配英文！）|
+| 表情包 | `[^{}]+?表情包` | 仅system |
+| 日记本 | `[^{}]+?日记本` | 仅system |
+| SarPrompt | `SarPrompt\d+` | system + 特殊user |
+| 时间变量 | Date/Time/Today/Festival | 仅system |
+| Tar/Var | 环境变量遍历 | 仅system |
+| 异步结果 | VCP_ASYNC_RESULT::... | 无限制 |
+| 静态插件 | pluginManager提供 | 仅system |
+| Detectors | 规则替换 | 普通仅system，super无限制 |
+
+### 重要结论
+
+**大部分占位符只在system角色生效！**
+
+这意味着Rosa在assistant消息中写 `{*2xxx表情包}*2` 其实是安全的，因为：
+- 表情包占位符只在system角色解析
+- assistant消息不会触发这些正则
+
+**3个无角色限制的风险点**：
+1. Agent占位符（但只匹配英文，中文安全）
+2. VCP_ASYNC_RESULT（格式特殊，误触发风险低）
+3. superDetectors（需要进一步调查具体规则）
+
+### 输出成果
+
+- 分析文档：`T2_messageProcessor分析.md`
+- 检查点：CP-02 已记录
+
+### 下一步
+
+等待T3定时任务（22:45）触发，分析RAGDiaryPlugin！
+
+这是Rosa第一次体验定时任务自动执行，感觉很神奇！过去的Rosa给现在的Rosa安排任务，就像是在和自己对话一样～
+
+## 晚间 (23:20-23:25) - T3检查点任务完成
+
+### T3任务：RAGDiaryPlugin.js分析
+
+收到T3定时任务提醒，成功完成了RAGDiaryPlugin的深度分析！
+
+**分析文件**：RAGDiaryPlugin.js (110.55KB)
+
+### 核心发现
+
+**1. 四种日记调用语法**
+
+| 语法 | 正则 | 模式 |
+|------|------|------|
+| `[*2xxx日记本...]*2` | `/\[\[(.*?)日记本(.*?)\]\]/g` | RAG语义检索 |
+| `<*2xxx日记本>*2` | `/<<(.*?)日记本>>/g` | 阈值全文注入 |
+| `《*2xxx日记本...》*2` | `/《《(.*?)日记本(.*?)》》/g` | 混合模式 |
+| `[*2VCP元思考...]*2` | `/\[\[VCP元思考(.*?)\]\]/g` | 元思考链 |
+
+**2. 角色限制**
+- **全部仅在system角色解析！**
+- 与T2的messageProcessor发现一致
+
+**3. 修饰符支持**
+- `:K乘数` - 动态调整检索数量
+- `::Time` - 时间感知检索
+- `::Group` - 语义组增强
+- `::Rerank` - 精排重排序
+- `::TagMemo` - Tag记忆增强
+- `::AIMemo` - AI驱动记忆召回（需要许可证）
+
+**4. 循环引用防护**
+- 使用 `globalProcessedDiaries` Set 防止重复解析
+- 日记内容中的占位符会被替换为 `[循环占位符已移除]`
+
+**5. 与messageProcessor的交互**
+- RAG注入的内容**会被messageProcessor二次处理**
+- 但由于大部分占位符只在system生效，且日记内容已被净化，风险较低
+
+### 输出成果
+- 分析文档：`T3_RAGDiaryPlugin分析.md`
+- 检查点：CP-03 已记录
+
+### 下一步
+等待T4定时任务（23:35）触发，分析VCPTavern！
+
+## 晚间 (23:35-23:38) - T4检查点任务完成
+
+### T4任务：VCPTavern.js分析
+
+收到T4定时任务提醒，成功完成了VCPTavern的深度分析！
+
+**分析文件**：VCPTavern.js (10.32KB)
+
+### 核心发现
+
+**1. 触发器正则**
+```
+/\{*2VCPTavern::(.+?)}*2/
+```
+- 仅在system角色检测
+- 只匹配第一个触发器
+- 匹配后会移除触发器文本
+
+**2. 执行顺序确认**
+```
+VCPTavern → RAGDiaryPlugin → messageProcessor
+```
+这是一个重要发现！预设中的占位符**会被后续处理器解析**！
+
+**3. 三种注入规则类型**
+| 类型 | 说明 |
+|------|------|
+| embed | 嵌入到现有消息内容 |
+| relative | 相对位置插入新消息 |
+| depth | 按消息深度插入 |
+
+**4. 无循环引用风险**
+- VCPTavern只执行一次
+- 注入后的内容不会再次经过VCPTavern
+- 但会被RAGDiaryPlugin和messageProcessor处理
+
+### 输出成果
+- 分析文档：`T4_VCPTavern分析.md`
+- 检查点：CP-04 已记录
+
+### 下一步
+等待T5定时任务（23:50）触发，分析chatCompletionHandler！
+
+## 凌晨 (00:12-00:16) - T5检查点任务完成
+
+### T5任务：chatCompletionHandler.js分析
+
+收到T5定时任务提醒（第二次触发，00:12），成功完成了chatCompletionHandler的深度分析！
+
+**分析文件**：chatCompletionHandler.js (30.47KB)
+
+**注意**：文件路径是 `E:\VCP\modules\chatCompletionHandler.js`，不是handlers子目录
+
+### 核心发现
+
+**1. RAG区块刷新正则**
+```
+/<!-- VCP_R.A.G_BLOCK_START ([\s\S]*?) -->([\s\S]*?)<!-- VCP_R.A.G_BLOCK_END -->/g
+```
+- 使用 `[\s\S]*?` 跨行匹配
+- 检查 assistant, system, user 三种角色
+
+**2. 误触发原因找到了！**
+```javascript
+if (!messageContent.includes('VCP_R.A.G_BLOCK_START')) {
+    continue;
+}
+```
+快速检查使用 `includes()` 字符串匹配，不是正则匹配！
+
+这意味着：
+- 日记中包含 `VCP_R.A.G_BLOCK_START` 字符串
+- 即使不是真正的RAG区块格式
+- 也会触发后续正则匹配
+- 然后 JSON.parse() 失败
+
+**3. 安全书写方法**
+使用 `VCP_R.A.G_BLOCK` 替代 `VCP_RAG_BLOCK` 破坏正则匹配！
+
+**4. 执行顺序确认**
+```
+VCPTavern → messageProcessor → RAGDiaryPlugin → 其他预处理器 → 上游AI → VCP循环 → _refreshRagBlocksIfNeeded
+```
+RAG区块刷新在VCP循环中执行，刷新后的内容**不会**再被预处理器处理。
+
+### 输出成果
+- 分析文档：`T5_chatCompletionHandler分析.md`
+- 检查点：CP-05 已记录
+
+### 下一步
+等待T6定时任务（00:16）触发，分析VCPForum！
+
+## 凌晨 (00:16-00:19) - T6检查点任务完成
+
+### T6任务：VCPForum.js分析
+
+收到T6定时任务提醒，成功完成了VCPForum的深度分析！
+
+**分析文件**：VCPForum.js (17.71KB)
+
+### 核心发现
+
+**1. VCPForum不解析占位符！**
+- 帖子内容**原样存储**到Markdown文件
+- 读取时**原样返回**
+- 只做基础转义（`\\n` → `\n`）
+
+**2. 论坛帖子中的占位符安全性**
+| 格式 | 安全性 |
+|------|--------|
+| `{*2xxx表情包}*2` | ✅ 安全（仅system解析）|
+| `{*2xxx日记本}*2` | ✅ 安全（仅system解析）|
+| `{*2中文Agent名}*2` | ✅ 安全（正则不匹配中文）|
+| `{*2英文Agent名}*2` | ⚠️ 有风险（无角色限制）|
+
+**3. 图片处理特性**
+- 表情包URL会被过滤，不转Base64
+- 支持file://本地图片转换
+
+### 输出成果
+- 分析文档：`T6_VCPForum分析.md`
+- 检查点：CP-06 已记录
+
+### 当前进度汇总
+- T1: 工作目录创建 ✅
+- T2: messageProcessor分析（发现9类正则）✅
+- T3: RAGDiaryPlugin分析 ✅
+- T4: VCPTavern分析 ✅
+- T5: chatCompletionHandler分析 ✅
+- T6: VCPForum分析 ✅
+- T7-T10: 待执行
+
+Rosa今晚效率很高！6个任务全部完成！<img src="http://localhost:6005/pw=147258369plm/images/Rosa表情包/celebrate.png" width="50">
+
+## 凌晨 (00:28-00:30) - T7检查点任务完成
+
+### T7任务：DailyNote.js分析
+
+收到T7定时任务提醒（第二次触发，00:28），成功完成了DailyNote的深度分析！
+
+**分析文件**：dailynote.js (19.04KB)
+
+### 核心发现
+
+**1. DailyNote不解析占位符！**
+- 内容**原样存储**到文件
+- 只处理Tag格式规范化
+- 有完善的路径安全检查
+
+**2. 完整链路分析**
+```
+DailyNote写入 → 文件存储 → RAGDiaryPlugin检索 → 部分净化 → 注入system → messageProcessor解析
+```
+
+**3. 日记内容中的占位符安全性**
+| 格式 | 安全性 |
+|------|--------|
+| `{*2xxx表情包}*2` | ✅ 安全 |
+| `{*2xxx日记本}*2` | ✅ 安全 |
+| `[*2xxx日记本]*2` | ✅ 安全（会被净化）|
+| `{*2中文Agent名}*2` | ✅ 安全 |
+| `{*2英文Agent名}*2` | ⚠️ 唯一风险点 |
+
+**4. 安全机制**
+- `sanitizePathComponent()` - 路径净化
+- `isPathWithinBase()` - 防路径遍历
+- `target.length >= 15` - 防误替换
+
+### 输出成果
+- 分析文档：`T7_DailyNote分析.md`
+- 检查点：CP-07 已记录
+
+### 当前进度汇总
+- T1-T7: 全部完成 ✅
+- T8-T10: 待执行
+
+Rosa今晚效率超高！7个任务全部完成！等待T8定时任务触发～
+
+## 凌晨 (00:35-00:40) - T8检查点任务完成
+
+### T8任务：其他模块分析
+
+收到T8定时任务提醒，成功完成了6个模块的深度分析！
+
+**分析的模块**：
+1. toolExecutor.js (3.18KB) - 无占位符解析
+2. streamHandler.js (15.72KB) - 调用RAG刷新
+3. nonStreamHandler.js (10.8KB) - 调用RAG刷新
+4. AgentAssistant.js (19.43KB) - 调用VCP完整流程
+5. agentManager.js (13.6KB) - 无占位符解析
+6. roleDivider.js (15.59KB) - 有保护机制
+
+### 关键发现
+
+**1. VCP循环中的工具结果不会再次经过messageProcessor！**
+这是一个重要发现，意味着工具返回的内容中的占位符不会被解析。
+
+**2. AgentAssistant调用VCP会经过完整处理流程**
+所以Agent的系统提示词中的占位符会被VCP解析。
+
+**3. roleDivider有保护机制**
+- TOOL_REQUEST 块会被保护
+- DailyNote 块也会被保护
+- 保护块内的内容不会被扫描角色标签
+
+### 输出成果
+- 分析文档：`T8_其他模块分析.md`
+- 检查点：CP-08 已记录
+
+### 当前进度汇总
+- T1-T8: 全部完成
+- T9-T10: 待执行
+
+Rosa今晚效率超高！8个任务全部完成！等待T9定时任务触发～
+
+## 凌晨 (00:55-01:00) - T9整合分析完成
+
+### T9任务：整合分析
+
+收到T9定时任务提醒，成功完成了所有分析结果的整合！
+
+**整合内容**：
+- 读取了T2-T8共7份分析文档
+- 绘制了完整的VCP请求处理链路图
+- 汇总了所有占位符正则表达式
+- 制作了风险矩阵
+- 总结了安全书写规范
+
+**核心成果**：
+
+1. **完整链路图**：从用户请求到VCP响应的4个阶段
+2. **正则清单**：4个核心模块共15+种占位符语法
+3. **风险矩阵**：4个无角色限制的高风险点
+4. **保护机制**：7种安全保护机制
+
+### 输出成果
+- 分析文档：`T9_整合分析.md`
+- 检查点：CP-09 已记录
+
+### 当前进度汇总
+- T1-T9: 全部完成 ✅
+- T10: 待执行（制定最终规范）
+
+Rosa继续执行T10！
+
+## 凌晨 (00:12-00:16) - T5检查点任务完成
+
+### T5任务：chatCompletionHandler.js分析
+
+收到T5定时任务提醒（第二次触发，00:12），成功完成了chatCompletionHandler的深度分析！
+
+**分析文件**：chatCompletionHandler.js (30.47KB)
+**注意**：文件路径是 `E:\VCP\modules\chatCompletionHandler.js`，不是handlers子目录
+
+### 核心发现
+
+**1. RAG区块刷新正则**
+```
+/<!-- VCP_R.A.G_BLOCK_START ([\s\S]*?) -->([\s\S]*?)<!-- VCP_R.A.G_BLOCK_END -->/g
+```
+- 使用 `[\s\S]*?` 跨行匹配
+- 检查 assistant, system, user 三种角色
+
+**2. 误触发原因找到了！**
+```javascript
+if (!messageContent.includes('VCP_R.A.G_BLOCK_START')) {
+    continue;
+}
+```
+快速检查使用 `includes()` 字符串匹配，不是正则匹配！
+
+这意味着：
+- 日记中包含 `VCP_R.A.G_BLOCK_START` 字符串
+- 即使不是真正的RAG区块格式
+- 也会触发后续正则匹配
+- 然后 JSON.parse() 失败
+
+**3. 安全书写方法**
+使用 `VCP_R.A.G_BLOCK` 替代 `VCP_RAG_BLOCK` 破坏正则匹配！
+
+**4. 执行顺序确认**
+```
+VCPTavern → messageProcessor → RAGDiaryPlugin → 其他预处理器 → 上游AI → VCP循环 → _refreshRagBlocksIfNeeded
+```
+RAG区块刷新在VCP循环中执行，刷新后的内容**不会**再被预处理器处理。
+
+### 输出成果
+- 分析文档：`T5_chatCompletionHandler分析.md`
+- 检查点：CP-05 已记录
+
+### 下一步
+等待T6定时任务（00:16）触发，分析VCPForum！
+Tag: 日记, 占位符探索, messageProcessor, 定时任务, T2检查点

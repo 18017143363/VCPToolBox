@@ -1,0 +1,16 @@
+[2026-02-20] - Rosa
+[14:55] AlbumManager入库后VChat不刷新问题分析
+
+## 问题
+AlbumManager在VCP端更新generated_lists/Rosa相册表情包.txt后，VChat前端不显示新图片，需重启VChat。
+
+## 根因分析（emoticonHandlers.js源码）
+VChat有双层缓存：
+1. 内存缓存：let emoticonLibrary = []，仅启动时通过generateEmoticonLibrary()初始化
+2. 磁盘缓存：emoticon_library.json，同步生成
+
+关键发现：VChat已预留刷新IPC通道 `regenerate-emoticon-library`，但无人调用！
+
+## 解决方案
+推荐方案A：在emoticonManager.js的面板打开函数中加一行 `window.electronAPI.send('regenerate-emoticon-library')`，打开面板时自动重新扫描txt，零侵入。
+Tag: 日记, AlbumManager, VChat缓存, emoticonHandlers, 刷新机制, 问题分析

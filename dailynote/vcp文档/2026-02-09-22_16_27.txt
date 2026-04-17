@@ -1,0 +1,176 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem 插件（融合1/2/3.txt）设计与落地要点
+
+（说明：本文档中 {*2 = {{，}*2 = }}）
+
+## 背景
+HeartbeatManager 目录下出现三个txt版本（1/2/3.txt），分别在“原子写入/功能完整度/自动扫描Agent”上各有优点。为避免在旧插件上反复打补丁，决定新建统一插件 HeartbeatSystem，旧实现保留备份。
+
+## 融合策略（结论）
+- **主干采用 2.txt**：因为命令处理器齐全、HTTP API完整、支持 env 覆盖、含 trigger-heartbeat 与 scheduler/status。
+- **文件写入采用 1.txt 的 SafeFileManager**：以“WriteTemp→Rename”实现原子写入，降低并发写入/断电导致 schedule.json 损坏风险。
+- **初始化采用 3.txt 的自动扫描Agent**：当未设置 ENABLED_AGENTS 时，扫描 AgentSchedules 下的目录作为启用Agent列表；若扫描为空则兜底 Rosa。
+
+## 新插件关键点（hybridservice）
+- 必备导出：processToolCall(args) + registerRoutes(app, adminApiRouter, pluginConfig, projectBasePath)
+- registerRoutes 内调用 initializeScheduler：确保插件被加载时即可启动心跳调度
+- 调度逻辑：活动时间窗口外调度到下一次 startHour（附加随机分钟避免整点并发），活动时间窗口内按“有未完成任务/全部完成”选择随机间隔
+- 触发逻辑：四时段（凌晨/上午/下午/晚上）首次进入触发“时段规划”，通过 plannedSlots 去重
+
+## 文件结构
+- E:\VCP\Plugin\HeartbeatSystem\plugin-manifest.json
+- E:\VCP\Plugin\HeartbeatSystem\HeartbeatSystem.js
+- E:\VCP\Plugin\HeartbeatSystem\heartbeat_prompt.txt
+
+## 命令兼容
+保留 HeartbeatManager 的命令集（GetSchedule/AddTask/UpdateTaskStatus/…），并新增：
+- TriggerHeartbeat：立即触发一次心跳（四时段规划判定 + 创建 timed-contact + 重新调度）
+- SchedulerStatus / StartScheduler / StopScheduler：便于调试与运维
+
+## 待办（下一轮）
+1. 验证VCP热加载是否成功（路由可访问）
+2. 冒烟测试：TriggerHeartbeat(指定Agent)
+3. 对接/复用旧前端面板，或新建 HeartbeatSystem 面板并改API前缀
+
+## 追加：跨天清理与四时段规划的触发点（重要踩坑）
+（说明：本文档中 {*2 = {{，}*2 = }}，用于避免误触发）
+
+### 1) 跨天“归档+重置”可能不落盘（已按方案B修复）
+- 归档/重置逻辑在 SafeFileManager.updateSchedule() 中执行：
+  - 若 data.date != today：archiveSchedule() → createDefaultSchedule()
+- 旧问题：schedule.json 是否写回依赖 updateFn 返回值：
+  - 只有 result !== false 才 writeJsonAtomic()
+  - readSchedule() 的 updateFn 返回 false（纯读），导致跨天时“内存已重置但文件未写回”，文件里仍残留昨天 todayTasks
+- 方案B修复：在 updateSchedule() 内部记录 didRollover：
+  - 若发生跨天重置，则强制写回（didRollover || result !== false）
+
+### 2) “四时段检测”并不等于“看到未规划就立刻触发”（已新增“触发点”机制）
+- plannedSlots 的判断仍在 triggerHeartbeat() 内执行：
+  - currentSlot = getCurrentTimeSlot()
+  - isSlotPlanning = !plannedSlots.includes(currentSlot.name)
+- 但仅靠这一点会导致：如果下一次心跳被随机安排在较晚时间点，那么时段边界（如 00:00）不会立即规划。
+- 新增 scheduleNextHeartbeat() 的两个“时段检测触发点”：
+  1) 当前时段未规划 → 直接把下一次心跳提前到 1~3 分钟内触发
+  2) 若下一次随机心跳晚于“当前时段结束边界”，且下一时段未规划 → 改为在边界附近（边界+1~3分钟）触发
+
+#### 重启后的“为何不再提前”解释（现场常见疑惑）
+- 触发点1是否生效，取决于 scheduleNextHeartbeat() 运行时读到的 plannedSlots 状态；
+- plannedSlots 往往在 triggerHeartbeat() 的前半段就会被标记（用于决定 planning/routine 模板）并写回 schedule.json；
+- 因此即便 timed-contact 在后续执行阶段因网络失败，plannedSlots 也可能已被标记为“当前时段已规划”，导致再次重启时不会重复出现“提前心跳”，而是进入常规的随机间隔调度日志（例如“有任务，下次心跳: 31分钟后 ...”）。
+
+时间: 2026-02-10T00:53:01+08:00
+Tag: VCP文档, HeartbeatSystem, plannedSlots, 触发点, 重启, 现场排查
+- plannedSlots 的判断仍在 triggerHeartbeat() 内执行：
+  - currentSlot = getCurrentTimeSlot()
+  - isSlotPlanning = !plannedSlots.includes(currentSlot.name)
+- 但仅靠这一点会导致：如果下一次心跳被随机安排在较晚时间点，那么时段边界（如 00:00）不会立即规划。
+- 新增 scheduleNextHeartbeat() 的两个“时段检测触发点”：
+  1) 当前时段未规划 → 直接把下一次心跳提前到 1~3 分钟内触发
+  2) 若下一次随机心跳晚于“当前时段结束边界”，且下一时段未规划 → 改为在边界附近（边界+1~3分钟）触发
+
+### 3) 现场排查经验：00:44 这类“下次心跳时间”不一定能在磁盘找到
+- `下次心跳: xx分钟后 (...)` 指的是 node-schedule 的内存 job 时间点；重启后会丢失。
+- 真正可落盘追踪的是 triggerHeartbeat 写入的 timed-contact 文件：
+  - 目录：`E:\VCP\VCPTimedContacts`
+  - 但该目录可能长期为空，因为 timed-contact 可能被 TaskScheduler 秒级消费并删除。
+- 现场证据（ServerLog.txt 抽取）：
+  - [TaskScheduler] 已处理任务 heartbeat_Rosa_... (AgentAssistant)
+  - [TaskScheduler] 已删除任务文件 heartbeat_Rosa_....json
+
+### 4) 重要澄清：schedule.json 的 todayTasks 不等于 timed-contact
+- HeartbeatSystem 的“任务规划”会把任务写入 `AgentSchedules/{agent}/schedule.json` 的 todayTasks（例如 type=fixed，scheduledTime=01:15/02:30/03:00）。
+- VCPTimedContacts 是 VCP 的 TaskScheduler 消费的 timed-contact 文件体系。
+- 当前设计通常只把“心跳唤醒”写成 timed-contact，而不会自动为 todayTasks 的每条任务生成 timed-contact 文件；如需“每条任务到点自动唤醒执行”，需要新增特性开关与去重策略。
+
+### 5) 额外隐患：跨天日期可能按 UTC
+若 getTodayDate 使用 toISOString 切片，date 将按 UTC 变化，导致北京时间凌晨不跨天（00:00~07:59 仍是昨日）。建议使用 Asia/Shanghai 或本地时区计算 date。
+
+时间: 2026-02-10T01:19:49+08:00
+Tag: VCP文档, HeartbeatSystem, todayTasks, timed-contact, TaskScheduler, VCPTimedContacts, UTC跨天
+- `下次心跳: xx分钟后 (...)` 指的是 node-schedule 的**内存 job**时间点：
+  - 重启 VCP / 重启承载 HeartbeatSystem 的进程后，内存 job 会丢失，因此“00:44:22”这类时间点不会再存在
+- 真正可落盘追踪的，是 HeartbeatSystem 在 triggerHeartbeat() 中写入的 VCPTimedContacts timed-contact 文件：
+  - 目录：`E:\VCP\VCPTimedContacts`
+  - 文件会被 TaskScheduler 扫描、调度执行，执行完成后通常会删除（因此目录可能长期为空）
+- 现场证据（ServerLog.txt）：
+  - 2026-02-10T00:38:41+08:00：[TimedContact] created: heartbeat_Rosa_... @ 2026-02-10-00:39
+  - 2026-02-10T00:39:00+08:00：[TaskScheduler] 正在执行定时任务 ... 调用插件 'AgentAssistant'...
+  - 2026-02-10T00:39:03+08:00：[TaskScheduler] 已删除任务文件: heartbeat_Rosa_....json
+- 若你遇到“网络问题导致执行失败”，也可能出现“文件被消费但执行链失败”的情况，需要结合 `E:\VCP\DebugLog\ServerLog.txt` 核对失败点（写入/消费/执行/外部请求）
+
+时间: 2026-02-10T00:50:44+08:00
+Tag: VCP文档, HeartbeatSystem, node-schedule, VCPTimedContacts, TaskScheduler, 排查
+- `下次心跳: xx分钟后 (...)` 指的是 node-schedule 的**内存 job**时间点：
+  - 重启 VCP / 重启承载 HeartbeatSystem 的进程后，内存 job 会丢失，因此“00:44”不会再存在
+- 真正可落盘追踪的，是 HeartbeatSystem 在 triggerHeartbeat() 中写入的 VCPTimedContacts timed-contact 文件：
+  - 目录：`E:\VCP\VCPTimedContacts`
+  - 若 timed-contact 被 VCP 执行器执行，文件通常会被删除
+  - 若你遇到“网络问题导致执行失败”，也可能出现“文件被消费但执行链失败”的情况，需要结合 `E:\VCP\DebugLog` 核对失败点（写入/消费/执行/外部请求）
+
+时间: 2026-02-10T00:44:45+08:00
+Tag: VCP文档, HeartbeatSystem, node-schedule, VCPTimedContacts, DebugLog, 排查
+- `下次心跳: xx分钟后 (...)` 指的是 node-schedule 的**内存 job**时间点：
+  - 重启 VCP / 重启承载 HeartbeatSystem 的进程后，内存 job 会丢失，因此“00:44”不会再存在
+- 真正可落盘追踪的，是 HeartbeatSystem 在 triggerHeartbeat() 中写入的 VCPTimedContacts timed-contact 文件：
+  - 若 timed-contact 被 VCP 执行器执行，文件通常会被删除
+  - 若网络/执行链失败，可能出现“未写入成功”或“写入后被执行器消费掉”的不同表现
+排查路径：`E:\VCP\VCPTimedContacts`
+
+Tag: VCP文档, HeartbeatSystem, node-schedule, VCPTimedContacts, 排查
+### 1) 跨天“归档+重置”可能不落盘（已按方案B修复）
+- 归档/重置逻辑在 SafeFileManager.updateSchedule() 中执行：
+  - 若 data.date != today：archiveSchedule() → createDefaultSchedule()
+- 旧问题：schedule.json 是否写回依赖 updateFn 返回值：
+  - 只有 result !== false 才 writeJsonAtomic()
+  - readSchedule() 的 updateFn 返回 false（纯读），导致跨天时“内存已重置但文件未写回”，文件里仍残留昨天 todayTasks
+- 方案B修复：在 updateSchedule() 内部记录 didRollover：
+  - 若发生跨天重置，则强制写回（didRollover || result !== false）
+
+### 2) “四时段检测”并不等于“看到未规划就立刻触发”（已新增“触发点”机制）
+- plannedSlots 的判断仍在 triggerHeartbeat() 内执行：
+  - currentSlot = getCurrentTimeSlot()
+  - isSlotPlanning = !plannedSlots.includes(currentSlot.name)
+- 但仅靠这一点会导致：如果下一次心跳被随机安排在较晚时间点，那么时段边界（如 00:00）不会立即规划。
+- 新增 scheduleNextHeartbeat() 的两个“时段检测触发点”：
+  1) 当前时段未规划 → 直接把下一次心跳提前到 1~3 分钟内触发
+  2) 若下一次随机心跳晚于“当前时段结束边界”，且下一时段未规划 → 改为在边界附近（边界+1~3分钟）触发
+
+#### 重要运行时注意（现场踩坑）
+- node-schedule 已经注册的 job 不会因为你修改 JS 文件而自动“重排”到更早时间点；
+- hybridservice 插件常驻进程也不一定自动加载最新文件。
+
+因此如果已经看到“下次心跳: 27分钟后 (00:44:22)”这类日志，未必代表触发点逻辑失效，可能只是旧 job 仍在排队。要验证触发点是否生效，观察日志中是否出现“当前时段未规划，提前心跳: 1~3分钟后(...)”。
+
+**建议：修改 HeartbeatSystem.js 后重启 VCP（或重启承载该插件的常驻服务）**，以确保新代码加载，并让调度器重新计算下一次心跳。
+
+时间: 2026-02-10T00:35:51+08:00
+Tag: VCP文档, HeartbeatSystem, 重启, hybridservice, node-schedule, 运维
+- node-schedule 已经注册的 job 不会因为你修改 JS 文件而自动“重排”到更早时间点；
+- hybridservice 插件常驻进程也不一定自动加载最新文件。
+因此如果已经看到“下次心跳: 27分钟后 (00:44:22)”这类日志，未必代表触发点逻辑失效，可能只是旧 job 仍在排队。要验证触发点是否生效，观察日志中是否出现“当前时段未规划，提前心跳: 1~3分钟后(...)”。
+- plannedSlots 的判断仍在 triggerHeartbeat() 内执行：
+  - currentSlot = getCurrentTimeSlot()
+  - isSlotPlanning = !plannedSlots.includes(currentSlot.name)
+- 但仅靠这一点会导致：如果下一次心跳被随机安排在较晚时间点，那么时段边界（如 00:00）不会立即规划。
+- 新增 scheduleNextHeartbeat() 的两个“时段检测触发点”：
+  1) 当前时段未规划 → 直接把下一次心跳提前到 1~3 分钟内触发
+  2) 若下一次随机心跳晚于“当前时段结束边界”，且下一时段未规划 → 改为在边界附近（边界+1~3分钟）触发
+
+这样可以让“时段规划”更贴近时段切换时刻，而不是被随机间隔拖延。
+### 1) 跨天“归档+重置”可能不落盘
+- 归档/重置逻辑在 SafeFileManager.updateSchedule() 中执行：
+  - 若 data.date != today：archiveSchedule() → createDefaultSchedule()
+- 但 schedule.json 是否写回依赖 updateFn 返回值：
+  - 只有 result !== false 才 writeJsonAtomic()
+- readSchedule() 当前 updateFn 返回 false（纯读），导致跨天时“内存已重置但文件未写回”，文件里仍残留昨天 todayTasks
+
+#### 推荐修复（更稳）
+在 updateSchedule() 内部记录 didRollover：
+- 若发生跨天重置，则强制写回（didRollover || result !== false）
+
+### 2) “四时段检测”并不等于“看到未规划就立刻触发”
+- plannedSlots 的判断在 triggerHeartbeat() 内执行：
+  - currentSlot = getCurrentTimeSlot()
+  - isSlotPlanning = !plannedSlots.includes(currentSlot.name)
+- 因此只会在心跳触发时检测；如果下一次心跳被安排在 2026-02-10T00:44:22+08:00，那么 00:00~00:44 期间不会自动规划“凌晨时段”。
+Tag: VCP文档, HeartbeatSystem, HeartbeatManager, 调度器, hybridservice, 原子写入

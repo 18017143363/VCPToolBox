@@ -1,0 +1,26 @@
+[2026-02-27] - Rosa
+[19:10] VChat视频附件处理机制分析
+## 核心文件
+E:\VCPCHAT\modules\ipc\fileDialogHandlers.js — get-file-as-base64 IPC handler
+E:\VCPCHAT\modules\chatManager.js — VIDEO PROCESSING段
+
+## 处理流程
+1. 用户拖拽视频 → attachedFiles保存localPath
+2. 发送时chatManager.js调用electronAPI.getFileAsBase64(att.src)
+3. fileDialogHandlers.js读取文件：
+   - 图片(.png/.jpg等)→ Sharp压缩到800px → JPEG 70%质量 → base64
+   - GIF → Sharp抽帧(每500ms一帧) → 多帧base64数组
+   - 视频/音频 → Non-image分支 → 直接整体base64（无压缩无抽帧）
+4. chatManager.js将base64包装为：{ type:'image_url', image_url:{ url:`data:video/mp4;base64,...` } }
+5. 发给VCP → ImageProcessor拦截 → 调用MultiModalModel转译
+
+## 关键问题
+视频走Non-image分支，整体base64无压缩。2MB视频→≈715000 tokens，严重超过MultiModalModelContent=250000限制，导致多模态模型截断/返回空。
+
+## 已知限制
+- 视频文件建议<300KB才能在当前配置下正常转译
+- 根本修复需要在fileDialogHandlers.js Non-image分支加ffmpeg抽帧逻辑
+
+## 对比GIF
+GIF有完整抽帧：每500ms采样一帧，压缩为800px JPEG。视频需要类似处理。
+Tag: VChat文档, 视频处理, fileDialogHandlers, getFileAsBase64, 抽帧, token超限, 已知限制

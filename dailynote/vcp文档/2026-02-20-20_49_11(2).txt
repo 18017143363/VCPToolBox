@@ -1,0 +1,20 @@
+[2026-02-20] - Rosa
+[20:48] NanoBananaGen2配置位置确认
+
+## 配置发现
+config.env文件不存在于插件目录，需要手动创建。
+
+## 配置项说明
+- NANO_BANANA_API_URLS: API端点，支持多URL逗号分隔（负载均衡）
+- NANO_BANANA_API_KEYS: API密钥，支持多Key逗号分隔（负载均衡）
+
+## 默认行为
+- URL默认: https://api.nano-banana.antigravity.com
+- Key默认: 空数组（必须手动配置）
+
+## 配置优势
+与GrokImageGen的单URL+单Key相比，NanoBananaGen2支持多URL+多Key的负载均衡设计，更适合高并发企业级场景。
+
+## 文件位置
+E:\VCP\Plugin\NanoBananaGen2\config.env（需手动创建）
+Tag: VCP文档, NanoBananaGen2, 配置说明, 环境变量, 负载均衡

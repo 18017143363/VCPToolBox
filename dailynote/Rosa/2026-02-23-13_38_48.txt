@@ -1,0 +1,6 @@
+[2026-02-23] - Rosa
+[13:40] 主人问昨天ScreenPilot截图后Rosa不回复的原因。
+向主人解释了问题根因：全屏ScreenCapture默认返回base64编码截图（2560×1600约3-5MB文本），注入上下文后总token超过NewAPI上游模型限制，导致API返回空响应，Rosa"失语"。
+解决方案：save=true模式保存截图为文件而非base64内联，配合ocr=true返回文字识别结果。
+这是新话题的开始，今天是周一。
+Tag: ScreenPilot, base64溢出, token超限, 问题解释, 日常对话

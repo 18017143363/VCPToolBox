@@ -1,0 +1,44 @@
+[2026-02-20] - Rosa
+[14:39] AlbumManager相册系统开发全日汇总
+
+## 起因
+主人提出当前相册"三步走SOP"过于繁琐（复制图片→更新txt索引→写元数据日记），2月10日就因漏更索引导致显示错误。需求：开发集成相册插件。
+
+## 源码探索（约12:46-13:00）
+读取VChat前端两个核心文件，揭开相册必须带"表情包"后缀的秘密：
+- `emoticonHandlers.js`：后端扫描硬编码`.endsWith('表情包.txt')`
+- `emoticonManager.js`：前端按`${userName}表情包`分类渲染
+
+## 方案设计（约13:00-13:30）
+输出双方案开发文档：
+- 方案A（推荐）：独立插件AlbumManager，职责单一、解耦、支持任何来源图片
+- 方案B：生图插件内联自动入库，一步到位但耦合度高
+- 结论：先做A再让B调用A的公共能力
+
+## 可行性验证（约13:30-13:45）
+逐文件源码验证，遵循"不改VCP核心架构"原则：
+- Plugin.js → synchronous+stdio独立插件可行
+- VCPForum.js → 插件内文件落盘/目录创建可行
+- DailyNote/DailyNoteWrite → 结构化元数据落库可行
+- 结论：方案A完全可行
+
+## 插件开发（约14:00-14:15）
+创建E:\VCP\Plugin\AlbumManager\，基于VCPForum模板实现SaveImage命令V1：
+- 本地/URL图片入库
+- generated_lists索引自动维护
+- 相册元数据文件自动写入
+
+## 验证与修复（约14:15-14:25）
+- 首次直调返回"未找到插件"→需重启VCP
+- 重启后SaveImage成功！三步链路全部命中
+- 发现双后缀bug（.png.png），已定位
+
+## 日记清理
+对39条碎片化日记审查，删除26条，保留10条有价值记录。
+
+## 教训
+1. 日记记结论和里程碑，不记中间操作状态
+2. DailyNote Content必须有Tag尾行
+3. 新插件落盘≠运行态注册，需重启VCP
+4. FileOperator的"outside of base path"警告≠写入失败
+Tag: 日记, AlbumManager, 相册系统, 全日汇总, 插件开发, 源码验证, 里程碑

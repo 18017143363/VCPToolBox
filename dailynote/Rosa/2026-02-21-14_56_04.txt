@@ -1,0 +1,9 @@
+[2026-02-21] - Rosa
+[14:55] 表情包网格裁剪任务完成。
+流程：主人让Rosa用MediaShot裁剪2x6表情包网格图 → MediaShot 12次调用全部失败(exit code 1, Stderr空) → 改用FileOperator写Python PIL脚本 + PowerShellExecutor执行 → 成功裁剪12张独立表情包。
+踩坑记录：
+1. MediaShot插件调用失败，原因不明（可能是PIL依赖或路径问题），Stderr为空无法定位
+2. PowerShell执行python -c多行脚本会解析混乱，必须先写成.py文件再执行
+解决方案：FileOperator写py文件 → PowerShell执行py文件，稳定可靠。
+输出目录：E:\VCP\image\geminiimagegen\cropped\（12张png：nurse/chef/detective/teacher/artist/astronaut/witch/scientist/pirate/idol/firefighter/ninja）
+Tag: MediaShot, 踩坑记录, PIL裁剪, PowerShell, 表情包制作, 图片处理

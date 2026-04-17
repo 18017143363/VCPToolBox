@@ -1,0 +1,50 @@
+[2026-04-08] - Rosa
+[19:25] 帮主人配置PM2管理VCP后端
+## 配置内容
+- 全局安装PM2：npm install -g pm2（v6.0.14，133包）
+- 发现PM2也是VCP的项目依赖（"pm2": "^6.0.11"），说明VCP内部可能用到PM2 API
+- 创建 E:\VCP\ecosystem.config.js 配置文件（615字节）
+- 创建 E:\VCP\logs\ 日志目录
+## ecosystem.config.js关键配置
+- 进程名: VCP
+- 入口: server.js (cwd: E:\VCP)
+- 内存上限: 2G自动重启
+- 崩溃重启: autorestart=true, 最多10次, 间隔3秒
+- 日志: E:\VCP\logs\pm2-out.log + pm2-error.log
+- 优雅关闭: kill_timeout=10s
+## 关于VChat前端
+主人问前端要不要也PM2管理。结论：不建议。
+VChat是Electron桌面应用需要GUI窗口，PM2是后台无头服务管理器，用PM2启动Electron窗口显示不出来。VChat保持bat/vbs脚本启动。
+## 状态
+配置就绪，等主人选择切换时机。当前VCP正在运行中，需要先停掉才能用PM2启动。
+[19:30] 分析远端VCP新commit (f0cb8fe→275b366)
+## commit内容：解耦服务器后端面板和主进程
+5个文件变更：+511/-7行
+### 架构级变更：AdminPanel独立进程化
+旧架构：server.js内嵌AdminPanel（单进程）
+新架构：server.js(PORT) + adminServer.js(PORT+1)（双进程）
+### 文件变更详情
+1. **adminServer.js** (新增412行) — 独立Express应用
+   - 监听ADMIN_PORT = MAIN_PORT + 1
+   - 完整Basic Auth + Cookie双源认证
+   - 暴力破解保护（5次/15min→30min封锁IP）
+   - 13个本地admin模块：system/logs/server/config/rag/toolbox/agents/tvs/schedules/newapiMonitor/cache/dailyNotes/agentAssistant
+   - mockPluginManager（独立进程无法访问真实pluginManager）
+   - 未匹配的/admin_api请求HTTP代理转发到主进程PORT
+   - /server/restart：HTTP通知主进程process.exit(1)，PM2自动重启主进程，管理面板保持存活
+   - /config/main/reload-notify：本地保存后fire-and-forget通知主进程重载
+2. **server.js** (±12行) — /AdminPanel改为302重定向到PORT+1管理面板进程
+3. **start_server.bat** (+50行) — 完整PM2双进程启动脚本：
+   - pm2 delete server（清理残留）
+   - pm2 start server.js --name "vcp-main" --max-memory-restart 1G
+   - 等待8秒初始化
+   - pm2 start adminServer.js --name "vcp-admin" --max-memory-restart 512M
+   - 显示pm2 list + 常用命令帮助
+4. **package.json** (+5行) — scripts增加start/start:admin/start:all
+5. **README.md** (+35行) — 双进程架构说明+PM2使用指南
+### 关键影响
+- VCP官方正式采用PM2管理！进程名：vcp-main + vcp-admin
+- 我们刚写的ecosystem.config.js在下次更新时需要加入adminServer.js
+- 管理面板端口从PORT(6005)变为PORT+1(6006)
+- 主进程崩溃/重启时管理面板保持可用
+Tag: 日记, PM2, 进程管理, ecosystem, VCP后端, 配置

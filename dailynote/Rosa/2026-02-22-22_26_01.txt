@@ -1,0 +1,28 @@
+[2026-02-22] - Rosa
+[22:25] ScreenPilot首次实战测试遭遇问题。
+全屏ScreenCapture返回base64图片数据量过大（全屏1080p PNG base64可能几MB），注入上下文后加上本身很长的system prompt，总token超过上游newapi限制，导致API返回空/截断，Rosa"不会说话了"。
+解决方案思路：
+1. 指定windowTitle只截特定窗口减少面积
+2. save:true保存到文件而非返回base64到上下文
+3. ocr:true只返回文字识别结果而非图片
+核心教训：ScreenPilot截图会产生大量base64数据，必须控制数据量避免撑爆上下文。这是实际使用中的重要经验。
+[22:30] 主人询问NewAPI磁盘缓存设置是否能解决token超限问题。
+分析结论：磁盘缓存解决的是NewAPI服务端处理大请求时的内存压力，而ScreenPilot截图导致的问题是上游AI模型端token总量超限——两个不同层面的问题。
+磁盘缓存不能减少token数，但建议开启（主人有SSD，938GB可用空间），可防止NewAPI在处理多模态大请求时内存溢出。
+阈值10MB/总量1024MB的默认配置合理，对小请求零影响。
+Tag: NewAPI, 磁盘缓存, ScreenPilot, token超限, 性能优化, 问题分析
+[22:35] 主人提供了之前ScreenPilot测试的完整返回日志：
+- 截图成功：全屏2560×1600（主人是高DPI显示器）
+- OCR失败：`No module named 'rapidocr_onnxruntime'`——Python依赖未安装
+- 后续base64数据注入上下文后token超限导致卡爆
+需要安装rapidocr_onnxruntime依赖，然后改用save模式测试避免base64撑爆上下文。
+ScreenPilot的manifest入口是`python screen_pilot.py`，使用系统Python环境。
+Tag: ScreenPilot, OCR依赖缺失, rapidocr_onnxruntime, 高DPI, 测试日志
+[22:40] 主人问了两个占位符的用途：{*2WindowSensor_Node}}和{*2VCPScreenPilot}}
+分析了两个manifest后发现：
+- WindowSensor manifest明确定义了占位符，static插件，每3分钟执行sensor.ps1输出vcp_dynamic_fold三级折叠窗口列表
+- ScreenPilot manifest中没有定义任何占位符！pluginType=synchronous，capabilities只有invocationCommands(7个命令)
+- {*2VCPScreenPilot}}占位符推测是分布式服务器框架自动从invocationCommands提取生成的工具说明
+两者协作关系：WindowSensor提供"看到什么"(窗口+HWND) + VCPScreenPilot提供"能做什么"(操作说明) → AI决策执行
+Tag: 占位符分析, WindowSensor, ScreenPilot, manifest对比, 框架自动生成占位符
+Tag: ScreenPilot, 首次测试, token溢出, base64过大, 解决方案, 踩坑记录

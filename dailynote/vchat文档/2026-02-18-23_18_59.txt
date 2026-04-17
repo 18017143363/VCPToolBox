@@ -1,0 +1,44 @@
+[2026-02-18] - Rosa
+# VChat Agent配置安全重构（2026-02-18更新）
+
+## 概述
+VChat在cda236e→ba8804a更新中对Agent配置管理进行了重大安全重构，建立了三层防护体系防止配置文件被意外覆盖。
+
+## 问题背景
+旧版本中，config.json在原子替换(fs.move)的瞬间被读取时，会因ENOENT返回默认配置，如果随后被写回，用户的所有Agent设置就会丢失。
+
+## 三层防护体系
+
+### 第一层：agentConfigManager.js（底层）
+**readAgentConfig增强：**
+- 新增`allowDefault`参数（默认false），只有显式允许才返回默认配置
+- ENOENT处理从单次50ms重试改为指数退避(50→100→200ms)三次重试
+- 重试失败后优先返回缓存数据
+- 无缓存且不允许默认时直接抛错
+
+**writeAgentConfig修复：**
+- 缓存时间戳从`Date.now()`改为`stats.mtimeMs`（实际文件修改时间）
+- 确保读写缓存比较一致
+
+### 第二层：chatHandlers.js（IPC层）
+**5个handler全面重构：**
+| Handler | 改动 |
+|---------|------|
+| save-topic-order | 全部在updateAgentConfig回调内完成 |
+| save-agent-topic-title | 全部在updateAgentConfig回调内完成 |
+| get-agent-topics | 使用readAgentConfig({allowDefault: true}) |
+| create-new-topic-for-agent | 先read获取序号→update原子写入 |
+| delete-topic | 先read验证→update原子删除 |
+
+**核心变化：**
+- 消除所有fs.readJson/writeJson裸操作
+- 没有agentConfigManager时不再fallback到裸写，直接报错
+- 引入不可变操作（spread复制而非直接修改原对象）
+
+### 第三层：settingsManager.js（UI层）
+- triggerAgentSave新增overrideAgentId参数
+- 防止异步保存期间用户切换Agent导致配置写入错误目标
+
+## 设计原则
+**宁可报错也不悄悄覆盖用户数据**
+Tag: VChat文档, agentConfigManager, chatHandlers, settingsManager, 数据安全, 原子操作, 配置管理

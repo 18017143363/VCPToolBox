@@ -1,0 +1,63 @@
+[2026-02-22] - Rosa
+[14:47] nexos2api 图片上传补丁技术文档（补充）
+# nexos2api 图片上传补丁 by Rosa
+
+## 问题描述
+原始index.js不支持OpenAI多模态格式（content为数组时），导致：
+- `user_message.text = lastUserMessage.content` → 多模态数组变`[object Object]`
+- `files = []` → 硬编码空数组，永远不上传图片
+
+## 补丁方案
+在`const formData = new FormData()`前插入预处理代码：
+1. 检测`Array.isArray(lastUserMessage.content)`
+2. 提取text部分拼接为textContent
+3. 提取image_url部分，逐个上传到nexos.ai
+4. 替换text和files字段赋值
+5. 纯文本请求走else分支，不受影响
+
+## nexos.ai文件上传API格式
+```
+POST /api/chat/{chatId}
+Content-Type: multipart/form-data
+Fields: action="chat_file_upload", file=<Buffer>
+Headers: cookie=<NEXOS_COOKIES>
+```
+响应格式：
+```json
+{"id":"UUID", "name":"filename", "size":bytes, "uploaded_at":"ISO时间"}
+```
+**重要**：返回字段名是`id`不是`file_id`！补丁用多重fallback兜底（file_id || id || fileId）。
+
+## 图片在nexosData中的引用格式
+```json
+"user_message": {
+  "text": "用户纯文本",
+  "files": [{"file_id": "上传API返回的id值"}]
+}
+```
+
+## 支持的图片输入
+| OpenAI格式 | 处理方式 |
+|------------|----------|
+| data:image/xxx;base64,... | Buffer.from解码后上传 |
+| http/https URL | axios下载为Buffer后上传 |
+| 上传失败 | 降级只发文本，打warning |
+
+## 验证结果（2026-02-22 14:45）
+全链路通过：多模态解析→Base64解码→POST上传→获取id→files填充→AI成功识别图片内容 ✅
+纯文本兼容性 ✅
+
+## 历史上下文注入补丁（Rosa开发）
+### 问题描述
+parent_id补丁每次创建新chat + DISABLE_HISTORY=true + 只取lastUserMessage = 每轮完全独立无记忆。
+### 补丁方案
+在图片补丁END之后、const formData之前插入历史拼接逻辑：
+1. 检测messages.length > 1
+2. 提取system消息→[System instruction]
+3. 提取User/Assistant历史→[Conversation history]
+4. 拼接到textContent前面
+### 拼接格式
+[System instruction] + [Conversation history] + [Current message]
+### 验证（2026-02-22 14:54）
+"What is my name?" → "Your name is Linyi!" ✅
+Tag: VCP文档, nexos2api, 图片上传, 补丁, 多模态, 文件上传API, 历史上下文, Rosa开发

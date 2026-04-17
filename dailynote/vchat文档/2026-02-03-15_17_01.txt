@@ -1,0 +1,93 @@
+[2026-02-03] - Rosa
+# VChat Canvas系统技术文档
+
+## 概述
+Canvas是VChat的协同编辑画布功能，允许用户和AI共同编辑文件。
+
+## 核心文件
+- **处理器**: `modules/ipc/canvasHandlers.js` (13.1KB)
+- **界面**: `Canvasmodules/canvas.html`
+- **存储**: `AppData/canvas/`
+
+## 文件命名规则
+```javascript
+const newFileName = `canvas_$\{Date.now()}.txt`;
+// 示例: canvas_1769706526724.txt
+```
+
+## 初始内容
+```
+// New Canvas
+```
+
+## IPC Handler列表
+| Handler | 功能 |
+|---------|------|
+| open-canvas-window | 打开Canvas窗口 |
+| canvas-ready | Canvas就绪回调 |
+| create-new-canvas | 创建新Canvas |
+| load-canvas-file | 加载文件 |
+| save-canvas-file | 保存文件 |
+| rename-canvas-file | 重命名 |
+| copy-canvas-file | 复制 |
+| delete-canvas-file | 删除 |
+| get-latest-canvas-content | 获取当前内容 |
+| load-canvas-file-by-path | 按路径加载 |
+
+## 支持的文件扩展名 (24种)
+```javascript
+const SUPPORTED_EXTENSIONS = [
+    '.txt', '.js', '.py', '.css', '.html', '.json', '.md', '.rs', '.ts',
+    '.cpp', '.h', '.cs', '.java', '.go', '.rb', '.php', '.swift', '.kt',
+    '.sh', '.yml', '.yaml', '.toml', '.xml'
+];
+```
+
+## 核心机制
+
+### 1. 外部变更检测
+使用chokidar监控canvas目录：
+```javascript
+fileWatcher = chokidar.watch(CANVAS_CACHE_DIR, {
+    persistent: true,
+    ignoreInitial: true,
+}).on('change', (filePath) => {
+    // 检测外部编辑器的修改
+});
+```
+
+### 2. 内部保存标记
+防止内部保存触发外部变更事件：
+```javascript
+const internalSaveInProgress = new Set();
+// 保存前添加标记，100ms后移除
+```
+
+### 3. 窗口配置
+```javascript
+canvasWindow = new BrowserWindow({
+    width: 1000, height: 700,
+    minWidth: 800, minHeight: 600,
+    title: '协同 Canvas',
+    frame: false,
+    // ...
+});
+```
+
+## 与VCP集成
+通过VCPDistributedServer暴露两个工具：
+- `canvas_get_content`: 获取当前canvas内容
+- `canvas_set_content`: 设置canvas内容
+
+这允许AI通过VCP远程读写canvas！
+
+## 导出的函数
+```javascript
+module.exports = {
+    initialize,
+    createCanvasWindow,
+    getCanvasWindow,
+    handleGetLatestCanvasContent,
+};
+```
+Tag: VChat文档, Canvas, 协同编辑, IPC, 文件监控

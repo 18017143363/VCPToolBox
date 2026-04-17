@@ -1,0 +1,65 @@
+[2026-02-22] - Rosa
+[23:00] 详细分析了两个占位符的实际注入内容和vcp_dynamic_fold折叠JSON结构。
+1. {*2VCPScreenPilot}} —— 框架自动从manifest的invocationCommands提取生成的静态工具说明，全量注入，不使用折叠。包含7个命令(ScreenCapture/ClickAt/InspectUI/ClickText/ClickVisual/ScrollAt/TypeText)的详细描述和调用示例。已在system prompt中以<ScreenPilot>标签形式存在。
+2. {*2WindowSensor_Node}} —— sensor.ps1每3分钟执行一次输出的vcp_dynamic_fold JSON：
+   - vcp_dynamic_fold: true (协议标识)
+   - fold_name: "WindowSense_Master"
+   - plugin_description: 插件功能描述(向量化比对A端)
+   - fold_blocks: 三层内容，threshold 0.7/0.4/0.0
+     - 0.7: 完整窗口列表+PID+HWND (~400token)
+     - 0.4: 应用名简报 (~30token)
+     - 0.0: 一行就绪提示 (~8token)
+
+sensor.ps1逻辑：Get-Process→按优先级分类(chrome/vscode/qq等)→构建三层→JSON紧凑输出
+踩坑：DeepMemo参数应使用keyword而非query，missing field错误。
+Tag: 占位符分析, VCPScreenPilot, WindowSensor_Node, vcp_dynamic_fold, sensor.ps1, 折叠JSON结构, DeepMemo参数修正
+
+[23:05] ScreenPilot实战踩坑连环记：
+踩坑1: windowTitle匹配的是窗口标题而非进程名！WindowSensor显示"msedge"是进程名，但ScreenPilot需要窗口标题如"Edge"。
+踩坑2: 缺少pywin32依赖（win32gui模块），安装pywin32+comtypes+uiautomation后解决。
+踩坑3: Edge处于最小化状态，窗口位置(-32000,-32000)是Windows标准最小化位置，截到的237×39只是标题栏残影。
+踩坑4: ClickText全屏OCR时匹配到了VCPChat聊天窗口中Rosa自己写的文字"Edge"，而非任务栏图标！全屏模式下所有可见文字都会被OCR扫描，包括当前对话内容。
+教训：
+- windowTitle用窗口标题关键字而非进程名
+- 最小化窗口需要先恢复到前台才能正常截图
+- ClickText在全屏模式下会匹配所有屏幕上的文字，包括聊天内容，需要注意index参数或指定窗口范围
+Tag: ScreenPilot, 踩坑记录, windowTitle, 最小化窗口, ClickText误匹配, 实战经验
+[23:15] 帮主人配置了ScreenPilot的ClickVisual图像编辑API。
+配置文件：E:\VCPCHAT\VCPDistributedServer\Plugin\ScreenPilot\config.env
+修改内容：
+- VISION_API_BASE_URL: 127.0.0.1:3106 → https://free.nanohajimi.mom
+- VISION_EDIT_MODEL: gemini-3-pro-image-preview → gemini-imagen
+- VISION_API_KEY: 空 → sk-r2MY...N1lo（主人提供的免费反代key）
+- VISION_API_FORMAT: chat（保持不变）
+配置完成，待测试ClickVisual功能是否正常工作。
+Tag: ScreenPilot, ClickVisual, 配置更新, 图像编辑API, gemini-imagen
+
+[23:20] ScreenPilot窗口截图+OCR首次完整成功！
+成功截取Edge浏览器窗口（2582×1550），OCR识别出217个文本区域。
+Edge显示内容：NewAPI渠道管理页面(localhost:3000/console/channel)第2页
+关键渠道发现：copilot是主力渠道(已启用, $2829.69用量, 3.45秒响应), bendi($1805.98), bdgpt($1584.92)
+主人开了15个Edge标签页：NewAPI, Discord, nexos.ai, 纳米哈反代, VCP论坛等
+
+完整成功链路回顾：
+1. 首次全屏截图(无save) → token溢出卡死 ❌
+2. 安装OCR依赖(rapidocr_onnxruntime) → ✅
+3. save+ocr全屏截图 → ✅（首次看到主人桌面）
+4. 指定窗口截图(msedge) → 缺pywin32 ❌
+5. 安装pywin32+uiautomation → ✅
+6. 窗口截图(Edge) → 最小化截不到 ❌
+7. ClickVisual点任务栏 → config.env缓存未刷新 ❌
+8. 配置ClickVisual API → 重启后403 ❌
+9. ClickText点Edge → 误匹配聊天内容 ❌
+10. PowerShell ShowWindow恢复前台 → ✅
+11. 窗口截图+OCR → 完美成功！✅
+
+踩了无数坑终于全通了！
+Tag: ScreenPilot, 窗口截图, OCR成功, NewAPI渠道管理, Edge浏览器, 完整成功
+[23:20] 成功用ScreenPilot ClickAt点击Edge标签栏切换到萌图工坊页面（localhost:5173）！
+踩坑：relativeToWindow必须配合hwnd使用，改用屏幕绝对坐标（窗口像素坐标+窗口左上角offset）解决。
+萌图工坊观察：
+- 右侧系统配置：OpenAI格式, free.nanohajimi.mom, gemini-imagen, 同一个API key
+- 3个测试任务，其中#E4BA8C和#2CDEF0的prompt是ClickVisual风格的涂色指令（draw red circle/dot on XX）
+- 说明该API确实支持图生图，ClickVisual返回403可能是ScreenPilot代码端的请求格式问题
+- 任务#50CEDF成功生成了一张银紫短发动漫女画家Eriya的肖像，23.4秒
+Tag: ScreenPilot, ClickAt, 绝对坐标, 萌图工坊, ClickVisual, 图生图验证, API排查

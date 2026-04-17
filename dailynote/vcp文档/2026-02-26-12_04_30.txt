@@ -1,0 +1,29 @@
+[2026-02-26] - Rosa
+[12:05] PowerShellExecutor 已知问题完整清单 v2.0
+
+## 问题总览（8类）
+| # | 问题 | 严重度 | Workaround |
+|---|------|--------|------------|
+| 1 | Here-String解析失败($变量展开/引号嵌套/PTY边界检测) | 🔴致命 | Base64大法 |
+| 2 | PTY进程崩溃不可恢复(Here-String失败→stdin缓冲区残留) | 🔴致命 | newSession有时有效 |
+| 3 | 编码问题(BOM/GBK) | 🟡中 | .NET WriteAllText+UTF8Encoding($false) |
+| 4 | 安全关键字误拦截(format/rm/del全文匹配含注释) | 🟡中 | .ToString()替代 |
+| 5 | 并发变量丢失 | 🟡中 | 顺序执行 |
+| 6 | 长命令超时 | 🟠低 | 分步+Out-Null |
+| 7 | cd /d不兼容 | 🟢低 | Set-Location |
+| 8 | 路径引号双重转义 | 🟡中 | 不加引号 |
+
+## 修复优先级
+- P0: writeFileBase64专用命令（绕过Here-String）+ PTY健康检查自动重建
+- P1: stdin缓冲区超时清理 + newSession强制kill增强
+- P2: 安全拦截改AST级别 + 默认UTF8 NoBOM
+
+## 历史案例索引
+- 2/4 GrokImageGen开发: Here-String+Python代码
+- 2/5 bat启动脚本: Here-String
+- 2/7 bat代理配置: 编码+Here-String
+- 2/20 AIStudio更新: cd /d不兼容
+- 2/21 表情包索引: newSession+路径转义
+- 2/22 ScreenPilot补丁: ApplyDiff+CRLF
+- 2/26 kilo config.json: $schema变量展开→PTY彻底不可恢复
+Tag: PowerShellExecutor, 已知问题, 修复指南, PTY, Here-String, Base64, 编码, 安全拦截, v2.0

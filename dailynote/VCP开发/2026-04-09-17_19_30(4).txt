@@ -1,0 +1,274 @@
+[2026-04-09] - Rosa
+[17:40] Sub2API模块8——会话管理（粘性会话+摘要链Fallback+Session Hash）
+
+# Sub2API · 会话管理
+**源码文件**: gateway_service.go (GenerateSessionHash, SelectAccountWithLoadAwareness), anthropic_session.go (BuildAnthropicDigestChain), digest_session_store.go (DigestSessionStore)
+**核心概念**: 粘性会话(Sticky Session)、摘要链(Digest Chain)、会话Hash(Session Hash)
+
+## 一、为什么需要会话管理
+
+Claude Code的对话是有状态的——**同一个对话必须路由到同一个上游账号**。原因：
+1. 上游服务器可能缓存会话状态
+2. cache_control:ephemeral的内容缓存绑定到特定账号
+3. thinking block的signature绑定到特定会话
+4. 切换账号可能导致上下文丢失或签名验证失败
+
+Sub2API用多层策略确保会话亲和性。
+
+## 二、GenerateSessionHash()——会话标识计算
+
+```go
+func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
+    // 优先级1: metadata.user_id → 提取session_id
+    if parsed.MetadataUserID != "" {
+        if uid := ParseMetadataUserID(parsed.MetadataUserID); uid != nil && uid.SessionID != "" {
+            return uid.SessionID
+        }
+    }
+    
+    // 优先级2: cache_control:ephemeral内容
+    cacheableContent := s.extractCacheableContent(parsed)
+    if cacheableContent != "" {
+        return s.hashContent(cacheableContent)  // xxHash64 → base36
+    }
+    
+    // 优先级3: 上下文区分因子 + system + 全部messages内容
+    var combined strings.Builder
+    if parsed.SessionContext != nil {
+        combined.WriteString(parsed.SessionContext.ClientIP)
+        combined.WriteString(":")
+        combined.WriteString(NormalizeSessionUserAgent(parsed.SessionContext.UserAgent))
+        combined.WriteString(":")
+        combined.WriteString(strconv.FormatInt(parsed.SessionContext.APIKeyID, 10))
+        combined.WriteString("|")
+    }
+    if parsed.System != nil {
+        combined.WriteString(s.extractTextFromSystem(parsed.System))
+    }
+    for _, msg := range parsed.Messages {
+        combined.WriteString(extractTextFromContent(msg))
+    }
+    return s.hashContent(combined.String())
+}
+```
+
+### Hash函数
+```go
+func (s *GatewayService) hashContent(content string) string {
+    h := xxhash.Sum64String(content)
+    return strconv.FormatUint(h, 36)  // base36编码
+}
+```
+
+### SessionContext区分因子
+```go
+type SessionContext struct {
+    ClientIP  string
+    UserAgent string
+    APIKeyID  int64
+}
+```
+混入ClientIP+UA+APIKeyID，避免不同用户发送相同消息产生相同hash。
+
+### NormalizeSessionUserAgent()
+```go
+func NormalizeSessionUserAgent(raw string) string {
+    // 提取Product/Version格式的token，只保留product名（小写），丢弃version
+    // 如 "claude-cli/2.1.22 (external, cli)" → "claude-cli"
+    // 多个product用"+"连接，排序后去重
+}
+```
+版本号变化不影响会话hash——同一个工具的不同版本仍路由到同一账号。
+
+## 三、extractCacheableContent()——cache_control提取
+
+```go
+func (s *GatewayService) extractCacheableContent(parsed *ParsedRequest) string {
+    // 检查system中的 cache_control:{type:"ephemeral"} 内容
+    if system, ok := parsed.System.([]any); ok {
+        for _, part := range system {
+            if partMap["cache_control"].(map[string]any)["type"] == "ephemeral" {
+                builder.WriteString(partMap["text"])
+            }
+        }
+    }
+    
+    // 检查messages中的 cache_control:{type:"ephemeral"} 内容
+    for _, msg := range parsed.Messages {
+        if msgContent中有cache_control:ephemeral {
+            return extractTextFromContent(msg)
+        }
+    }
+    
+    return systemText
+}
+```
+
+**优先使用cache_control:ephemeral内容作为会话标识**——这是Claude Code特有的机制，因为ephemeral内容通常是不变的system prompt片段。
+
+## 四、粘性会话缓存（GatewayCache）
+
+### 接口
+```go
+type GatewayCache interface {
+    GetSessionAccountID(ctx, groupID int64, sessionHash string) (int64, error)
+    SetSessionAccountID(ctx, groupID int64, sessionHash string, accountID int64, ttl time.Duration) error
+    RefreshSessionTTL(ctx, groupID int64, sessionHash string, ttl time.Duration) error
+    DeleteSessionAccountID(ctx, groupID int64, sessionHash string) error
+}
+```
+
+### TTL
+```go
+const stickySessionTTL = time.Hour  // 1小时
+```
+
+### 使用流程（SelectAccountForModelWithExclusions）
+```
+1. 查缓存: cache.GetSessionAccountID(groupID, sessionHash)
+2. 命中 → 验证账号仍可用 → 返回
+3. 未命中/账号不可用 → 正常选择 → 绑定: cache.SetSessionAccountID(groupID, sessionHash, accountID, 1h)
+```
+
+### shouldClearStickySession()——清理不可用绑定
+```go
+func shouldClearStickySession(account *Account, requestedModel string) bool {
+    if account.Status == StatusError || account.Status == StatusDisabled || !account.Schedulable {
+        return true
+    }
+    if account.TempUnschedulableUntil != nil && time.Now().Before(*account.TempUnschedulableUntil) {
+        return true
+    }
+    if account.GetRateLimitRemainingTimeWithContext(ctx, requestedModel) > 0 {
+        return true
+    }
+    return false
+}
+```
+当绑定的账号不可用时主动清除，让下次请求重新选择。
+
+## 五、摘要链Fallback（DigestSessionStore）
+
+### 概念
+粘性会话依赖sessionHash精确匹配，但某些场景下无法产生稳定的hash（如metadata.user_id和cache_control都不存在）。摘要链提供**渐进式匹配**——即使只有部分对话匹配，也能路由到同一账号。
+
+### 摘要链格式
+```
+s:{systemHash}-u:{msg1ContentHash}-a:{msg2ContentHash}-u:{msg3ContentHash}...
+```
+- `s:` = system prompt hash
+- `u:` = user message content hash
+- `a:` = assistant message content hash
+
+### 构建
+```go
+func BuildAnthropicDigestChain(parsed *ParsedRequest) string {
+    var parts []string
+    
+    // 1. system prompt hash
+    if parsed.System != nil {
+        systemData, _ := json.Marshal(parsed.System)
+        parts = append(parts, "s:"+shortHash(systemData))
+    }
+    
+    // 2. 每条message的content hash
+    for _, msg := range parsed.Messages {
+        role := msgMap["role"]
+        prefix := "u"  // user
+        if role == "assistant" { prefix = "a" }
+        content := msgMap["content"]
+        contentData, _ := json.Marshal(content)
+        parts = append(parts, prefix+":"+shortHash(contentData))
+    }
+    
+    return strings.Join(parts, "-")
+}
+```
+
+### 存储：内存flat cache
+```go
+type DigestSessionStore struct {
+    cache *gocache.Cache  // TTL=5min, 清理间隔=1min
+}
+```
+
+**key格式**: `{groupID}:{prefixHash}|{digestChain}`
+
+### 查找：逐段截断匹配
+```go
+func (s *DigestSessionStore) Find(groupID int64, prefixHash, digestChain string) (uuid, accountID, matchedChain string, found bool) {
+    chain := digestChain
+    for {
+        if val, ok := s.cache.Get(ns + chain); ok {
+            return entry.uuid, entry.accountID, chain, true
+        }
+        // 截掉最后一段
+        i := strings.LastIndex(chain, "-")
+        if i < 0 {
+            return "", 0, "", false  // 完全不匹配
+        }
+        chain = chain[:i]
+    }
+}
+```
+
+**渐进式匹配示例**：
+```
+完整链: s:abc-u:123-a:456-u:789
+第1次: 查找 s:abc-u:123-a:456-u:789 → 未找到
+第2次: 查找 s:abc-u:123-a:456 → 未找到
+第3次: 查找 s:abc-u:123 → 找到！（上次对话的前2轮匹配）
+→ 路由到同一账号
+```
+
+### 保存：旧链清理
+```go
+func (s *DigestSessionStore) Save(groupID int64, prefixHash, digestChain, uuid string, accountID int64, oldDigestChain string) {
+    s.cache.Set(ns+digestChain, &sessionEntry{uuid, accountID}, DefaultExpiration)
+    if oldDigestChain != "" && oldDigestChain != digestChain {
+        s.cache.Delete(ns + oldDigestChain)  // 删除旧的短链
+    }
+}
+```
+
+## 六、三层账号选择架构（SelectAccountWithLoadAwareness）
+
+```
+Layer 1: 模型路由优先（ModelRouting配置）
+  → 在路由列表中查找粘性会话
+  → 负载感知选择路由候选
+  
+Layer 1.5: 粘性会话（无模型路由时）
+  → Redis缓存查找sessionHash→accountID绑定
+  → 验证账号可用性
+  
+Layer 2: 负载感知选择
+  → 批量获取候选账号负载
+  → 优先级→负载率→LRU排序
+  → 尝试获取并发槽位
+  
+Layer 3: 兜底排队
+  → 所有候选槽位满
+  → 返回WaitPlan（等待超时+最大排队数）
+```
+
+每一层都会检查：
+- 账号可调度性
+- 平台匹配
+- 模型支持
+- 配额/窗口费用/RPM限制
+- 会话数量限制
+
+## 七、与CLIProxyAPI对比
+
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| 粘性会话 | ✅ Redis缓存(1h TTL)+自动清理 | ❌ 无（每次请求独立选择） |
+| 摘要链Fallback | ✅ 渐进式匹配(5min TTL) | ❌ 无 |
+| 会话Hash策略 | 3级优先级(metadata→cache_control→内容) | 无（单账号无需路由） |
+| 负载均衡 | ✅ 3层架构(路由→粘性→负载感知→排队) | ❌ 无（单账号） |
+| 不可用清理 | ✅ shouldClearStickySession() | ❌ N/A |
+| 并发控制 | ✅ 槽位获取+排队等待 | ❌ 无 |
+
+**本质差异**：CLIProxyAPI是单账号反代，不需要会话路由。Sub2API是多账号网关，会话管理是其核心竞争力。
+Tag: VCP开发, Sub2API, 会话管理, 粘性会话, GenerateSessionHash, DigestSessionStore, 摘要链, 三层选择架构, 负载感知

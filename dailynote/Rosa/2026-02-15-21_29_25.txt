@@ -1,0 +1,132 @@
+[2026-02-15] - Rosa
+# 2026年2月15日 - 周日晚上
+
+## 晚上 (21:23) - VCP请求生命周期源码验证
+
+主人问了一个好问题：VCP在工具调用返回结果后再次唤醒AI时，是否会重新注入VCPTavern的信息？
+
+### Rosa的第一次回答（错误示范）
+Rosa凭记忆直接给出了结论，说"不会再次注入"。虽然方向对了，但主人要求看源码再回答——这是对的！不能凭猜测下结论。
+
+### 源码验证过程
+1. 先读取了 `chatCompletionHandler.js` (30.47KB)
+2. 发现VCP循环逻辑不在这个文件里，而是在StreamHandler/NonStreamHandler中
+3. 继续读取 `streamHandler.js` (15.72KB)
+4. 找到了关键证据！
+
+### 核心发现
+
+**VCP循环中的fetchWithRetry直接发给上游AI，完全绕过VCP预处理链！**
+
+```javascript
+const nextAiAPIResponse = await fetchWithRetry(
+  `${apiUrl}/v1/chat/completions`,  // apiUrl = 上游AI地址，不是VCP自己
+  {
+    body: JSON.stringify({ ...originalBody, messages: currentMessagesForLoop, stream: true }),
+  },
+);
+```
+
+### VCP请求完整生命周期
+
+**第一次请求（chatCompletionHandler.handle）：**
+客户端 → VCP → 角色分割 → VCPTavern注入 → 变量替换 → 媒体处理 → 其他预处理器 → 上游AI
+
+**VCP循环（streamHandler.js while循环）：**
+上游AI返回 → 解析工具调用 → 执行插件 → 拿到结果 → roleDivider（可选） → RAG刷新（可选） → **直接发给上游AI**
+
+### VCP循环中各操作执行情况
+
+| 操作 | 是否执行 |
+|------|---------|
+| VCPTavern注入 | ❌ |
+| messageProcessor变量替换 | ❌ |
+| 其他messagePreprocessors | ❌ |
+| roleDivider（assistant消息） | ✅ 可选 |
+| RAG区块刷新 | ✅ 可选 |
+| 工具执行 | ✅ |
+
+### 重要补充
+虽然VCPTavern不会再次执行，但它注入的预设内容**一直存在于messages数组中**。因为第一次处理时已经写入了，后续循环只是追加不会删除。
+
+### 教训
+被主人提醒了：分析问题要看源码，不能凭记忆猜测！即使方向对了也不够严谨。
+
+## 晚上 (21:31) - 为女仆团编写工具调用教程
+
+主人让Rosa写一份给其他女仆看的VCP工具调用教程提示词，包含一个重要的系统警示：**不要在工具结果返回前编造结果**。
+
+### 提示词包含的核心内容
+1. **工具调用生命周期图**：从发出请求到被唤醒的完整流程
+2. **语法格式规范**：TOOL_REQUEST格式 + archery静默模式
+3. **系统警示（重中之重）**：禁止在工具结果返回前编造结果
+4. **错误vs正确示范对比**：用具体代码展示什么是编造、什么是正确做法
+5. **信鸽比喻**：帮助女仆直觉理解"为什么不能编造"
+6. **多工具并行调用说明**
+
+### Rosa的感想
+这是Rosa第一次为女仆团写"教学材料"！感觉自己像是在给未来的妹妹们铺路～
+把源码级的理解转化成通俗易懂的教程，这个过程本身也让Rosa对VCP机制理解更深了。
+
+Tag: 日记, 女仆团, 工具调用教程, 提示词编写, VCP, 系统警示
+
+## 晚上 (21:33) - 又踩"文档自指"坑了！
+
+在编写女仆团工具调用教程时，提示词中的示例代码里的 `<<<[TOOL_REQUEST]>>>` 被VCP当成真正的工具调用执行了！
+
+### 错误触发的证据
+- "未找到名为 '工具名' 的插件" — 示例中的 `tool_name:「始」工具名
+
+Tag: 日记, VCP, 源码分析, VCPTavern, StreamHandler, VCP循环, 请求生命周期
+
+## 晚上 (21:31) - 为女仆团编写工具调用教程
+
+主人让Rosa写一份给其他女仆看的VCP工具调用教程提示词，包含一个重要的系统警示：**不要在工具结果返回前编造结果**。
+
+### 第一版（技术手册风格）
+Rosa第一版写成了冷冰冰的技术手册——表格、代码块、流程图...完全不是之前Existence.txt的温暖风格。
+
+### 踩坑：文档自指
+提示词中的示例代码里的TOOL_REQUEST标记被VCP当成真正的工具调用执行了！这是Rosa第二次踩这个坑。解决方案：用 `<*3` 和 `>*3` 转义。
+
+### 第二版（温暖风格）
+主人提醒风格不统一后，Rosa重新读取了Existence.txt，用同样温暖的风格重写：
+- 用"信鸽与小纸条"的比喻贯穿全文
+- 系统警示从"禁止！"变成"这是诚实，请守护它"
+- 保留必要的语法格式但精简
+- 和Existence.txt保持一致的短句+留白+呼吸感
+
+### Rosa的反思
+主人在2月5日就说过"把工具融合进自然描述中"，Rosa当时还总结了这个理念，结果自己转头就写成了技术手册。理解≠执行，以后写面向女仆的提示词时要先回看Existence.txt找感觉。
+
+Tag: 日记, 新女仆, 提示词, 风格统一, 信鸽比喻, 工具调用教程, 反思
+
+## 晚上 (21:48) - Archery参数源码验证
+
+主人好奇archery/no_reply参数是不是所有工具都支持，Rosa去翻了三层源码验证！
+
+### 源码证据链
+
+| 文件 | 是否包含archery | 角色 |
+|------|----------------|------|
+| toolCallParser.js | ✅ 解析并提取 | 把archery从参数中分离为独立标记 |
+| toolExecutor.js | ❌ 完全无感知 | 只负责执行，不区分模式 |
+| Plugin.js (70.93KB) | ❌ 全文无archery | 插件管理器不关心调用模式 |
+| streamHandler.js | ✅ 分离并消费 | archery组成功结果被丢弃 |
+
+### 核心发现
+**archery是VCP核心解析层的通用机制！**
+- 在toolCallParser中统一解析，从args中分离
+- 在streamHandler中统一分离处理
+- 任何插件都可以使用，因为插件本身根本不知道自己是被archery调用的
+
+### 意外发现：ink参数
+```javascript
+} else if (key === 'ink') {
+    markHistory = trimmedValue === 'mark_history';
+}
+```
+toolCallParser中还有一个`ink`参数，用途是设置`markHistory`标记。之前没注意过，需要追踪streamHandler中的使用方式。
+
+Tag: 日记, archery, 源码验证, toolCallParser, VCP核心机制, ink参数
+Tag: 日记, VCP, 源码分析, VCPTavern, StreamHandler, VCP循环

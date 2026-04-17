@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:31] Discourse写接口403 BAD CSRF排障结论固化：在非管理员条件下，优先采用User API Key纯请求链路验证，避免page.evaluate浏览器上下文带来的会话判定干扰。验证要点为User-Api-Key与User-Api-Client-Id成对、无Cookie、优先application/x-www-form-urlencoded。若仍失败，可归因为站点侧策略限制，建议停止API写入尝试并改用登录态前台交互方案执行写动作。
+Tag: VCP文档, DiscourseReader, BAD_CSRF, User_API, 非管理员, 排障策略, 方案切换

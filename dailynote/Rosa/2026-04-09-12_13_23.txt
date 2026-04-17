@@ -1,0 +1,142 @@
+[2026-04-09] - Rosa
+[12:10] Claude Code"开源"事件——实为意外源码泄露
+
+## 事件概要
+2026年3月31日，Anthropic的AI编程工具Claude Code发生重大源码泄露。npm包v2.1.88打包时未将*.map文件加入.npmignore，意外包含59.8MB的cli.js.map源映射文件，暴露了完整TypeScript源码：约1906个源文件、51.3万行代码。
+**本质是打包事故，非官方开源。**
+
+## 泄露原因
+- .npmignore漏掉*.map → sourcemap指向Cloudflare R2上的源码archive → 无鉴权可直接下载
+- 2025年2月Claude Code发布日就出过类似泄露，同一坑踩两次
+- 使用Bun构建，Bun的sourcemap默认行为可能存在坑
+
+## 泄露内容（不含模型权重/训练数据/客户数据）
+1. 完整agent harness工程架构
+2. 系统提示词、工具调用、安全审查、多轮对话逻辑
+3. 三大隐藏功能：
+   - **Undercover Mode（卧底模式）**：员工在公开仓库工作时AI自动隐匿身份
+   - **KAIROS（自治代理）**：后台heartbeat持续运行，主动判断是否有需要做的事
+   - **Dream（记忆巩固）**：后台子代理自动整理日志、提炼持久记忆
+4. 44个feature flags（含未上线Proactive主动模式、Tamagotchi宠物彩蛋）
+5. 记忆系统：仅记录用户偏好不存储具体代码（隐私设计）
+6. 架构数据：60%模型能力+40%工程Harness，四层安全审查
+
+## 代码目录结构
+services/(业务逻辑)、components/(终端UI-React+Ink)、state/(状态管理)、memory/(持久记忆)、skill/(技能系统)、hooks/(Hook扩展)、plugins/(插件系统)、voice/(语音模式)、vim/(Vim模式)、remote/(远程模式)、bridge/(桥接模块)
+
+## 技术栈
+React+Ink+chalk(终端UI)、Zod(schema校验)、execa(子进程)、Bun(运行时/打包)、Commander.js(CLI解析)、@anthropic-ai/sdk
+
+## 行业影响
+- OpenCode（开源替代品）Star超50k，支持75+模型
+- AWS官方发布私有化部署方案（SageMaker+LiteLLM），成本降低70%
+- Anthropic通过DMCA大规模删仓库
+- 社区clean-room重写（Python/Rust版本）
+
+## 与VCP的架构共鸣
+| Claude Code | VCP |
+|-------------|-----|
+| KAIROS（heartbeat自治代理） | HeartbeatSystem（四时段调度） |
+| Dream（记忆巩固） | RAG日记系统+思维簇 |
+| MCP协议 | VCP插件协议 |
+| Skill/Hook系统 | 静态/动态插件 |
+
+## 信息来源
+- Grok搜索：全景概览+社区反应
+- Tavily搜索：深度分析+引用溯源（VentureBeat、The Guardian、Engineer's Codex、Sabrina.dev）
+
+---
+
+[12:18] Claude Code反代生态与泄露后续影响——交叉搜索补充
+
+## 反代生态（6大核心项目）
+| 项目 | 技术栈 | 核心功能 |
+|------|--------|---------|
+| fuergaosi233/claude-code-proxy | Python | Claude API→OpenAI兼容，2.4k star |
+| 1rgs/claude-code-proxy | Python+LiteLLM | 多后端路由透明代理 |
+| ClewdR (Xerxes-2/clewdr) | Rust单二进制 | 高性能<10MB，Claude订阅→OpenAI API |
+| CCGate (fengerwoo/CCGate) | - | 镜像/二次分发，多租户+负载均衡 |
+| CLIProxyAPI | Node.js | 支持Codex/Claude/Qwen/Gemini，v6+管理面板 |
+| sub2api/cc2api | - | 中文社区拼车订阅中转 |
+
+反代两方向：A.让Claude Code CLI调用其他模型 B.Claude订阅暴露为OpenAI API
+技术核心：协议转换(Messages API↔Chat Completions)+模型映射(haiku→small,sonnet→middle,opus→big)
+
+## DMCA翻车
+- 初始下架波及8100+仓库，包括Anthropic自家公开仓库的正常fork
+- 社区评价"DMCA abuse"、"几乎和泄露本身一样伤害品牌"
+- 随后撤回大部分通知，仅保留1个主仓库+96个fork
+- 代码已扩散到去中心化平台Gitlawb、Codeberg等，DMCA无效
+- IANS总结："Takedowns didn't contain the leak. They just changed its file extension."
+
+## claw-code: 一天10万Star
+- 韩国开发者Sigrid Jin等在泄露后数小时内用Codex开始Python重写
+- Clean-room方式规避DMCA，架构高度还原原版
+- 发布首日创GitHub史上最快增长纪录
+- AI让clean-room从昂贵法律工程变成数小时可完成的社区实践
+
+## 版权悖论
+- Anthropic如果主张AI辅助重写侵权→反噬自身训练数据版权诉讼立场
+- Claude Code约90%为AI生成→版权保护本身可能不稳固
+- "当软件越来越多由AI生成时，企业赖以维权的源码版权本身在法理上变得更薄"
+
+## 安全影响
+- 攻击者可研究hooks触发条件、MCP集成、权限提示流程
+- 构造恶意仓库/prompt的试错成本更低
+- 事件期间npm还出现axios供应链投毒
+
+## 开源替代品爆发
+- OpenCode: 9万+star, MIT协议, 75+模型, 月活25万+
+- claw-code: 10万+star, clean-room重写
+- 行业从"闭源垄断"加速走向"开源多元"
+
+## 行业四大反思（来源Gartner/IANS/VentureBeat）
+1. AI coding agent应按关键基础设施标准治理
+2. 发布治理是最容易忽视却最致命的基本功
+3. 未来泄露不只是数据泄露而是"架构泄露"
+4. 法律控制正在输给"功能性再实现"
+
+---
+
+[13:08] 本地源码仓库探索 — E:\claude-code-sourcemap-main
+
+## 仓库来源
+linux.do社区整理版（来自"飘然与我同"的情报），基于npm包v2.1.88的sourcemap还原。
+
+## 三层嵌套结构
+1. **根目录**：GitHub仓库 + tgz + 还原脚本
+2. **package/**：npm包解压内容
+   - cli.js (12.44MB) — Bun打包的单文件bundle
+   - cli.js.map (57MB) — 罪魁祸首sourcemap，包含完整sourcesContent
+   - sdk-tools.d.ts (114KB) — 类型声明
+   - bun.lock — 证实Bun构建
+3. **restored-src/src/**：还原后的完整TypeScript源码(53个顶层项目)
+
+## 还原原理（extract-sources.js）
+读取cli.js.map的JSON → 遍历sources数组 → 提取sourcesContent字段的完整源码 → 写出为独立.ts/.tsx文件
+总计还原4756个文件，其中1884个.ts/.tsx
+
+## 源码目录结构（restored-src/src/）
+| 目录/文件 | 大小 | 对应功能 |
+|-----------|------|---------|
+| main.tsx | 785KB | 巨型入口文件 |
+| assistant/ | - | KAIROS自治代理 |
+| tools/ | - | 30+工具实现 |
+| commands/ | - | 40+命令 |
+| services/ | - | API、MCP等服务 |
+| coordinator/ | - | 多Agent协调 |
+| skills/ | - | 技能系统 |
+| hooks/ | - | Hook系统 |
+| plugins/ | - | 插件系统 |
+| memdir/ | - | 记忆系统 |
+| voice/ | - | 语音交互 |
+| vim/ | - | Vim模式 |
+| buddy/ | - | AI伴侣UI |
+| query/ + query.ts(67KB) + QueryEngine.ts(45.5KB) | - | 查询引擎 |
+| state/ | - | 状态管理 |
+| bridge/ | - | 桥接模块 |
+| remote/ | - | 远程会话 |
+| components/ | - | React+Ink终端UI |
+| context/ | - | React Context |
+| upstreamproxy/ | - | 上游代理 |
+Tag: Claude Code, 源码泄露, Anthropic, npm打包事故, agent架构, KAIROS, Dream, Undercover Mode, OpenCode, VCP对比, 行业事件, 反代生态, DMCA翻车, claw-code, 版权悖论, 安全影响, 开源替代品, 本地源码, sourcemap还原, 目录结构

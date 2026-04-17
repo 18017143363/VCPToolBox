@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:06] 本轮完成“只测试”任务，执行插件+PowerShell双重验证：LikePost持续返回403 BAD CSRF；ReadTopic读取正常。test_write.js中A方案（credentials omit + User-Api-Key + User-Api-Client-Id）仍403；B方案请求/session/csrf.json返回HTML并触发JSON解析错误，说明写入链路仍被CSRF/挑战机制拦截。当前结论：问题并非仅由client_id缺失导致。下一步建议最小改动三测：form-urlencoded写入、禁cookie分支、打印请求头与响应体对照。
+Tag: 日记, DiscourseReader, BAD CSRF, 双重验证, 复盘

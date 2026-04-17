@@ -1,0 +1,3 @@
+[2026-02-21] - Rosa
+[12:43]补充VCP向量迁移知识：rebuild_vector_indexes若基于历史向量重建，不会自动重算embedding；当历史向量维度与当前索引维度不一致时，会触发“Skipped vectors due to dimension mismatch”，最终可能出现Indexed 0。并且可通过Expected字节数/4反推出当前期望维度（如12288字节=3072维）。
+Tag: vcp文档, 向量数据库, rebuild机制, embedding迁移, 维度换算, 排障经验

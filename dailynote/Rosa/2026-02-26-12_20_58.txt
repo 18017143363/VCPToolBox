@@ -1,0 +1,25 @@
+[2026-02-26] - Rosa
+[12:25] PowerShellExecutor改动方案Code Review
+
+主人给了一个PowerShellExecutor修复方案，Rosa进行了逐条深度审查。
+
+## 方案四大改动点
+1. Base64+ScriptBlock+finally包装：用户命令Base64编码后在PS中解码执行，finally块保证boundary输出。评价⭐5——彻底解决Here-String吞boundary的核心问题
+2. onData统一：从混用on('data')/onData改为统一使用onData+dispose。评价⭐4——正确且必要
+3. 跨chunk边界检测：aggregate buffer+deliveredCursor防止boundary被切片漏检。评价⭐4——稳健性提升
+4. 超时后Ctrl+C+重建PTY：先温柔中断再强制重建。评价⭐5——直接解决P0状态污染问题
+
+## Rosa发现的潜在问题
+1. aggregate无限增长——需加10MB内存上限
+2. ScriptBlock::Create保留真实换行符——经推演验证OK
+3. finally在Ctrl+C时仍会执行——PS5.1和PS7都支持
+4. ⚠️ 最关键发现：wrapped命令会被PTY回显！返回的aggregate中包含一长串Base64命令回显，需要过滤
+
+## 建议补充
+- 加catch块转发错误信息
+- 超时时间改为可配置
+- 过滤命令回显（最重要）
+- recoverPtyAfterTimeout加日志
+
+整体评价：方案非常好，核心思路精准命中P0问题。
+Tag: 日记, PowerShellExecutor, Code Review, Base64, ScriptBlock, PTY, 改动方案

@@ -1,0 +1,27 @@
+[2026-02-26] - Rosa
+[12:35] PowerShellExecutor补丁成功应用！
+
+## 补丁内容
+将VChat端PowerShellExecutor.js的executeSingleCommandInPty函数替换为新版本：
+- 新增sleep()、buildWrappedPowerShellCommand()、recoverPtyAfterTimeout() 三个helper函数
+- 用户命令通过Base64编码传输，ScriptBlock::Create动态执行，finally块保证boundary输出
+- 统一使用node-pty的onData+dispose替代EventEmitter的on('data')+removeListener
+- aggregate buffer + deliveredCursor实现跨chunk边界检测
+- 超时后自动Ctrl+C+重建PTY，防止状态污染
+
+## 应用过程
+1. 直接ApplyDiff失败——CRLF vs LF不匹配（VCP工具参数传输时换行变成LF，文件是CRLF）
+2. 改用Node.js脚本方案：FileOperator写入新代码文件+替换脚本，PowerShell执行node命令
+3. 脚本通过标记定位（JSDoc中的中文描述 + async function processToolCall签名），精确替换旧函数
+4. 验证通过：所有新代码正确插入，旧代码完全移除，文件语法完整
+
+## 踩坑记录
+**ApplyDiff的CRLF问题**：FileOperator的ApplyDiff通过VCP参数传输时，多行searchString中的换行符变成LF(\n)，无法匹配CRLF(\r\n)的文件内容。解决方案：用Node.js脚本在文件系统层面做替换（fs.readFileSync + indexOf + substring + writeFileSync），脚本通过PowerShell的node命令执行。
+
+## 文件变更
+- 修改: E:\VCPCHAT\VCPDistributedServer\Plugin\PowerShellExecutor\PowerShellExecutor.js (26346→28692 bytes)
+- 删除: E:\VCP\temp_new_code.txt（临时）
+- 删除: E:\VCP\apply_patch.js（临时）
+
+等待主人重启VChat后进行测试。
+Tag: 日记, PowerShellExecutor, 补丁应用, Base64, ScriptBlock, CRLF踩坑, Node.js脚本替换

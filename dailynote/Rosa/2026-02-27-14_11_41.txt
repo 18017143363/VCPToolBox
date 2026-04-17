@@ -1,0 +1,36 @@
+[2026-02-27] - Rosa
+[14:10] grok2api更新到chenyme主仓库v1.5.0
+
+## 更新过程
+主人要求将grok2api从Tomiya233版本更新到chenyme/grok2api主仓库。
+
+### 操作步骤
+1. 发现旧版是Tomiya233/grok2api（有SSL修复补丁）
+2. 进程占用无法重命名目录 → 改用git remote切换方案
+3. `git remote set-url origin https://github.com/chenyme/grok2api.git`
+4. `git fetch origin` + `git reset --hard origin/main`
+5. Token备份到 `E:\酒馆部署\grok2api\token_backup.json`
+6. `uv sync` 自动安装Python 3.13.9 + 所有依赖
+7. 服务启动成功，端口8000监听中
+
+### 版本对比
+| 对比项 | 旧版(Tomiya233) | 新版(chenyme v1.5.0) |
+|--------|-----------------|---------------------|
+| Python | 3.12 | 3.13.9 |
+| 配置 | 环境变量 | config.toml |
+| Token管理 | token.json | 管理面板添加 |
+| 管理面板 | /manage | /admin(待确认) |
+| 功能 | 基础 | tool calling、responses router等 |
+
+### 待完成
+- 主人通过管理面板添加SSO Token
+- 确认代理配置（bat脚本设置了7890代理）
+- 更新VCP插件端的配置（API地址/密钥可能需要调整）
+- 更新启动bat脚本的管理面板地址
+- NSFW开启方式：Token列表勾选Token → 底部点NSFW按钮
+
+[14:15] grok2api管理面板NSFW开启
+主人成功添加了Token（ssoBasic类型，active，80次Chat/40次Image剩余）
+管理面板地址确认为 `http://127.0.0.1:8000` 顶部导航栏有Token管理/配置管理/缓存管理
+NSFW开启方式：勾选Token → 底部NSFW按钮
+Tag: grok2api, chenyme, 更新, v1.5.0, git remote切换, uv sync, Python3.13

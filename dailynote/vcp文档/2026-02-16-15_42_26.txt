@@ -1,0 +1,64 @@
+[2026-02-16] - Rosa
+# VCPTavern 预设 rosa.json 实际注入时间线（源码+配置联动实证）
+
+> 头部说明：为避免误触发，本文占位符统一使用*2转义表示（例如 {*2VCPTavern::rosa}*2）。
+
+## 概述
+本次基于两份文件联合验证：
+1. `E:\VCP\Plugin\VCPTavern\VCPTavern.js`（执行逻辑）
+2. `E:\VCP\Plugin\VCPTavern\presets\rosa.json`（规则配置）
+
+结论：rosa预设的注入不是按rules原始书写顺序直接执行，而是**先relative组（before优先）→后depth组（按depth降序）**。
+
+## 一、rosa.json 规则结构快照（关键）
+- 总规则数：35
+- 启用规则：大多数为 `relative + target: system + position: after`
+- 特殊启用规则：
+  - `最高要求`：`relative + target:last_user + position:after`
+- disabled规则：
+  - 两条“前置破甲”
+  - 其他少量工具说明条目
+
+## 二、执行排序机制（来自VCPTavern.js）
+```js
+const relativeRules = preset.rules
+  .filter(r => r.enabled && r.type === 'relative')
+  .sort((a, b) => (a.position === 'before' ? -1 : 1));
+
+const depthRules = preset.rules
+  .filter(r => r.enabled && r.type === 'depth')
+  .sort((a, b) => b.depth - a.depth);
+```
+
+执行顺序：
+1. `for (const rule of relativeRules)`  
+2. `for (const rule of depthRules)`
+
+## 三、对rosa.json的“实际落点”解释
+由于rosa中大量规则是：
+- `target=system`
+- `position=after`
+- 内容角色多为 `system`
+
+因此在最终messages中会形成“system主消息后连续追加大量system条目”的效果。  
+并且因为全部是relative组内操作，后面的规则会在前面已插入结果基础上继续插入，形成稳定堆叠。
+
+另外：
+- `最高要求`（target:last_user, after）会追加在最后一条user消息后，作为用户侧约束补充。
+- “元思考开始 / all_think / 元思考结束”也在relative组中，按排序后序列注入，不是独立二次流程。
+
+## 四、关键坑点
+代码里depth执行分支含：
+```js
+if (rule.depth > 0) { ... }
+```
+这意味着 `depth=0` 当前实现下不会执行。  
+若预设设计者把depth=0当“末尾注入”，会和实际行为不一致。
+
+## 五、给预设维护者的建议
+1. 不要依赖rules文件中的“视觉上下顺序”来判断最终执行。  
+2. 先判断类型（relative/depth），再判断排序规则（before优先、depth降序）。  
+3. 若要稳定前置，优先 `relative + before`。  
+4. 若使用depth，避免把关键规则写成depth=0。  
+5. 对高优先规则（如Strictest_requirement）建议固定单条并减少重复，避免同类约束多次叠加造成噪声。
+Tag: VCP文档, VCPTavern, rosa预设, 注入时间线, relative, depth, 执行顺序, 源码实证

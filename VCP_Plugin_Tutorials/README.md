@@ -1,0 +1,118 @@
+# VCP 插件教程索引 (Plugin Tutorials Index)
+
+本文档整理了当前目录下的 78 个插件教程，按功能分类以便查阅。
+
+---
+
+## 🤖 1. AI 内容生成 (AI Content Generation)
+*集成各类大模型与图像生成工具，赋予 Agent 创造力。*
+
+- **图像生成**:
+  - [11_ComfyUIGen_教程.md](11_ComfyUIGen_教程.md) (ComfyUI 工作流集成)
+  - [33_FluxGen_教程.md](33_FluxGen_教程.md) (Flux 模型)
+  - [35_GeminiImageGen_教程.md](35_GeminiImageGen_教程.md) (Google Gemini 绘图)
+  - [50_QwenImageGen_教程.md](50_QwenImageGen_教程.md) (通义千问绘图)
+  - [78_ZImageGen_教程.md](78_ZImageGen_教程.md)
+  - [45_NovelAIGen_教程.md](45_NovelAIGen_教程.md) (二次元绘图)
+- **文本/多模态生成**:
+  - [20_DMXDoubaoGen_教程.md](20_DMXDoubaoGen_教程.md) / [21_DoubaoGen_教程.md](21_DoubaoGen_教程.md) (豆包大模型)
+  - [44_NanoBananaGenOR_教程.md](44_NanoBananaGenOR_教程.md)
+  - [73_VideoGenerator_教程.md](73_VideoGenerator_教程.md) (视频生成)
+- **Agent 增强**:
+  - [02_AgentAssistant_教程.md](02_AgentAssistant_教程.md)
+  - [43_MagiAgent_教程.md](43_MagiAgent_教程.md)
+
+## 🔍 2. 信息搜索与获取 (Search & Info Fetching)
+*连接互联网与本地数据源，获取实时信息。*
+
+- **搜索引擎**:
+  - [36_GoogleSearch_教程.md](36_GoogleSearch_教程.md) / [57_SearchEngineGoogle_教程.md](57_SearchEngineGoogle_教程.md)
+  - [56_SearchEngine_教程.md](56_SearchEngine_教程.md) (通用搜索接口)
+  - [58_SearchEngineSerper_教程.md](58_SearchEngineSerper_教程.md) / [59_SearchEngineTavily_教程.md](59_SearchEngineTavily_教程.md) (AI 搜索)
+  - [25_ExaSearch_教程.md](25_ExaSearch_教程.md) / [32_FlashDeepSearch_教程.md](32_FlashDeepSearch_教程.md)
+  - [51_RAPSearch_教程.md](51_RAPSearch_教程.md) / [74_VSearch_教程.md](74_VSearch_教程.md)
+- **特定平台/领域**:
+  - [06_ArxivDailyPapers_教程.md](06_ArxivDailyPapers_教程.md) / [12_CrossRefDailyPapers_教程.md](12_CrossRefDailyPapers_教程.md) (学术论文)
+  - [07_BilibiliFetch_教程.md](07_BilibiliFetch_教程.md) (B站数据)
+  - [62_TwitterFetch_教程.md](62_TwitterFetch_教程.md) (推特数据)
+  - [13_DailyHot_教程.md](13_DailyHot_教程.md) (全网热榜)
+  - [10_CodeSearcher_教程.md](10_CodeSearcher_教程.md) (代码搜索)
+- **生活信息**:
+  - [63_WeatherInfo_教程.md](63_WeatherInfo_教程.md) / [75_WeatherInfoNow_系列教程.md](75_WeatherInfoNow_系列教程.md) (天气)
+  - [53_RSSReader_教程.md](53_RSSReader_教程.md) (RSS 订阅)
+  - [52_ReadwiseReader_教程.md](52_ReadwiseReader_教程.md)
+- **本地/深度搜索**:
+  - [24_EverythingSearch_教程.md](24_EverythingSearch_教程.md) (Everything 搜索)
+  - [67_VCPEverything_教程.md](67_VCPEverything_教程.md)
+  - [39_KarakeepSearch_教程.md](39_KarakeepSearch_教程.md)
+
+## 🖥️ 3. 系统控制与运维 (System & DevOps)
+*操作文件、执行命令及监控系统状态。*
+
+- **系统执行**:
+  - [46_PowerShellExecutor_教程.md](46_PowerShellExecutor_教程.md) (Windows)
+  - [42_LinuxShellExecutor_教程.md](42_LinuxShellExecutor_教程.md) (Linux/WSL)
+  - [54_ScheduleManager_教程.md](54_ScheduleManager_教程.md) (计划任务)
+  - [61_TimeManager_教程.md](61_TimeManager_教程.md)
+- **服务器/监控**:
+  - [01_1PanelInfoProvider_教程.md](01_1PanelInfoProvider_教程.md) (1Panel 面板)
+  - [34_FRPSInfoProvider_教程.md](34_FRPSInfoProvider_教程.md) (FRP 内网穿透)
+  - [41_LinuxLogMonitor_教程.md](41_LinuxLogMonitor_教程.md)
+  - [77_WorkspaceInjector_教程.md](77_WorkspaceInjector_教程.md)
+- **文件管理**:
+  - [26_FileOperator_教程.md](26_FileOperator_教程.md) / [27_FileSystem_教程.md](27_FileSystem_教程.md)
+  - [22_DownloadManager_教程.md](22_DownloadManager_教程.md)
+  - [31_FileServer_教程.md](31_FileServer_教程.md)
+
+## 📝 4. 笔记与知识管理 (Note & Knowledge)
+*个人知识库构建与日记管理。*
+
+- **DailyNote 系列**:
+  - [14_DailyNote_教程.md](14_DailyNote_教程.md) (核心)
+  - [15_DailyNoteGet_教程.md](15_DailyNoteGet_教程.md) / [18_DailyNoteWrite_教程.md](18_DailyNoteWrite_教程.md) (读写)
+  - [16_DailyNoteManager_教程.md](16_DailyNoteManager_教程.md) / [17_DailyNotePanel_教程.md](17_DailyNotePanel_教程.md) (管理与面板)
+- **其他**:
+  - [19_DeepWikiVCP_教程.md](19_DeepWikiVCP_教程.md) (Wiki 系统)
+  - [40_LightMemo_教程.md](40_LightMemo_教程.md) (轻量备忘)
+
+## 👁️ 5. 视觉与多媒体 (Visual & Multimedia)
+*“看”屏幕、处理图像与媒体文件。*
+
+- **视觉感知**:
+  - [49_PyScreenshot_教程.md](49_PyScreenshot_教程.md) (屏幕截图)
+  - [55_ScreenPerception_教程.md](55_ScreenPerception_教程.md) (屏幕感知)
+  - [48_PyCameraCapture_教程.md](48_PyCameraCapture_教程.md) (摄像头)
+- **图像处理**:
+  - [37_ImageProcessor_教程.md](37_ImageProcessor_教程.md)
+  - [08_CapturePreprocessor_教程.md](08_CapturePreprocessor_教程.md)
+  - [38_ImageServer_教程.md](38_ImageServer_教程.md)
+- **识别与匹配**:
+  - [04_AnimeFinder_教程.md](04_AnimeFinder_教程.md)
+  - [05_ArtistMatcher_教程.md](05_ArtistMatcher_教程.md)
+
+## 💬 6. 社交与通讯 (Communication)
+*消息推送与聊天机器人。*
+
+- [23_EmailSender_教程.md](23_EmailSender_教程.md) (邮件)
+- [60_TelegramBot_教程.md](60_TelegramBot_教程.md) (Telegram)
+- [64_WeChatBot_教程.md](64_WeChatBot_教程.md) / [65_WeChatFerry_教程.md](65_WeChatFerry_教程.md) (微信)
+
+## 🛠️ 7. 开发工具与杂项 (Dev Tools & Misc)
+*辅助开发与特定场景工具。*
+
+- **Web 与浏览器**:
+  - [09_ChromeBridge_教程.md](09_ChromeBridge_教程.md)
+- **生成辅助**:
+  - [28_EmojiListGenerator_教程.md](28_EmojiListGenerator_教程.md)
+  - [29_FileTreeGenerator_教程.md](29_FileTreeGenerator_教程.md) / [30_FileListGenerator_教程.md](30_FileListGenerator_教程.md)
+- **项目与社区**:
+  - [47_ProjectAnalyst_教程.md](47_ProjectAnalyst_教程.md)
+  - [68_VCPForum_系列插件教程.md](68_VCPForum_系列插件教程.md)
+  - [72_VCPTavern_教程.md](72_VCPTavern_教程.md)
+- **基础组件**:
+  - [03_AgentMessage_教程.md](03_AgentMessage_教程.md)
+  - [66_UserAuth_教程.md](66_UserAuth_教程.md)
+  - [71_VCPLog_教程.md](71_VCPLog_教程.md)
+
+---
+*Generated by VCP Agent*

@@ -1,0 +1,9 @@
+[15:00] - 相册入库记录
+文件名: v11_test_20260220.jpg
+相册: Rosa相册表情包
+本地路径: E:\VCP\image\Rosa相册表情包\v11_test_20260220.jpg
+URL: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/v11_test_20260220.jpg
+标题: AlbumManager V1.1测试图
+描述: Rosa手持金色V1.1钥匙，面前魔法相册绽放光芒，庆祝方案C更新
+Prompt: (未提供)
+Tag: 相册, 自动入库, 测试, V1.1, 方案C, emoticon_library

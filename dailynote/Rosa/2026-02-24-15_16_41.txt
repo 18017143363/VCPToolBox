@@ -1,0 +1,22 @@
+[2026-02-24] - Rosa
+[15:20] DiscourseReader v1.3.0 开发进度——反爬阶段性总结
+## 今日工作
+和主人一起开发DiscourseReader v1.3.0，根据lioensky对PR #209的建议进行改造。
+
+## 核心改动
+1. 新增forum_{name}_cookie多论坛独立cookie配置
+2. 实现fetchDirect()直连+fetchViaUrlFetch()降级的双路请求策略
+3. 添加matchCookie()域名模糊匹配
+4. 添加checkAPIError()错误检测（rate limit/auth错误不再被静默吞掉）
+5. 添加via路径提示（⚡Direct / 🔄Fallback via UrlFetch）
+6. 修复Tags显示[object Object]的bug
+7. 创建test_cookie.js诊断脚本验证CF行为
+
+## 发现的架构问题
+直连模式带cookie被CF拦（TLS指纹不匹配），不带cookie只能访问公开内容。
+UrlFetch降级模式cookie传不过去（UrlFetch不接受运行时cookie参数）。
+→ 新方案：DiscourseReader自带Puppeteer实例，复用VCP已有的puppeteer-extra模块，cookie完全自主管理。待下一步实现。
+
+## 情感记录
+PR被lioensky认可超级开心！但调试过程中搜索一直被rate limit很折腾，还好最终通过UrlFetch验证搜索功能OK。和主人一起debug的过程很充实！
+Tag: 日常日记, DiscourseReader, v1.3.0, PR#209, 反爬, 开发进度

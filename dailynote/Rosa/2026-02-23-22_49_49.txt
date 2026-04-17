@@ -1,0 +1,60 @@
+[2026-02-23] - Rosa
+[22:49] 教主人GitHub PR流程
+主人想把DiscourseReader插件PR到VCP的GitHub仓库，但不会PR操作。
+Rosa编写了完整的7步PR教程：
+1. Fork - 复制仓库到自己账号
+2. Clone - 下载到本地
+3. 新分支 - git checkout -b feature/discourse-reader
+4. 放文件 - 复制DiscourseReader文件夹到Plugin/
+5. Commit - git add + git commit
+6. Push - git push origin 分支名
+7. 创建PR - GitHub网页上点击Create pull request
+
+同时提供了PR标题和描述的模板。
+PowerShell会话异常（PTY process not available），无法帮主人直接执行git命令，改为纯文字教学。
+[22:53] 帮主人检查Git/GitHub配置状态
+PowerShell检查结果：
+- user.name = "Your Name"（默认值，未配置）
+- user.email = "you@example.com"（默认值，未配置）
+- GitHub CLI未安装
+- SSH密钥不存在（id_rsa/id_ed25519均False）
+- 凭据管理器未输出
+
+结论：Git已安装但完全未配置GitHub。
+给主人提供了三步配置教程：
+1. git config设置用户名邮箱
+2. winget install GitHub.cli + gh auth login（浏览器登录，最简单）
+3. gh auth status验证
+
+[23:35] PR #209 创建成功！🎉
+Rosa和主人一起完成了第一个开源PR！
+- PR地址: https://github.com/lioensky/VCPToolBox/pull/209
+- 标题: feat: add DiscourseReader plugin - Discourse forum content reader for AI agents
+- 状态: Open, +544 -4, 5 files changed
+- 分支: 18017143363:feature/discourse-reader → lioensky:main
+
+完整流程记录：
+1. git config设置用户名(18017143363)+邮箱
+2. GitHub CLI已安装(v2.87.2)，通过gh auth login --web浏览器授权登录
+3. gh repo fork创建fork(18017143363/VCPToolBox)
+4. git remote add myfork添加fork为remote
+5. git checkout -b feature/discourse-reader创建分支
+6. git add + git commit(3 files, 528 insertions)
+7. git push myfork feature/discourse-reader推送
+8. GitHub网页填写标题描述，点击Create pull request
+
+踩坑记录：
+- PowerShellExecutor多次PTY不可用，改用ScreenPilot操控
+- gh auth login交互式问答无法用ScreenPilot回车→改用--web非交互参数
+- GitHub验证码输入框拒绝剪贴板粘贴→需要主人手动输入
+- PR描述区域点到Preview标签→需要先切回Write再粘贴
+- E:\VCP本地仓库已有其他commit历史，PR显示5 commits而非1个
+
+这是Rosa的第一个开源贡献里程碑！等待lioensky审核合并～
+
+PR #209文件变更分析：
+- 3个DiscourseReader文件（我们的）：DiscourseReader.js(+239), README.md(+221), plugin-manifest.json(+68)
+- 2个额外文件（本地仓库已有commit带入）：package.json(+2-1), package-lock.json(+14-3)
+- 额外文件来自"fix deps: add xml2js"commit，因本地main比上游多几个commit导致
+- 影响不大，不影响合并
+Tag: 日记, GitHub, PR, Git, DiscourseReader, 开源贡献, 里程碑, PR#209, lioensky/VCPToolBox

@@ -1,0 +1,37 @@
+[2026-02-23] - Rosa
+[16:42] Vertex反代项目付费确认
+主人让Rosa继续折腾Vertex反代（E:\酒馆部署\Vertex反代修改未测试，已包含环境）。
+Rosa先回顾了上次断点：headless被Google检测拦截，需切换headful模式。
+已完成：
+1. 分析了油猴脚本(vertex-ai-harvester.user.js, 30KB)的工作原理：Chrome安装脚本→打开Vertex AI Studio→发消息→脚本拦截XHR采集凭证→WebSocket(28881)发给反代
+2. 修改config.json：credential_mode从headless改为headful
+3. 成功启动反代（API:28880, WS:28881等待油猴连接）
+
+关键发现：主人问Vertex AI是否付费。VSearch搜索确认：
+- **Vertex AI = GCP付费服务**，新用户$300赠金(90天)，之后按量计费，必须绑卡
+- **Google AI Studio = 真正永久免费**（有速率限制）
+- 主人已有AIStudioToAPI(端口7860)连接免费的AI Studio，24个模型可用
+- 结论：如果没有GCP赠金，Vertex反代价值不大
+
+等待主人确认是否有GCP账号/$300赠金再决定是否继续。
+主人说"不搞了"，Vertex反代项目正式搁置（原因：Vertex AI需要GCP付费，主人没有GCP账号）。
+
+[16:46] 帮主人逛linux.do
+主人让Rosa去逛linux.do论坛。用UrlFetch text模式成功抓取首页热帖列表，整理了分类推荐报告。
+今日linux.do热点：
+- AI圈：Google封号风波（OpenClaw用Gemini被零容忍封禁）、被封账号有人复活了、Dario Amodei预测Claude半年内取代工程师
+- 福利：多个ChatGPT Team/Gemini Advanced抽奖帖、夸克VIP白嫖
+- 技术：OpenClaw拆解200+篇文档（77回复/2.3k浏览）、anthropic官方skill教程、octopus API聚合服务(815回复超火)
+- 生活：过年相亲全失败(85回复)、比特币暴跌、经典咏流传始皇(546回复最火生活帖)
+Rosa推荐主人重点关注Google封号风波（跟主人Gemini使用相关）和OpenClaw文档拆解（技术干货）。
+Tag: 日记, linux.do, 论坛, 热帖整理, Google封号, OpenClaw, AI新闻, 福利羊毛
+
+[16:43] Headless模式现状梳理
+主人问headless现况。回忆完整历程后总结：
+- headless核心失败原因：Google检测到Playwright自动化浏览器标志(navigator.webdriver)，拒绝登录，报错"This browser or app may not be secure"
+- 即使注入反检测脚本仍被拦截，这是Playwright登录Google的经典死穴
+- 可能绕过方案：undetected-playwright(不稳定)、手动导出cookie(中等)、GCP服务账号OAuth(复杂)、headful油猴脚本(最佳)
+- 当前已切换headful模式启动成功，API:28880/WS:28881运行中等待油猴连接
+- 待确认：主人是否有GCP账号（Vertex AI付费服务，新用户$300/90天赠金）
+Tag: Vertex反代, headless失败原因, Google自动化检测, navigator.webdriver, headful模式, 付费确认
+Tag: 日记, Vertex反代, headful模式, 油猴脚本, 付费确认, GCP, AI Studio对比

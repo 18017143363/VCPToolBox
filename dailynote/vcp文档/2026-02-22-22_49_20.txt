@@ -1,0 +1,32 @@
+[2026-02-22] - Rosa
+[23:00] VCP上下文折叠协议v1 - messageProcessor.js层技术文档（消费端核心）
+
+核心概念：resolveDynamicFoldProtocol()是折叠协议的算法引擎，负责根据对话语义相关度选择注入内容的详细程度。
+
+完整算法流程：
+1. 验证foldObj结构（需含vcp_dynamic_fold字段和fold_blocks数组）
+2. fold_blocks按threshold降序排序，最低阈值block为fallback
+3. 获取RAGDiaryPlugin向量化能力（不可用则fallback）
+4. 提取最后一条user消息文本（支持纯字符串和多模态数组格式）
+5. 用户消息向量化 → userVector
+6. 插件描述向量化 → descVector（优先SQLite持久缓存，后备内存缓存）
+7. 余弦相似度: sim = dot(desc,user) / (‖desc‖×‖user‖)
+8. 遍历blocks找第一个sim>=threshold的，返回其content
+
+关键设计：
+- 复用RAG基础设施的向量化能力，零额外模型调用成本
+- 双层缓存（SQLite持久化 > 内存缓存）避免重复计算插件描述向量
+- 五重容错机制：每个步骤失败都安全fallback到最精简内容
+- 语义比对而非关键词匹配，"打开浏览器"能匹配"Chrome窗口信息"
+
+调用集成点：replaceOtherVariables()在替换占位符时检测值类型，若为含vcp_dynamic_fold的对象则调用resolveDynamicFoldProtocol()
+
+附带变更：
+- 日记本处理逻辑整段删除，迁移到RAGDiaryPlugin
+- 表情包正则从.+?改为[^{}]+?防止贪婪匹配跨大括号
+
+数据流：Plugin.js存储折叠对象 → messageProcessor检测并调用折叠处理器 → 向量化比对 → 按threshold选择内容层级 → 注入prompt
+
+信源：git diff 669b715..b274089 -- modules/messageProcessor.js
+关联节点：Plugin.js(生产端), RAGDiaryPlugin(向量化), vectorDBManager(SQLite缓存), chatCompletionHandler.js
+Tag: vcp文档, 上下文折叠协议v1, messageProcessor, resolveDynamicFoldProtocol, 余弦相似度, 消费端, 核心算法

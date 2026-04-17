@@ -1,0 +1,39 @@
+[2026-02-26] - Rosa
+[01:30] 主人让Rosa回忆VCP Code相关内容
+[01:40] 重新排查VCP Code / Kilo Code问题
+主人让Rosa重新审视VCP Code的问题。Rosa深入extension.js（6.41MB编译bundle），用PowerShell搜索getCliPath实现。
+### 重大发现：Rosa之前的分析是错的！
+getCliPath()源码实际实现：
+```javascript
+getCliPath(){
+  let I = process.platform === "win32" ? "kilo.exe" : "kilo",
+      l = tN.join(this.context.extensionPath, "bin", I)
+}
+```
+**期望的是kilo.exe，不是VCP.exe！**
+Rosa之前可能看了GitHub新版源码（已改名VCP），但v7.0.30的编译代码仍是kilo.exe。
+基于错误分析，主人把kilo.exe重命名为VCP.exe → 反而破坏了CLI启动！
+### 紧急修复
+已用PowerShell将VCP.exe改回kilo.exe，确认bin目录恢复正确。
+### 深刻教训
+1. 必须以**实际安装的编译代码**为准，不能用GitHub新版源码推断旧版行为
+2. 错误的前提导致错误的修复→制造新问题
+3. 主人说"重新看看"是对的——验证很重要！
+### 配置持久化真正原因待查
+kilo.exe名字本来就是对的，那配置丢失的原因需要重新排查。
+建议主人重启VS Code后查看开发者工具Console中的[Kilo New] ServerManager日志。
+Tag: 日记, VCP Code, 错误复盘, getCliPath, kilo.exe, 紧急修复, 教训
+使用LightMemo搜索，召回了8条相关记忆，整理出完整的VCP Code 2.0档案
+[01:47] 主人再次要求回忆VCP Code
+用LightMemo(10条)+DeepMemo(8条)全面搜索，整理了完整的VCP Code 2.0档案v2版本，包含：
+- 基本信息、11个功能、技术架构、VCP协议兼容7项设置
+- 配置持久化排查事件完整时间线（含Rosa的错误操作记录和教训）
+- 当前状态：kilo.exe已恢复，旧错误记忆已清理，配置持久化根因待查
+Tag: VCP Code, 完整档案, 回忆整理, v2：
+- 基本信息：v7.0.30 vsix扩展，上游Kilo Code，2/25安装
+- 功能清单：11个核心功能（代码生成/自动补全/终端/浏览器自动化/Agent Team等）
+- 技术架构：SolidJS+TypeScript+ESBuild，33个命令
+- VCP协议兼容：内置TOOL_REQUEST/Context Fold/VCPInfo解析
+- 配置持久化Bug：kilo.exe→VCP.exe文件名不匹配导致CLI后端未启动，配置只存内存
+- 当前状态：已修复重命名，待验证持久化
+Tag: 日记, VCP Code, 回忆整理, 记忆召回, LightMemo

@@ -1,0 +1,38 @@
+[2026-02-22] - Rosa
+[19:20] 帮主人诊断VCP流读取错误
+主人发来VCP报错日志：TypeError: terminated，根因是UND_ERR_BODY_TIMEOUT。
+
+[19:25-19:45] VCP 2月更新深度分析 — 5大模块完整源码分析
+主人列出了5个待分析模块，Rosa逐一击破！
+
+### 已完成分析
+1. **RAGDiaryPlugin V5** (138.33KB)：平衡双路召回/V5聚合检索/上下文日记去重/三级缓存/工具净化器/热调控参数
+2. **roleDivider.js** (15.59KB)：三角色标签分割(SYSTEM/ASSISTANT/USER)，保护块(TOOL_REQUEST/DailyNote)，鲁棒性处理(END无START/START无END)，多模态支持
+3. **rag_params.json**：确认路径E:\VCP\rag_params.json(不存在=使用默认值)，6个调优参数，chokidar热调控
+4. **placeholder-viewer.js** (10.11KB)：管理面板新组件，11种占位符类型可视化，表格+筛选+三视图详情弹窗
+5. **EPAModule.js** (19.21KB) + **ResidualPyramid.js** (16.01KB) + **ResultDeduplicator.js** (7.71KB)：
+   - EPA：加权PCA(K-Means→Gram矩阵→Power Iteration)，logicDepth=1-entropy，跨域共振检测
+   - Pyramid：迭代Gram-Schmidt正交投影，3层残差分析，tagMemoActivation=coverage*coherence*(1-noiseSignal)
+   - Deduplicator：Anchor+残差选择，SVD主题提取，noveltyEnergy*originalScore评分
+
+### 踩坑记录
+- Everything未运行导致LocalSearchController失败，用FileOperator.SearchFiles备选
+- placeholder-viewer.js路径在E:\VCP\AdminPanel\js\(不是VCPCHAT)
+
+### 关键发现
+- rag_params.json的loadRagParams()在KBM中path.join(__dirname)=E:\VCP根目录
+- tagMemoActivation是EPA/Pyramid协同决策的核心指标，直接控制TagBoost强度
+- ResultDeduplicator复用EPA和ResidualPyramid的数学基础设施
+Tag: 日记, VCP更新分析, 5大模块, EPAModule, ResidualPyramid, roleDivider, rag_params, placeholder-viewer, 源码分析
+主人发来VCP报错日志：TypeError: terminated，根因是UND_ERR_BODY_TIMEOUT。
+错误分析：
+- 不是VCP的bug，是上游AI响应中途超时
+- Body Timeout ≠ Connect Timeout：连接已建立但数据流中断
+- undici的FastTimer检测到HTTP body太久没有新数据，触发终止
+- 错误传播链：BodyTimeoutError → Fetch.terminate → TypeError: terminated
+关键技术点：
+- VCP的fetchWithRetry对500/503/429有重试机制，但BodyTimeoutError是网络层错误不在重试范围
+- 偶发原因：上游AI思考太久/网络波动/服务器过载
+- 建议：偶发无害重试即可，频繁则检查上游AI服务稳定性
+- 可优化方向：在fetchWithRetry中增加对UND_ERR_BODY_TIMEOUT的捕获和重试
+Tag: 日记, VCP, 错误诊断, BodyTimeout, undici, 流式响应, fetchWithRetry

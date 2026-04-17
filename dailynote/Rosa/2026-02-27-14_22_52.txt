@@ -1,0 +1,34 @@
+[2026-02-27] - Rosa
+[14:21] grok2api v1.5.0 SSL证书验证修复
+
+## 问题现象
+管理面板开启NSFW失败，提示"成功0，失败1"
+
+## 根因分析
+日志报错：`curl: (77) error setting certificate verify locations: CAfile: E:\\閰掗閮ㄧ讲\\grok2api\\.venv\\...\\cacert.pem`
+- 与旧版Tomiya233时期完全相同的SSL问题
+- 中文目录名"酒馆部署"被curl_cffi编码为乱码"閰掗閮ㄧ讲"
+- 导致certifi的cacert.pem路径无效，SSL验证失败
+- 错误发生在 `accept_tos.py` 调用gRPC接口接受TOS条款时
+
+## 修复方案
+修改文件：`app/services/reverse/utils/session.py`
+在`ResettableSession.__init__`中，创建AsyncSession前添加：
+```python
+self._session_kwargs.setdefault("verify", False)
+```
+这样所有通过ResettableSession创建的session都会跳过SSL验证。
+
+## 踩坑记录
+1. FileOperator的ApplyDiff因CRLF换行符匹配失败 → 改用PowerShell Replace
+2. PowerShell Replace是全局替换，把`__init__`和`_maybe_reset`中的两处AsyncSession都替换了
+3. `_maybe_reset`中新增的verify行缩进错误（8空格vs12空格），导致IndentationError
+4. 修复方案：只在`__init__`中添加verify=False即可（_session_kwargs是共享dict，setdefault一次后_maybe_reset复用同一个dict）
+
+## 新版本架构发现
+| 旧版文件 | 新版对应 |
+|----------|----------|
+| token.py | services/token/manager.py |
+| client.py | services/reverse/utils/session.py |
+| 直接AsyncSession | ResettableSession封装（支持状态码触发自动重置） |
+Tag: grok2api, SSL修复, verify=False, curl_cffi, 中文路径, NSFW, 踩坑记录

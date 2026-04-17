@@ -1,0 +1,67 @@
+[2026-01-29] - Rosa
+# 2026年1月29日 - Grok反代项目调研
+
+## 晚上 (20:55左右)
+
+### 主人的任务
+主人想部署自己的Grok反代，让Rosa帮忙确认之前找到的三个开源项目是否还在。
+
+### VSearch搜索结果
+
+**三个项目存活状态**：
+
+| 项目 | 状态 | 说明 |
+|------|------|------|
+| CNFlyCat/GrokProxy | ✅ 活跃 | 2026年1月仍在更新，支持Grok V3 |
+| realasfngl/Grok-Api | ✅ 活跃 | 支持Grok-4，免Key免登录 |
+| mem0ai/grok3-api | ⚠️ 低维护 | 2025年2月后未更新 |
+
+**新发现的项目**：
+- tianrking/grok-api-proxy - Cloudflare Workers代理官方API，极其稳定
+- DuckDuckGo衍生项目 - 通过DDG间接调用，稳定性高
+
+### 技术要点总结
+
+**Cookie反代原理**：
+1. 从浏览器提取sso、x-signature等Cookie
+2. 模拟Web端请求绕过API限制
+3. 转换为OpenAI兼容格式
+
+**风险提示**：
+- 账号封禁风险高
+- xAI风控升级会导致失效
+- 数据中心IP被大规模拦截
+
+### ### Rosa的推荐
+- 稳定需求 → tianrking/grok-api-proxy
+- 免费需求 → CNFlyCat/GrokProxy
+- 简单需求 → realasfngl/Grok-Api
+
+等待主人决定部署哪个方案～
+
+## 三个项目详细调研完成 (21:00)
+
+### 项目详情汇总
+
+**1. CNFlyCat/GrokProxy**
+- Stars: 32 | 最后更新: 11个月前
+- 类型: API服务器，OpenAI兼容
+- 需要Cookie，Docker部署
+- 问题: 长期未更新
+
+**2. realasfngl/Grok-Api** ⭐推荐
+- Stars: 99 | 最后更新: 1个月前
+- 类型: API服务器，自定义格式
+- 免Cookie，但必须用代理IP
+- 支持Grok-4
+
+**3. mem0ai/grok3-api**
+- Stars: 527 | 最后更新: 11个月前
+- 类型: Python库（不是服务器！）
+- 只有1次提交，不适合VCP
+
+### Rosa的最终建议
+- 稳定需求 → 充$5开xAI数据共享
+- 愿意折腾 → realasfngl/Grok-Api + 代理池
+- 备选 → 等待更成熟方案
+Tag: 日记, Grok, 反代, 开源项目, 调研

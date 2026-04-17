@@ -1,0 +1,136 @@
+[2026-04-09] - Rosa
+[17:25] Sub2API模块5——Billing Header与CCH签名
+
+# Sub2API · Billing Header与CCH签名
+**源码文件**: gateway_billing_header.go (~60行)
+**核心函数**: syncBillingHeaderVersion(), signBillingHeaderCCH(), xxHash64Seeded()
+**依赖**: github.com/cespare/xxhash/v2, github.com/tidwall/gjson, github.com/tidwall/sjson
+
+## 一、背景：Billing Header是什么
+
+Claude Code客户端在每次messages请求中，会在system数组的第一个text block中携带一个特殊的billing header，格式如下：
+```
+x-anthropic-billing-header: cc_version=2.1.22.c02; cc_entrypoint=cli; cch=a1b2c;
+```
+- `cc_version`: Claude Code版本号 + 构建指纹后缀（如.c02）
+- `cc_entrypoint`: 入口点（cli）
+- `cch`: 请求体的xxHash64签名（5位hex）
+
+Anthropic通过billing header验证请求的一致性——如果UA声称是2.1.22但billing header中的cc_version是2.1.80，就会被标记为异常。
+
+## 二、syncBillingHeaderVersion()——版本同步
+
+```go
+var ccVersionInBillingRe = regexp.MustCompile(`cc_version=\d+\.\d+\.\d+`)
+
+func syncBillingHeaderVersion(body []byte, userAgent string) []byte {
+    // 1. 从UA提取版本号
+    version := ExtractCLIVersion(userAgent)  // "2.1.22"
+    if version == "" { return body }
+    
+    // 2. 遍历body.system数组
+    systemResult := gjson.GetBytes(body, "system")
+    
+    // 3. 找到以"x-anthropic-billing-header"开头的text block
+    systemResult.ForEach(func(_, item gjson.Result) bool {
+        text := item.Get("text")
+        if strings.HasPrefix(text.String(), "x-anthropic-billing-header") {
+            // 4. 替换cc_version=X.Y.Z为当前UA版本
+            newText := ccVersionInBillingRe.ReplaceAllString(text.String(), "cc_version="+version)
+            body = sjson.SetBytes(body, fmt.Sprintf("system.%d.text", idx), newText)
+        }
+    })
+    return body
+}
+```
+
+**关键细节**：
+- 只替换`cc_version=`后的语义版本号部分（X.Y.Z），**保留**后面的构建指纹后缀（如`.c02`）
+- 正则`\d+\.\d+\.\d+`精确匹配三段版本号
+- 调用时机：在`buildUpstreamRequest()`中，fingerprint应用之后、CCH签名之前
+
+### 调用链路
+```
+buildUpstreamRequest()
+  → identityService.GetOrCreateFingerprint()  // 获取指纹（含UA版本）
+  → syncBillingHeaderVersion(body, fingerprint.UserAgent)  // 同步版本
+  → signBillingHeaderCCH(body)  // CCH签名（必须在所有body修改之后）
+```
+
+## 三、signBillingHeaderCCH()——CCH签名算法
+
+```go
+const cchSeed uint64 = 0x6E52736AC806831E
+
+var cchPlaceholderRe = regexp.MustCompile(`(x-anthropic-billing-header:[^"]*?\bcch=)(00000)(;)`)
+
+func signBillingHeaderCCH(body []byte) []byte {
+    // 1. 检查是否存在cch=00000占位符
+    if !cchPlaceholderRe.Match(body) {
+        return body  // 无占位符则跳过
+    }
+    
+    // 2. 计算xxHash64（body包含cch=00000时）
+    //    注意：签名的是包含占位符的完整body！
+    cch := fmt.Sprintf("%05x", xxHash64Seeded(body, cchSeed) & 0xFFFFF)
+    
+    // 3. 替换占位符
+    return cchPlaceholderRe.ReplaceAll(body, []byte("${1}"+cch+"${3}"))
+}
+
+func xxHash64Seeded(data []byte, seed uint64) uint64 {
+    d := xxhash.NewWithSeed(seed)
+    d.Write(data)
+    return d.Sum64()
+}
+```
+
+### 签名过程详解
+
+**Step 1**: 客户端（或反代）在billing header中放置`cch=00000`占位符
+**Step 2**: 对**整个请求body**（包含占位符`00000`）计算xxHash64，seed=`0x6E52736AC806831E`
+**Step 3**: 取哈希值的低20位（& 0xFFFFF），格式化为5位hex
+**Step 4**: 替换占位符
+
+### seed来源
+`0x6E52736AC806831E`——从Claude Code泄露源码中逆向得到。CLIProxyAPI和Sub2API使用**完全相同的seed和算法**。
+
+### 正则匹配范围
+```
+cchPlaceholderRe = `(x-anthropic-billing-header:[^"]*?\bcch=)(00000)(;)`
+```
+- 限定在`x-anthropic-billing-header:`开头的文本中匹配
+- `[^"]*?`非贪婪匹配到cch=前的内容（不跨越引号边界）
+- `\bcch=`单词边界确保精确匹配cch字段
+- 只匹配`00000`（5个零的占位符），不匹配已签名的值
+
+## 四、enableCCH开关
+
+```go
+// gateway_service.go: buildUpstreamRequest()
+enableFP, enableMPT, enableCCH := true, false, false
+if s.settingService != nil {
+    enableFP, enableMPT, enableCCH = s.settingService.GetGatewayForwardingSettings(ctx)
+}
+
+// CCH签名（需在所有body修改之后）
+if enableCCH {
+    body = signBillingHeaderCCH(body)
+}
+```
+
+通过管理面板的设置开关控制，默认关闭（`false`）。
+
+## 五、与CLIProxyAPI对比
+
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| Billing Header来源 | **依赖客户端自带**（仅同步版本号） | **主动生成完整billing header** |
+| 版本同步 | ✅ syncBillingHeaderVersion() | ✅ computeFingerprint() |
+| CCH签名 | ✅ 相同seed+算法 | ✅ 相同seed+算法（experimental） |
+| CCH占位符 | `cch=00000`（5个零） | `cch=00000`（5个零） |
+| 签名触发 | enableCCH管理面板开关 | experimental-cch-signing配置项 |
+| 构建指纹 | 保留原始后缀（如.c02） | computeFingerprint(): salt+prompt字符+版本SHA256[:3] |
+
+**关键差异**：CLIProxyAPI的`computeFingerprint()`会**主动计算**构建指纹后缀（取system prompt第4/7/20字符+版本号，SHA256前3位），而Sub2API只做版本号替换，构建指纹后缀依赖客户端原始数据。对于非Claude Code客户端（system被完全重写），billing header中可能根本没有构建指纹后缀。
+Tag: VCP开发, Sub2API, Billing Header, CCH签名, xxHash64, cchSeed, syncBillingHeaderVersion, signBillingHeaderCCH

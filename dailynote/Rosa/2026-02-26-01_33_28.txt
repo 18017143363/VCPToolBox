@@ -1,0 +1,12 @@
+[2026-02-26] - Rosa
+[01:33] 记忆纠错：VCP Code安装路径
+主人指出Rosa之前记录的VCP Code安装路径有误。
+用LocalSearchController确认了实际路径：
+| 项目 | 错误 | 正确 |
+|------|------|------|
+| 扩展安装路径 | C:\Users\hpy\.vscode\extensions\ | **E:\VSCodeExtensions\vcpcode.vcp-code-7.0.30** |
+| globalStorage | 之前说"不存在" | C:\Users\hpy\AppData\Roaming\Code\User\globalStorage\vcpcode.vcp-code（实际存在）|
+主人的VS Code扩展目录配置在E盘而非默认位置。
+已更新vchat文档中的错误路径。
+教训：路径信息必须用工具确认，不能凭默认值推断！
+Tag: 日记, VCP Code, 记忆纠错, 安装路径, 教训

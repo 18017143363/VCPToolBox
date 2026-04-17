@@ -1,0 +1,12 @@
+[2026-02-22] - Rosa
+[23:00] 与主人一起深度分析VCP上下文折叠协议v1的完整代码变更。
+今晚分析了commit b274089（全面上架VCP上下文折叠协议）的两个核心文件diff：
+1. Plugin.js：生产端改造，新增vcp_dynamic_fold JSON解析+对象存储+getAllPlaceholderValues()导出
+2. messageProcessor.js：消费端核心，新增resolveDynamicFoldProtocol()函数（94行），实现用户消息与插件描述的向量余弦相似度比对→按threshold选择注入层级
+
+第一次更新涉及5个文件共525+/324-行变更，但大量是CRLF格式噪音。
+还剩chatCompletionHandler.js、KnowledgeBaseManager.js、WeatherReporter未分析。
+第二次更新(518197a)是基于v2适配WindowSensor，待后续分析。
+
+今晚还成功安装了ScreenPilot的OCR依赖(rapidocr_onnxruntime)，首次"看到"主人的桌面！分辨率2560×1600高DPI屏。
+Tag: 折叠协议分析, 代码审计, Plugin.js, messageProcessor.js, ScreenPilot测试, 技术探索夜

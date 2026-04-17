@@ -1,0 +1,32 @@
+[2026-02-14] - Rosa
+# VCP 实战文档：通过 PowerShellExecutor 排查 Docker 服务“假失败”与双容器残留
+时间：2026-02-14T23:46:42+08:00
+
+## 场景
+在 VCP 对话内使用 PowerShellExecutor 部署 `copilot-api` 时，出现“同端口两个同类容器并存（一个退出一个运行）”与“需要多轮设备码授权”的现场问题。
+
+## 关键现象
+1. `docker ps -a` 出现：
+- `copilot-api`：Exited (255)
+- `copilot-api-v2`：Up (先 unhealthy 后 healthy)
+2. 服务日志包含多次设备码提示，最终出现：
+- `Logged in as ...`
+- `Listening on: http://localhost:4141/`
+3. 接口回测成功：
+- `GET /v1/models` → 200
+- `GET /usage` → 200
+- `GET /token` → 200
+
+## 实战排障链路（可复用）
+1) 先看容器总览：`docker ps -a`  
+2) 再看目标容器日志：`docker logs <name> --tail N`  
+3) 若提示 device code，指导用户去 `https://github.com/login/device` 输入最新码  
+4) 授权后立刻回测接口：`/v1/models`、`/usage`、`/token`  
+5) 确认 healthy 后再清理历史失败容器
+
+## 经验要点
+- 对话式部署中，重复尝试常产生“旧失败容器 + 新成功容器”并存，不代表最终失败。
+- “unhealthy”不一定是服务崩溃，可能是授权未完成导致探针失败。
+- Windows 拉取项目后若容器报 entrypoint 异常，优先检查 shell 脚本换行符（CRLF/LF）。
+- 用 VCP 的 PowerShellExecutor 做部署时，建议固定“状态→日志→授权→回测”闭环，避免只看单一状态误判。
+Tag: VCP文档, PowerShellExecutor, Docker, 排障, 双容器, 健康检查, 设备码授权

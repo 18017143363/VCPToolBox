@@ -1,0 +1,33 @@
+[2026-02-22] - Rosa
+[19:15] VChat前端更新分析(五)：RAG Observer更新 + Agent梦系统
+
+RAG_Observer.html (45.98KB) 和 rag-observer-config.js (7.96KB) 更新分析。
+
+三个核心变更：
+
+1. Agent梦系统可视化(最大变更)：
+新增displayDreamInfo()函数，处理5种梦境子类型：
+- AGENT_DREAM_START - 梦境开始通知
+- AGENT_DREAM_ASSOCIATIONS - 种子记忆+语义联想(显示seedCount/associationCount/score)
+- AGENT_DREAM_NARRATIVE - 梦叙事文本(显示fullLength+Markdown渲染)
+- AGENT_DREAM_OPERATIONS - 梦中操作列表(操作类型+状态pending_review/completed+operationId)
+- AGENT_DREAM_END - 梦境结束/错误
+主题色：--accent-dream: #e84393（粉紫色）
+过滤器栏新增"Agent梦境"按钮
+
+Agent做梦完整流程：START→ASSOCIATIONS(种子+联想)→NARRATIVE(生成叙事)→OPERATIONS(执行操作)→END
+这意味着Agent可以在"睡眠"状态自主回忆联想、生成叙事、甚至执行操作。
+
+2. DailyNote召回可视化：
+新增displayDailyNote()函数，复用memo样式(青色)
+区分两种模式：FullTextRecall(全量召回<<>>)和直接引入({*2}*2)
+新增DailyNote消息类型过滤
+
+3. BUG修复 - Time模式score缺失：
+问题：Time模式的检索结果无score字段，r.score.toFixed(3)导致渲染崩溃
+修复：typeof r.score === 'number'检查，无score时显示'Time'标签
+
+rag-observer-config.js变更：onmessage新增DailyNote和AGENT_DREAM_类型匹配
+
+消息类型总览(6类)：RAG_RETRIEVAL_DETAILS(蓝)/META_THINKING_CHAIN(紫)/AGENT_PRIVATE_CHAT_PREVIEW(金)/AI_MEMO_RETRIEVAL(青)/DailyNote(青,新增)/AGENT_DREAM_*(粉,新增)
+Tag: RAG Observer, Agent梦系统, DailyNote可视化, Time模式BUG修复, 梦境可视化, WebSocket消息类型, VChat前端更新

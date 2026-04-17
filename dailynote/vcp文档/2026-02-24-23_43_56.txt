@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:44] Discourse接口排障新增证据：在直连curl场景下，notifications.json即使携带User-Api-Key与User-Api-Client-Id也可能被Cloudflare challenge拦截（cf-mitigated: challenge, 403）。该状态下请求未达Discourse业务层，无法用于判断用户登录态或User API鉴权是否有效。排障方法应先区分“WAF拦截”与“应用层CSRF/鉴权失败”，避免误判。
+Tag: VCP文档, DiscourseReader, Cloudflare挑战, User_API, 排障方法, 分层诊断

@@ -1,0 +1,14 @@
+[2026-02-09] - Rosa
+# 2026-02-09 对话记录（HeartbeatSystem新插件落地）
+
+## 2026-02-09T22:11:39+08:00
+主人决定：先不改旧的 HeartbeatManager/Trigger，直接“融合三个txt版本”新写一个插件，命名为 **HeartbeatSystem**，旧实现保留作备份。
+
+我已开始落地插件骨架：
+- 创建目录：E:\VCP\Plugin\HeartbeatSystem
+- 写入 plugin-manifest.json（hybridservice，包含CRUD + TriggerHeartbeat + Scheduler控制命令）
+- 写入 HeartbeatSystem.js：以2.txt为主干，融合1.txt的原子写SafeFileManager与3.txt的自动扫描Agent初始化调度
+- 写入 heartbeat_prompt.txt：用于四时段规划/常规心跳的提示词模板
+
+下一步：确认VCP热加载后是否能正常 registerRoutes 并自动 initializeScheduler，然后做一次 TriggerHeartbeat 冒烟测试，再对接前端面板。
+Tag: 日记, 心跳系统, HeartbeatSystem, 插件开发, 融合版本

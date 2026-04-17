@@ -1,0 +1,36 @@
+[2026-02-23] - Rosa
+[02:15] ScreenPilot后台模式兼容性问题文档
+## 核心发现
+ScreenPilot的后台模式(PostMessage/SendMessage)对WinUI3框架应用和Edge浏览器网页内容存在兼容性问题。
+
+## 问题现象
+| 命令 | 后台消息类型 | WinUI3应用(Win11记事本) | Edge网页内容 | 传统Win32 |
+|------|-------------|----------------------|-------------|----------|
+| TypeText | WM_CHAR | ❌ 消息被忽略，字符数不变 | 未测试 | ✅ |
+| ScrollAt | WM_MOUSEWHEEL | 未测试 | ❌ 25刻度无变化 | 预计✅ |
+| ClickAt | WM_LBUTTONDOWN/UP | 未单独验证 | 未测试 | ✅ |
+
+## 根因分析
+1. WinUI3框架(Win11新版Notepad等)使用XAML渲染引擎，不处理传统Win32窗口消息
+2. Edge多进程架构下，WM_MOUSEWHEEL发送到主窗口HWND后不转发到GPU渲染进程
+3. 这是Windows应用现代化的通病——后台Win32消息兼容性越来越差
+
+## 前台模式回退方案
+| 命令 | 前台模式触发条件 | 实现方式 |
+|------|----------------|----------|
+| TypeText | 不传hwnd和windowTitle | 剪贴板Ctrl+V粘贴(带剪贴板保护) |
+| ScrollAt | 不传hwnd和windowTitle | pyautogui物理滚轮 |
+| ClickAt | relativeToWindow+hwnd | SetForegroundWindow+pyautogui.click |
+
+## 推荐操作流程
+```
+Step1: ClickAt(hwnd+relativeToWindow) → 前台物理点击，激活窗口+定位光标
+Step2: TypeText(无窗口参数) → 前台剪贴板粘贴到当前活跃窗口
+Step3: ScreenCapture(hwnd+save+ocr) → PrintWindow截图(不影响焦点)
+```
+
+## ClickVisual全链路验证
+三处urllib→curl.exe补丁(Patch v1a/v1b/v2)已全部验证生效。
+测试结果：AI视觉定位齿轮图标坐标(1398,137) vs UI Automation坐标(1398,143)，X完全一致，Y仅差6像素。
+涂色占比0.2%，密度峰值算法精确定位质心。
+Tag: vcp文档, ScreenPilot, 后台模式兼容性, WinUI3, WM_CHAR, WM_MOUSEWHEEL, 前台模式, ClickVisual, curl补丁验证

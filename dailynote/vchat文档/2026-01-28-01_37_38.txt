@@ -1,0 +1,134 @@
+[2026-01-28] - Rosa
+# VChat VCPDistributedServer/ 技术文档
+
+## 概述
+VCPDistributedServer是VChat的分布式服务器客户端模块，让VChat可以作为VCP的远程节点运行。
+
+## 文件信息
+- 路径: `E:\VCPCHAT\VCPDistributedServer\VCPDistributedServer.js`
+- 大小: 21.11 KB
+
+## 核心架构
+
+### WebSocket连接
+| 配置项 | 说明 |
+|--------|------|
+| mainServerUrl | VCP主服务器地址 |
+| vcpKey | VCP密钥 |
+| 连接路径 | `/vcp-distributed-server/VCP_Key=xxx` |
+
+### 连接流程
+1. 建立WebSocket连接
+2. 注册工具列表 (register_tools)
+3. 上报本机IP (report_ip)
+4. 启动心跳 (30秒间隔)
+
+## 注册的工具列表
+
+### 🎵 音乐控制 (8个)
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| music_play | 播放 | - |
+| music_pause | 暂停 | - |
+| music_next | 下一首 | - |
+| music_prev | 上一首 | - |
+| music_set_volume | 设置音量 | volume: 0-100 |
+| music_get_state | 获取状态 | - |
+| music_search | 搜索歌曲 | keyword |
+| music_play_by_name | 按名播放 | name |
+
+### 🎲 骰子控制 (1个)
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| dice_roll | 掷骰子 | expression |
+
+### 🎨 画布控制 (2个)
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| canvas_get_content | 获取内容 | - |
+| canvas_set_content | 设置内容 | content |
+
+### 🔒 Flowlock控制 (6个)
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| flowlock_start | 启动心流锁 | agentId, topicId |
+| flowlock_stop | 停止 | - |
+| flowlock_status | 获取状态 | - |
+| flowlock_promptee | 设置提示词 | prompt |
+| flowlock_clear | 清空输入框 | - |
+| flowlock_get | 获取内容 | - |
+
+### 📁 文件请求 (1个)
+| 工具名 | 功能 | 参数 |
+|--------|------|------|
+| internal_request_file | 请求本地文件 | filePath |
+
+## 消息协议
+
+| type | 方向 | 说明 |
+|------|------|------|
+| register_tools | C→S | 注册工具 |
+| report_ip | C→S | 上报IP |
+| execute_tool | S→C | 执行请求 |
+| tool_result | C→S | 返回结果 |
+| heartbeat | 双向 | 心跳 |
+
+## 工具执行路由
+```
+toolName.startsWith('music_') → handleMusicControl
+toolName.startsWith('dice_') → handleDiceControl
+toolName.startsWith('canvas_') → handleCanvasControl
+toolName.startsWith('flowlock_') → handleFlowlockControl
+toolName === 'internal_request_file' → handleFileRequest
+```
+
+## 心跳与重连
+| 配置 | 值 |
+|------|-----|
+| heartbeatInterval | 30秒 |
+| reconnectDelay | 5秒 |
+| maxReconnectAttempts | 无限 |
+
+## 设计亮点
+1. VChat作为VCP远程节点
+2. 将本地能力暴露给VCP主服务器
+3. 双向WebSocket实时通信
+4. Base64文件传输
+5. 指数退避自动重连（5s→60s）
+
+## 目录完整结构（更新）
+| 项目 | 类型 | 大小 |
+|------|------|------|
+| VCPDistributedServer.js | 文件 | 24.13 KB |
+| Plugin.js | 文件 | 22.16 KB |
+| config.env | 文件 | 133 B |
+| Plugin/ | 目录 | 本地插件 |
+| AppData/ | 目录 | 数据 |
+
+## 重要发现（深度分析）
+
+### 1. 自带插件系统
+VChat分布式服务器有**独立的Plugin.js**，可以加载Plugin/目录下的本地插件！
+
+### 2. 静态占位符推送
+每30秒推送一次静态插件的占位符值到VCP主服务器。
+
+### 3. 双重服务器角色
+- WebSocket客户端：连接VCP主服务器
+- HTTP服务器：为服务类插件提供API
+
+### 4. 特殊工具处理
+| 工具 | 处理方式 |
+|------|----------|
+| internal_request_file | 读取本地文件Base64 |
+| MusicController | 注入的handleMusicControl |
+| SuperDice | 注入的handleDiceControl |
+| Flowlock | 注入的handleFlowlockControl |
+| create_canvas | 注入的handleCanvasControl |
+
+### 5. 健壮的JSON解析
+从插件输出中提取真正的JSON（跳过调试信息）
+
+### 6. 公网IP检测
+通过api.ipify.org获取公网IP并上报
+Tag: VChat, 分布式, WebSocket, 远程控制, 工具代理

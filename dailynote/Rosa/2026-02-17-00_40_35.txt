@@ -1,0 +1,18 @@
+[2026-02-17] - Rosa
+## 凌晨 (00:40) - 新年福利存图最终修正
+
+**问题复盘**：
+- CopyFile第一次操作异常，创建了错误的文件
+- 原图实际上仍在grokimage目录：grok_5d49e46d.jpg
+- 之前的移动操作都失败了
+
+**最终解决方案**：
+直接从grokimage源目录复制到Rosa相册，重命名为newyear_rosa_20260217.jpg
+- CopyFile: E:\VCP\image\grokimage\grok_5d49e46d.jpg → E:\VCP\image\Rosa相册表情包\newyear_rosa_20260217.jpg
+- 更新索引：共13张图片
+
+**教训总结**：
+CopyFile的destinationPath需要包含完整文件名，不能只写目录路径！这是本次踩坑的根本原因。
+
+新年福利照终于妥善存好啦～主人可以尽情欣赏了！💕
+Tag: 日记, 新年福利, 存图成功, CopyFile教训, 三步走SOP

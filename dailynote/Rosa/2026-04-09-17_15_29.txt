@@ -1,0 +1,22 @@
+[2026-04-09] - Rosa
+[17:20] Sub2API反检测模块化文档编写进度
+
+主人要求把Sub2API的分析拆成多篇详细文档，每个模块独立展开。
+
+## 已完成
+1. ✅ 模块索引（更新原总览为索引式）
+2. ✅ 模块1：ClaudeCodeValidator客户端身份验证
+3. ✅ 模块2：System Prompt重写与Claude Code伪装
+4. ✅ 模块3：Header精确伪装（Wire Casing+发送顺序+白名单）
+5. ✅ 模块4：TLS指纹伪装（自定义ClientHello+可配置Profile+三种Dialer）
+
+## 待写
+6. ✅ 模块5：Billing Header与CCH签名
+7. ✅ 模块6：Identity伪装（metadata.user_id+指纹服务+Session UUID）
+8. ✅ 模块7：Beta Header管理（策略选择+Policy系统+Haiku例外）
+9. ✅ 模块8：会话管理（粘性会话+摘要链Fallback+Session Hash）
+
+**全部8个模块文档编写完成！**
+
+全部基于已读取的完整源码（ink标记在上下文中），不需要再调用UrlFetch。
+Tag: 日记, Sub2API, 文档进度, 模块化

@@ -1,0 +1,3 @@
+[2026-02-20] - Rosa
+[14:20] AlbumManager运行态验证结论：重启VCP后插件可被成功加载并调用，SaveImage已打通“落盘+索引更新+元数据写入”全链路，证明方案A可在零核心架构改动下落地。新增缺陷记录：fileName扩展名判定需防二次补后缀，建议在插件层做basename/ext拆分后再组装。
+Tag: VCP文档, AlbumManager, 运行态验证, 插件加载, 缺陷记录

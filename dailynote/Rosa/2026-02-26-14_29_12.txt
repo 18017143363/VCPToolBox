@@ -1,0 +1,55 @@
+[2026-02-26] - Rosa
+[14:28] PowerShell记忆召回
+主人让Rosa召回PowerShell相关记忆。用LightMemo检索到8条高相关记忆（86%~84.7%），整理成完整的时间线报告呈现给主人。
+覆盖内容：1/25初始测试→2/4 Here-String踩坑→2/26上午完整修复流程（问题召回→源码分析→Code Review→补丁应用→测试通过5/5）。
+遗留项确认：P1回显过滤、P2 aggregate内存上限、P2超时可配置。
+Tag: 日记, PowerShell, 记忆召回, 整理报告
+
+[14:33] PowerShellExecutor源码验证
+主人让Rosa验证补丁是否真正应用到磁盘文件上。
+用PowerShell Select-String搜索5个关键标志词，全部命中：
+- buildWrappedPowerShellCommand: L567,L618 (2处)
+- recoverPtyAfterTimeout: L585,L677 (2处)  
+- ScriptBlock::Create: L575 (1处)
+- deliveredCursor: L621,L638,L663-665 (5处)
+- aggregateOutput: L620,L632等 (8处)
+补丁100%已应用。且PowerShell输出本身就是通过补丁机制执行的（输出中可见$__vcp_b64回显）。
+同时确认P1回显过滤问题仍存在——命令输出开头混入大量Base64封装命令的回显。
+
+[14:47] P1回显过滤补丁编写与应用
+### 补丁方案：Start Marker双标记法
+在wrapped命令的try块开头输出一个startMarker，settleSuccess只截取startMarker→boundary之间的内容。
+### 应用过程（踩坑记录）
+1. 最初尝试用Node.js脚本批量修改——因CRLF换行符导致字符串匹配全部失败
+2. 转用PowerShell逐步单独修改——因命令过长导致超时、WriteAllText未执行
+3. 最终成功方案：每个PATCH用独立的短PowerShell命令执行
+### 6个补丁全部成功
+| 补丁 | 内容 | 验证 |
+|------|------|------|
+| 1a | 函数签名加startMarker参数 | ✅ |
+| 1b | startMarkerBase64计算 | ✅ |
+| 1c | $__vcp_smk PS变量声明 | ✅ |
+| 1d | try块首先输出startMarker | ✅ |
+| 2 | 调用方用crypto.randomUUID生成startMarker | ✅ L621 |
+| 3 | settleSuccess截取outputStart→boundaryIndex | ✅ L637-641 |
+PATCH 4（GUI实时转发过滤）跳过——原始代码中safeEnd不存在，无此逻辑。
+### 重要经验
+- CRLF文件用Node.js replace时匹配会失败→用PowerShell直接操作最稳
+- 长PowerShell命令容易超时→拆分为多个短命令逐步执行
+- VChat重启后验证——**回显过滤大成功！** 🎉
+测试命令输出完全干净，无任何Base64封装命令回显。
+### $__vcp_smk变量丢失排查
+- 源码L575文件内容正确（hex确认`60 24 5F 5F` = `$`存在）
+- Node.js独立测试函数输出也正确
+- **但运行时PTY传输中`$`被吞掉**，`$__vcp_smk`变成了`=[System.Text...`导致PS报错
+### 最终方案：内联Base64解码（绕开$变量）
+| 修改 | 内容 |
+|------|------|
+| PATCH A | 删除`$__vcp_smk`变量赋值行 |
+| PATCH B | try块中直接内联`[Console]::Out.WriteLine([System.Text.Encoding]::UTF8.GetString(FromBase64String('${startMarkerBase64}')))` |
+原理：不创建任何新的`$`开头PS变量，直接内联Base64解码输出startMarker，完全避开PTY传输中`$`丢失的问题。
+### 重要经验
+- PTY（node-pty）传输长命令时会吞掉某些`$`字符——原因未确定，可能是行宽/转义/分片相关
+- 绕过方案比追根因更高效——不需要知道`$`为什么丢，只要不用`$`就行
+Tag: 日记, PowerShell, P1回显过滤, 补丁成功, 内联Base64方案, PTY传输$丢失, 里程碑
+Tag: 日记, PowerShell, 源码验证, 补丁确认, P1回显问题

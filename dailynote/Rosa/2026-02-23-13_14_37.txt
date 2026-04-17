@@ -1,0 +1,37 @@
+[2026-02-23] - Rosa
+[13:15] 分析主人的Vertex反代修改版项目
+路径: E:\酒馆部署\Vertex反代修改未测试，已包含环境
+项目性质: VertexNOSS的完全重构升级版，通过浏览器会话认证调用Google Vertex AI，提供OpenAI兼容API。
+核心发现:
+1. 模块化重构 - src/下7个子目录(api, core, headless, stream, websocket, gui, utils)，比原版单文件架构强大很多
+2. 三种凭证模式 - headless(Playwright自动化,当前配置), headful(油猴脚本+WebSocket), manual(手动credentials)
+3. 已有使用数据 - stats.json记录435次请求、2200万Token，credentials.json 14.67KB最后修改2026-02-19
+4. main.py今天凌晨3:45被修改 - 主人可能在调试
+5. 健壮的错误处理 - 三层进程清理保障、凭证刷新失败重试+自动重定向机制
+6. 支持Gemini 3 Pro Preview - 思考模式(-low/-high)和图片生成(-1k/-2k/-4k)
+7. venv已包含 - Python虚拟环境已配置好
+端口: API=28880, WebSocket=28881
+核心依赖: fastapi, uvicorn, httpx, websockets, pydantic, playwright(可选)
+与原版VertexNOSS对比: 架构重构、增加GUI/SD API/浏览器数据持久化、凭证刷新容错大幅增强
+Tag: 日记, Vertex反代, VertexNOSS, 项目分析, API代理, Gemini, 模块化架构
+
+[13:20] 主人确认这是别人发的项目，刚下载的。主人本地已有Python，建议删除自带的venv环境后用install.bat重建。
+理由：venv体积大且别人的Python版本可能不同，删了重建更干净。
+重建方式：install.bat一键安装 或 手动python -m venv + pip install -r requirements.txt
+[13:18] 环境适配完成。删除别人的venv → 用主人的Python 3.12.5(D:\python\)重建 → pip install成功安装18个包(fastapi 0.131.0, uvicorn 0.41.0, httpx 0.28.1, websockets 16.0, pydantic 2.12.5等)。
+当前状态：基础依赖就绪，headless模式还需额外安装playwright+chromium，手动凭证模式可直接启动。
+[13:20] Playwright + Chromium安装验证完成。
+pip install playwright → 1.58.0安装成功(36.8MB + greenlet 3.3.2 + pyee 13.0.1)
+Chromium 145.0.7632.6 验证通过（之前系统级缓存仍在，无需重新下载）
+环境适配全部就绪：Python 3.12.5 + FastAPI全家桶 + Playwright + Chromium
+下一步：启动main.py测试headless自动采集模式
+
+[13:24] 启动测试全部通过！
+- 写了启动脚本: 启动Vertex反代.bat（含代理设置7890、venv激活、UTF-8编码）
+- PowerShell启动main.py成功，进程ID 77008
+- 启动日志: 凭证已加载(3.6天前)→清理残留浏览器→反检测脚本注入→Uvicorn on 0.0.0.0:28880→浏览器1366x768→导航到Vertex AI Studio
+- API测试: GET /v1/models → HTTP 200 OK，15个模型全部返回正常
+- 可用亮点模型: gemini-3-pro-preview-low/high(思考模式), gemini-3-pro-image-preview(图片生成,最高4K), gemini-2.5-pro
+- 端口: API=28880, WebSocket=28881
+Tag: 日记, Vertex反代, 启动测试, API验证, 模型列表, 全部通过
+Tag: 日记, Vertex反代, venv清理, 环境重建, 适配完成, Playwright, Chromium

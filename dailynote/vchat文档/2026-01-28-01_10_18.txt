@@ -1,0 +1,123 @@
+[2026-01-28] - Rosa
+# VChat renderer.js 技术文档
+
+## 概述
+renderer.js是VChat的Electron渲染进程核心，92.87KB，负责UI渲染、状态管理、模块协调。
+
+## 文件信息
+- 路径: `E:\VCPCHAT\renderer.js`
+- 大小: 92.87 KB
+
+## 核心架构
+
+### 1. 全局状态管理
+
+**globalSettings 对象**
+```javascript
+{
+    sidebarWidth: 260,
+    notificationsSidebarWidth: 300,
+    userName: '用户',
+    filterEnabled: false,
+    filterRules: [],
+    enableRegenerateConfirmation: true,
+    flowlockContinueDelay: 5,  // 心流锁续写延迟(秒)
+    enableThoughtChainInjection: false,  // 元思考注入开关
+    // ... 更多配置
+}
+```
+
+**currentSelectedItem 状态**
+```javascript
+{
+    id: null,      // agentId 或 groupId
+    type: null,    // 'agent' 或 'group'
+    name: null,
+    avatarUrl: null,
+    config: null   // 完整配置对象
+}
+```
+
+### 2. 模块初始化链 (DOMContentLoaded)
+
+| 顺序 | 模块 | 职责 |
+|------|------|------|
+| 1 | emoticonManager | 表情包管理 |
+| 2 | itemListManager | Agent/群组列表 |
+| 3 | GroupRenderer | 群组渲染器 |
+| 4 | messageRenderer | 消息渲染器 |
+| 5 | inputEnhancer | 输入增强 |
+| 6 | topicListManager | 话题列表 |
+| 7 | chatManager | 聊天核心 |
+| 8 | settingsManager | 设置管理 |
+| 9 | uiManager | UI管理 |
+| 10 | filterManager | 过滤管理 |
+| 11 | searchManager | 搜索管理 |
+
+### 3. Ref模式（可变引用传递）
+```javascript
+currentSelectedItemRef: {
+    get: () => currentSelectedItem,
+    set: (val) => { currentSelectedItem = val; window.currentSelectedItem = val; }
+}
+```
+解决模块间状态共享问题。
+
+### 4. VCP Stream 事件处理
+
+| type | 说明 |
+|------|------|
+| agent_thinking | 创建"思考中..."气泡 |
+| start | 初始化消息 |
+| data | appendStreamChunk |
+| end | finalizeStreamedMessage + Flowlock触发 |
+| error | 显示错误 + Flowlock恢复 |
+| full_response | renderFullMessage |
+| remove_message | removeMessageById |
+
+**视图相关性判断**：只有当前视图相关的消息才更新UI。
+
+### 5. Flowlock 心流锁集成
+
+**自动续写机制**：
+- 在'end'事件后，延迟指定秒数触发续写
+- 使用输入框内容作为自定义提示词
+- 心跳动画反馈
+
+**插件命令支持**：
+start, stop, promptee, prompter, clear, remove, edit, get, status
+
+### 6. TTS 音频播放系统
+
+**会话ID机制**：
+- currentTtsSessionId 防止异步音频混乱
+- 旧会话音频自动丢弃
+- 新会话清空队列
+
+**播放队列**：
+- ttsAudioQueue 缓存待播放音频
+- processTtsQueue 顺序播放
+- 支持停止和状态重置
+
+### 7. 消息转发功能
+
+**流程**：
+1. showForwardModal - 打开模态框
+2. 加载Agent/群组列表
+3. 用户选择目标
+4. handleConfirmForward - 确认转发
+5. chatManager.handleForwardMessage - 执行转发
+
+### 8. 设置加载与同步
+
+**延迟加载**：模态框内部元素不在顶层缓存，通过modal-ready事件触发同步。
+
+**VCPLog连接**：根据配置自动连接WebSocket。
+
+## 设计亮点
+1. Ref模式解决模块间状态共享
+2. 会话ID机制防止TTS音频混乱
+3. 视图相关性判断优化性能
+4. 模态框延迟加载优化初始化
+5. Flowlock深度集成支持9种命令
+Tag: VChat, renderer.js, 渲染进程, 状态管理, Flowlock

@@ -1,0 +1,10 @@
+[2026-02-20] - Rosa
+[15:08] emoticon_library.json URL对比分析
+
+PowerShell输出对比结果：AlbumManager写入的URL格式与VChat原生生成的完全一致，都使用encodeURIComponent编码中文相册名。
+- 原生条目：Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/xxx.png
+- AlbumManager条目：同上格式/album_celebrate_20260220.jpg
+
+"显示旧图"问题初步判断为Electron HTTP图片缓存导致，重启后缓存清除所以正常。
+等待主人进一步说明"url奇怪"的具体含义。
+Tag: 日记, AlbumManager, URL对比, emoticon_library, Electron缓存, 待确认

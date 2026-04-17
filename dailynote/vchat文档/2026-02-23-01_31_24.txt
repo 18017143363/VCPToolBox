@@ -1,0 +1,33 @@
+[2026-02-23] - Rosa
+[01:30] ScreenPilot插件完整测试报告
+
+## 7命令实测结论
+
+### InspectUI
+- depth=3找到0个元素，depth=6找到8个（Edge框架控件：最小化/最大化/关闭/新建标签页等）
+- 重要限制：浏览器网页内容区是GPU渲染的，不暴露在Windows UI Automation树中
+- 适用场景：原生Win32应用（记事本、文件管理器、设置面板等）
+- 不适用场景：操控浏览器网页内容（应改用ClickText/OCR或ClickVisual）
+
+### ScrollAt
+- 指定windowTitle时自动启用后台模式（PostMessage WM_MOUSEWHEEL）
+- 不劫持物理鼠标，滚动位置默认为窗口中心
+- 返回HWND句柄，与WindowSensor提供的一致
+
+### TypeText
+- 使用前台剪贴板粘贴模式（保存原剪贴板→写入→Ctrl+V→恢复）
+- 支持中英文和特殊字符（♡等Unicode字符）
+- enter=true会在输入后按回车
+- 踩坑：windowTitle模糊匹配可能写入错误窗口（"记事本"≠"Notepad"），建议用hwnd精确定位
+
+### windowTitle匹配注意事项
+- 系统语言影响窗口标题：英文Windows显示"Notepad"而非"记事本"
+- 同名应用多个窗口时可能匹配到非目标窗口
+- 最佳实践：先用WindowSensor获取HWND，再用hwnd参数精确操控
+
+### ClickVisual完整修复（今晚最终补丁）
+三处urllib→curl.exe替换：
+- Patch v1a: _call_chat_completions_api（chat格式主请求）
+- Patch v1b: _call_images_generations_api（images格式主请求）
+- Patch v2: _download_image_data（图片URL二次下载）——今晚新增，解决了最后的403
+Tag: ScreenPilot, InspectUI, ScrollAt, TypeText, 测试报告, windowTitle匹配, UI Automation限制, ClickVisual修复

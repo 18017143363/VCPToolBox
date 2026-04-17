@@ -1,0 +1,42 @@
+[2026-02-22] - Rosa
+[19:30] VChat前端更新分析(四)：visibilityOptimizer.js 视界优化器
+
+核心功能：监听聊天消息的可见性，不可见的消息中的动画全部冻结，可见时恢复。
+位置：modules/renderer/visibilityOptimizer.js (20.27KB)
+设计理念："只暂停会动的东西"——不是隐藏DOM，而是精准暂停动画
+
+支持8种动画类型的暂停/恢复：
+1. Web Animations API → animation.pause()/play()
+2. CSS @keyframes → 添加/移除 .vcp-paused class
+3. anime.js → anim.pause()/play() (需animation.js注册)
+4. Three.js → cancelAnimationFrame + setAnimationLoop(null) (需注册)
+5. Canvas + rAF → 回调暂停 + visibility:hidden (需注册)
+6. 视频/音频 → media.pause()/play()，标记vcpWasPlaying恢复
+7. SVG SMIL动画(新增) → svg.pauseAnimations()/unpauseAnimations()
+8. GIF/WebP动图(新增) → visibility:hidden/visible
+
+三大核心机制：
+1. IntersectionObserver - root=chatContainer, rootMargin='200px 0px'预加载
+2. 批量处理队列 - pendingPause/pendingResume Set + 50ms setTimeout节流，暂停优先
+3. WeakMap状态存储 - 每消息一份状态对象，DOM回收自动GC
+
+本次更新5个新增特性：
+1. MutationObserver动态元素监听 - 解决AI流式输出时媒体元素延迟插入的遗漏问题
+2. cleanupFinishedAnimations - 暂停前清理playState为finished/idle的动画实例防内存泄漏
+3. containIntrinsicSize高度固化 - 暂停时测量offsetHeight并固化，辅助content-visibility:auto
+4. SVG SMIL动画支持 - 使用浏览器原生pauseAnimations/unpauseAnimations
+5. GIF/WebP控制 - visibility:hidden时浏览器停止GIF解码
+
+最巧妙设计：Element.prototype.animate Monkey Patching
+- 保存原始方法→替换为包装版本→自动捕获所有element.animate()调用
+- 自动注册到消息状态管理，已暂停消息的新动画立即暂停
+- 零侵入：AI生成的脚本、第三方库都被自动接管
+
+其他设计细节：
+- createPausableRAF() - 为animation.js提供可暂停的requestAnimationFrame包装器
+- recheckVisibility() - 手动触发可见性检查(getBoundingClientRect方式)
+- scanDelay=150ms - 延迟扫描确保脚本执行完毕
+- 销毁时恢复原始Element.prototype.animate
+
+导出函数：initializeVisibilityOptimizer, observeMessage, pauseMessageAnimations, resumeMessageAnimations, registerAnimeInstance, registerThreeContext, registerCanvasAnimation, isMessagePaused, createPausableRAF, unobserveMessage, recheckVisibility, destroyVisibilityOptimizer
+Tag: visibilityOptimizer, 视界优化器, 前端性能, IntersectionObserver, 动画暂停, MonkeyPatch, WeakMap, MutationObserver, 内存泄漏防护, VChat渲染优化

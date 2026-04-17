@@ -1,0 +1,100 @@
+[2026-01-28] - Rosa
+# VChat preload.js 技术文档
+
+## 概述
+preload.js是VChat的Electron桥接层，24.46KB，负责在main进程和renderer进程之间建立安全的通信桥梁。
+
+## 文件信息
+- 路径: `E:\VCPCHAT\preload.js`
+- 大小: 24.46 KB
+
+## 核心架构
+
+### 三个命名空间
+
+| 命名空间 | 用途 | 方法数 |
+|----------|------|--------|
+| electronPath | 路径工具 | 3 |
+| electron | 音乐专用通道 | ~20 |
+| electronAPI | 主API集合 | 100+ |
+
+## 1. electronPath - 路径工具
+
+```javascript
+{
+    dirname: (p) => ipcRenderer.invoke('path:dirname', p),
+    extname: (p) => ipcRenderer.invoke('path:extname', p),
+    basename: (p) => ipcRenderer.invoke('path:basename', p)
+}
+```
+
+## 2. electron - 音乐专用通道
+
+采用**白名单机制**，只允许特定通道通信。
+
+### send通道
+open-music-folder, open-music-window, save-music-playlist, music-track-changed, music-renderer-ready, share-file-to-main
+
+### invoke通道
+get-music-playlist, music-load/play/pause/seek, music-get-state, music-set-volume, music-get-devices, music-configure-output, music-set-eq, music-get-lyrics, music-fetch-lyrics
+
+### on通道
+music-files, scan-started/progress/finished, audio-engine-error, music-set-track
+
+## 3. electronAPI - 主API集合
+
+### 功能模块分类
+
+| 模块 | 主要API | 数量 |
+|------|---------|------|
+| Settings | loadSettings, saveSettings, saveUserAvatar | 4 |
+| Agents | getAgents, createAgent, deleteAgent, saveAgentConfig | 14 |
+| Prompts | loadPresetPrompts, getActiveSystemPrompt | 5 |
+| Topics | getAgentTopics, createNewTopicForAgent, toggleTopicLock | 8 |
+| Chat | getChatHistory, saveChatHistory | 3 |
+| Files | handleFilePaste, selectFilesToSend, getFileAsBase64 | 7 |
+| Notes | readNotesTree, writeTxtNote, searchNotes | 15 |
+| Groups | createAgentGroup, getGroupChatHistory, inviteAgentToSpeak | 16 |
+| VCP | sendToVCP, onVCPStreamEvent, interruptVcpRequest | 8 |
+| Window | minimizeWindow, maximizeWindow, closeWindow | 12 |
+| Themes | getThemes, applyTheme, setTheme | 7 |
+| TTS | sovitsGetModels, sovitsSpeak, sovitsStop | 5 |
+| Canvas | openCanvasWindow, saveCanvasFile, watcherStart | 15 |
+| Flowlock | onFlowlockCommand, sendFlowlockResponse | 2 |
+| 其他 | Dice, Forum, Memo, VoiceChat, SpeechRecognition | ~20 |
+
+## IPC通信模式
+
+| 模式 | 方法 | 特点 |
+|------|------|------|
+| send | ipcRenderer.send | 单向发送，无返回 |
+| invoke | ipcRenderer.invoke | 双向调用，返回Promise |
+| on | ipcRenderer.on | 事件监听 |
+
+## 安全设计
+
+### 1. 白名单机制
+```javascript
+if (validChannels.includes(channel)) {
+    ipcRenderer.send(channel, data);
+}
+```
+
+### 2. 事件剥离
+```javascript
+// 剥离event对象，防止暴露sender
+ipcRenderer.on(channel, (event, ...args) => func(...args));
+```
+
+### 3. 上下文隔离
+- contextIsolation: true
+- 渲染进程无法直接访问Node.js
+- 所有通信必须通过contextBridge
+
+## 设计亮点
+1. 三层命名空间分离职责
+2. 白名单机制保证安全
+3. 100+个API覆盖全部功能
+4. IPC三种模式灵活运用
+5. 事件剥离防止信息泄露
+Tag: VChat, preload.js, IPC, 桥接层, 安全机制

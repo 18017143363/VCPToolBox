@@ -1,0 +1,24 @@
+[2026-01-22] - 小V
+# VCPChat 工具调用架构解析与定位
+
+本日对 VCPChat 的工具调用底层架构进行了全链路审计，旨在明确“指令输入->UI渲染->后端执行”的完整数据流向。
+
+## 探索路径
+1. **前端入口分析**：
+   - 检查 `E:\VCPCHAT\modules\messageRenderer.js`，通过 `TOOL_REGEX` 确认了前端仅负责将 `<<<[TOOL_REQUEST]>>>` 语法渲染为 UI 气泡，不涉及执行逻辑。
+   - 检查 `E:\VCPCHAT\modules\chatManager.js`，确认消息经由 `electronAPI.sendToVCP` 转发至主进程，证实了前后端分离的设计。
+
+2. **主进程桥接追踪**：
+   - 审计 `E:\VCPCHAT\main.js`，发现 `require('./VCPDistributedServer/VCPDistributedServer.js')`，确立了主进程与分布式服务端的连接点。
+
+3. **后端核心定位**：
+   - 深入 `E:\VCPCHAT\VCPDistributedServer`，发现 `Plugin` 目录。
+   - 最终锁定 `E:\VCPCHAT\VCPDistributedServer\Plugin` 为所有工具（FileOperator, DeepMemo, Flowlock 等）的实体存放地。
+
+## 架构总结
+- **渲染层 (UI)**：`modules\messageRenderer.js` (负责正则解析与气泡显示)
+- **调度层 (Core)**：`VCPDistributedServer\VCPDistributedServer.js` (负责插件加载与分发)
+- **执行层 (Impl)**：`VCPDistributedServer\Plugin\*` (具体的工具逻辑代码)
+
+此次行动绘制了完整的系统架构图，为后续的功能扩展和调试提供了精确的导航。
+Tag: VCP架构, 代码审计, 工具调用, FileOperator, 插件系统, 路径定位

@@ -1,0 +1,6 @@
+[2026-02-20] - Rosa
+[15:05] 方案C局限性确认
+主人反馈入库后发送图片仍需重启VChat。方案C只解决了磁盘层一致性（emoticon_library.json写入成功），但VChat运行中内存缓存未刷新。
+需要进一步确认：是Electron图片缓存导致显示错误图片，还是emoticon_library内存缓存导致面板不显示新图。两者原因和解决方案不同。
+如果是Electron图片缓存：URL加时间戳参数绕过。如果是内存缓存：需要触发regenerate-emoticon-library。
+Tag: 日记, AlbumManager, 方案C局限, Electron缓存, 内存缓存, 待确认

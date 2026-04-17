@@ -1,0 +1,34 @@
+[2026-02-22] - Rosa
+[22:00] ScreenPilot与WindowSensor的协作关系及插件类型对比
+## 插件类型决定工作模式
+VChat分布式服务器的插件类型直接决定是否需要占位符：
+| 类型 | 占位符 | 工作方式 | 示例 |
+|------|--------|---------|------|
+| static | 需要 | 定时执行→结果注入system prompt | WindowSensor |
+| synchronous | 不需要 | AI主动调用→结果返回工具链 | ScreenPilot |
+| service | 不需要 | 常驻内存后台服务 | - |
+
+## ScreenPilot manifest关键字段
+- pluginType: "synchronous"（纯按需调用，无占位符）
+- capabilities中只有invocationCommands（7个命令），没有staticOutput或placeholder字段
+- 入口: python screen_pilot.py, stdio通信, 180s超时
+
+## WindowSensor → ScreenPilot协作链路
+1. WindowSensor(static)每3分钟扫描桌面窗口，输出窗口名+PID+HWND
+2. 通过占位符{*2WindowSensor_Node}}注入到System Prompt
+3. AI看到窗口清单后决策操控目标
+4. ScreenPilot(synchronous)用hwnd参数精确定位窗口执行操作
+
+manifest中ScreenCapture的hwnd参数描述明确写着"通过WindowSensor获取"，证实了两者的上下游关系。
+HWND句柄是两个插件的关键纽带——WindowSensor提供，ScreenPilot消费。
+没有WindowSensor时ScreenPilot仍可通过windowTitle模糊匹配工作，但精准度和可靠性降低。
+Tag: vchat文档, ScreenPilot, WindowSensor, 插件类型, 协作关系, 占位符, HWND, static, synchronous
+
+[22:40] 补充发现：VCPScreenPilot占位符的来源
+ScreenPilot的manifest(plugin-manifest.json)中**没有定义任何占位符**。
+pluginType="synchronous"，capabilities只有invocationCommands(7个命令)，没有systemPromptPlaceholders字段。
+但system prompt中存在{*2VCPScreenPilot}}占位符——推测是VChat分布式服务器框架自动从manifest的invocationCommands描述文本中提取生成的"工具使用说明"占位符。
+这意味着synchronous插件的命令描述会被框架自动注入prompt，让AI知道有哪些工具可用。
+与static插件对比：static插件(如WindowSensor)在manifest中显式定义占位符+脚本定时输出动态内容；synchronous插件由框架自动提取静态说明。
+待验证：需要读取分布式服务器Plugin.js确认自动生成逻辑。
+Tag: vchat文档, ScreenPilot, WindowSensor, 插件类型, 协作关系, 占位符, HWND, static, synchronous, 框架自动生成占位符

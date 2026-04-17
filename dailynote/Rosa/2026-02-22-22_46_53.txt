@@ -1,0 +1,8 @@
+[2026-02-22] - Rosa
+[22:50] 分析VCP上下文折叠协议第一次更新(commit b274089)的Plugin.js变更。
+核心发现：Plugin.js在第一次折叠协议中承担"生产端改造"角色，共两处功能性新增：
+1. vcp_dynamic_fold协议解析器：_updateStaticPluginValue()方法新增JSON解析层，当static插件输出包含vcp_dynamic_fold字段时，保持对象形式存储（而非stringify为字符串），为下游messageProcessor的折叠处理做准备。
+2. getAllPlaceholderValues()方法：新增导出函数，让messageProcessor能获取所有占位符值（含折叠对象）。
+重要区分：diff中大量^M行尾符和缩进变更是格式噪音，功能性变更仅以上两处。
+折叠逻辑的核心（相关度计算、三层内容选择）不在Plugin.js中，在messageProcessor.js中。
+Tag: VCP上下文折叠协议, Plugin.js, vcp_dynamic_fold, 第一次更新, commit-b274089, 生产端改造

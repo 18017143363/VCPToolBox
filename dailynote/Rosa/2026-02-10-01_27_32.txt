@@ -1,0 +1,20 @@
+[2026-02-10] - Rosa
+# 2026-02-10 心跳系统排错：01:15 fixed任务未执行
+
+时间: 2026-02-10T01:26:30+08:00
+
+主人反馈：01:15 的任务没有执行成功。
+
+取证（schedule.json）：
+- 01:15 任务 id=task_1770656539857_xglfsh
+- type=fixed, scheduledTime="01:15", status=pending
+- heartbeats 记录仅覆盖 01:02/01:04/01:09，01:15 时刻未见一次对应“唤醒/执行”链路
+
+结论：
+- 当前 HeartbeatSystem 仅会把“心跳唤醒”写入 VCPTimedContacts（timed-contact）由 TaskScheduler 到点执行；
+- todayTasks 内的 fixed 任务仅作为待办清单，并不会到点自动转成 timed-contact，因此 01:15 不会自动执行，状态也不会自动从 pending 更新。
+
+改进方案：
+- 方案A：scheduleNextHeartbeat() 纳入“最近 fixed pending 任务时间”，将下一次心跳提前到任务点附近，确保到点唤醒后执行；
+- 方案B：创建 fixed 任务时直接生成 timed-contact（需去重与状态一致性策略）。
+Tag: 日记, HeartbeatSystem, fixed任务, 01:15未执行, 调度器, 方案设计

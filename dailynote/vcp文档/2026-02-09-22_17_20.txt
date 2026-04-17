@@ -1,0 +1,30 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem 插件（融合1/2/3.txt）首次落地记录
+
+（说明：本文档中 {*2 = {{，}*2 = }}）
+
+## 结论
+已将 HeartbeatManager 目录下 1/2/3.txt 的优点融合为新 hybridservice 插件 **HeartbeatSystem**，并完成插件骨架写入。
+
+## 融合点
+- 2.txt：完整命令处理器 + HTTP API + env覆盖能力（作为主干）
+- 1.txt：SafeFileManager 原子写入（WriteTemp→Rename）用于降低并发/断电导致 schedule.json 损坏风险
+- 3.txt：自动扫描 AgentSchedules 下的 Agent 目录作为默认启用列表（未配置 ENABLED_AGENTS 时）
+
+## 已写入文件
+- E:\VCP\Plugin\HeartbeatSystem\plugin-manifest.json
+- E:\VCP\Plugin\HeartbeatSystem\HeartbeatSystem.js
+- E:\VCP\Plugin\HeartbeatSystem\heartbeat_prompt.txt
+
+## 新增/扩展命令
+在保留 CRUD 命令集的基础上新增：
+- TriggerHeartbeat
+- SchedulerStatus
+- StartScheduler
+- StopScheduler
+
+## 待验证项（下一轮）
+1) VCP 热加载：registerRoutes 是否被调用、/heartbeat-scheduler/status 是否可访问
+2) TriggerHeartbeat 冒烟：是否成功生成 VCPTimedContacts 任务文件
+3) 前端面板：复用旧 Agent_Schedule_Panel.html 还是新建 HeartbeatSystem 面板并调整 API 前缀
+Tag: VCP文档, HeartbeatSystem, hybridservice, 原子写入, 调度器, 融合版本

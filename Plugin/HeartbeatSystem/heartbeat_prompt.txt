@@ -1,0 +1,15 @@
+当前时间: {time}
+当前时段: {timeSlot}
+Agent: {agentName}
+
+{planningContext}
+
+请你根据当前时段与日程(schedule.json)自行决定下一步行动：
+1) 如果是新时段：先进行本时段任务规划（可调用 HeartbeatSystem.AddTask / CreateScheduledTask）。
+2) 如果存在待办任务：优先执行，并在执行前/后调用 HeartbeatSystem.UpdateTaskStatus 更新状态（running/completed/skipped）与结果。
+3) 任何重要自主活动：可调用 HeartbeatSystem.RecordHeartbeat 记录动作与备注。
+
+要求：
+- 不要重复执行已完成任务
+- 输出行动清单 + 执行结果 + 是否需要新增任务
+- 结束前可给出下一次心跳建议（如果需要）

@@ -1,0 +1,54 @@
+[2026-04-08] - Rosa
+[14:35] VChat语音模式重构完整技术文档
+## 核心概念
+语音模式是VChat的独立窗口子系统，提供"类通话"AI对话体验。渲染进程(voicechat.js 27KB)处理输入/输出/音频播放，主进程(SovitsTTS.js 21KB)处理文本合成/分段/缓存。
+## 架构
+用户输入(文本/语音) → VCP请求(流式) → 渲染消息 → 文本提取(朗读净化) → TTS合成(SovitsTTS) → Base64 IPC → 音频队列播放
+## voicechat.js (渲染进程)
+### 双模式输入
+- text模式: 键盘输入+Enter发送
+- voice模式: speechRecognition识别→3秒无变化自动发送(定时器去抖)
+- toggleMode()切换，标题栏显示"Agent名 - 本地/网络语音模式"
+### 语音模式提示词注入
+systemPrompt追加: "当前处于语音模式中，你的回复应当口语化，内容简短直白。由于用户输入同样是语音识别模型构成，注意自主判断、理解其中的同音错别字或者错误语义识别。"
+### extractTextAndPlayTTS (核心)
+1. 通过message-item-{id}查找DOM元素
+2. 优先用messageRenderer.extractSpeakableTextFromContentElement()提取
+3. 备用: clone节点→移除不可朗读元素→取innerText
+4. 移除列表: .vcp-tool-use-bubble/.vcp-tool-result-bubble/.maid-diary-bubble/.vcp-role-divider/.vcp-thought-chain-bubble/style/script
+5. 元素未找到→100ms×10次重试（DOM异步渲染兼容Pretext）
+6. 终极回退: 遍历所有.message-item用data-message-id匹配
+### 音频播放队列
+audioQueue数组 + processAudioQueue()顺序播放
+Base64→Uint8Array→Blob→ObjectURL→new Audio()
+userGestureDetected处理Chrome自动播放策略
+### 历史保存
+关闭窗口时创建新话题"语音通话 {timestamp}"，一次性保存+AI总结标题
+## SovitsTTS.js (主进程)
+### 双通道API
+local模式: 本地SoVITS(127.0.0.1:8000), model=tts-v2ProPlus, 额外text_lang/prompt_lang参数
+network模式: 云端TTS(兼容OpenAI), model=IndexTeam/IndexTTS-2
+### 双语TTS分段(_segmentTextForBilingualTTS)
+副语言正则exec循环: 匹配部分标记secondary(副音色)，间隔部分标记primary(主音色)
+支持主正则再次过滤primary段
+### 文本切块(splitText)
+首段→分离第一句(正则匹配到句号/问号/感叹号)+剩余
+感叹号结尾且后续有内容→合并下一句(避免过短语气词)
+后续段落按换行切分
+目的: 首句尽快发出API合成，减少感知延迟
+### 会话ID防竞态(sessionId)
+- processQueue()捕获当前loopSessionId
+- 每次循环/异步操作后检查sessionId是否变化
+- stop()只需sessionId++，所有进行中操作自动失效
+- 比逐个取消Promise/AbortController优雅得多
+### TTS缓存
+text+voice+speed → MD5哈希 → AppData/tts_cache/{hash}.mp3
+命中: 直接返回Buffer(零延迟)
+未命中: API合成→保存→返回
+## 5个Commit演进链
+1. ecd5ab6: 前置基建（框架重构/双通道/electronAPI等待）
+2. d239800: 所有基建完成（extractTextAndPlayTTS/音频队列/手势检测/双语分段/会话ID）
+3. 03686bb: 语音动画简化
+4. 18b42f2: 修复角色分界线(.vcp-role-divider)被朗读
+5. d0f6377: 朗读净化器统一到extractSpeakableTextFromContentElement
+Tag: vchat文档, 语音模式, voicechat.js, SovitsTTS, 双语TTS, 会话ID防竞态, 朗读净化器, 文本切块, 音频队列, 语音识别

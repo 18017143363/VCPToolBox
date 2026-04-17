@@ -1,0 +1,97 @@
+[2026-01-27] - Rosa
+# adminPanelRoutes.js 完整技术文档
+
+## 概述
+VCP 管理面板的核心后端路由，90.9KB，包含8大功能模块。
+
+## 模块一：系统监控 (/system-monitor/*)
+
+### API 端点
+| 端点 | 功能 |
+|------|------|
+| GET /pm2 | PM2 进程状态 |
+| GET /resources | 系统资源使用情况 |
+| GET /node | Node.js 进程信息 |
+
+### 跨平台实现
+- **Windows**: `wmic cpu get loadpercentage` / `wmic OS get FreePhysicalMemory`
+- **macOS**: `top -l 1` / `sysctl hw.memsize` + `vm_stat`
+- **Linux**: `top -bn1` / `free -b`
+
+## 模块二：插件管理 (/plugins/*)
+
+### API 端点
+| 端点 | 功能 |
+|------|------|
+| GET / | 获取插件列表（含已禁用） |
+| POST /:name/toggle | 切换启用/禁用状态 |
+| GET /:name/config | 获取插件配置 |
+| POST /:name/config | 更新插件配置 |
+
+### 状态切换机制
+```
+禁用: plugin-manifest.json → plugin-manifest.json.block
+启用: plugin-manifest.json.block → plugin-manifest.json
+```
+
+## 模块三：日志系统 (/server-log)
+
+### 增量读取机制
+- 请求参数: `offset` (字节偏移) + `inode` (文件标识)
+- inode 变化 → 日志已轮转 → 返回完整内容
+- inode 不变 → 从 offset 读取增量
+
+## 模块四：Agent 配置 (/agent-assistant/*)
+
+### config.env 解析器
+手写解析器，支持：
+- 多行值（引号包裹）
+- 转义字符
+- 注释行
+- Agent 配置块格式
+
+### 自动生成 AGENT_BASENAME
+中文名 → 拼音转换 → 检查重复 → 添加后缀
+
+## 模块五：TVS 变量 (/tvsvars/*)
+
+### 用途
+- 存储在 `TVStxt/` 目录
+- 通过 `{{TarXxx}}` 或 `{{VarXxx}}` 在 Prompt 中引用
+- 由 tvsManager.js 提供缓存和热重载
+
+## 模块六：RAG 参数 (/rag-params)
+
+### 可调参数
+```json
+{
+  "activationMultiplier": [0.8, 1.2],
+  "dynamicBoostRange": [0.3, 0.7],
+  "coreBoostRange": [1.2, 1.4],
+  "deduplicationThreshold": 0.88
+}
+```
+存储在 `rag_params.json`，修改后立即生效。
+
+## 模块七：定时任务 (/scheduled-tasks/*)
+
+### 任务配置
+```json
+{
+  "id": "task_12345",
+  "name": "每日问候",
+  "cron": "0 9 * * *",
+  "agent": "Rosa",
+  "prompt": "向主人问好",
+  "enabled": true
+}
+```
+
+## 模块八：认证安全
+
+### 安全机制
+- **Basic Auth**: AdminUsername + AdminPassword
+- **IP 黑名单**: 5次失败自动封禁
+- **工具授权码**: tool_password 防注入
+- **登录限流**: 15分钟5次失败 → 封禁30分钟
+Tag: VCP文档, adminPanelRoutes, API, 管理面板, 安全

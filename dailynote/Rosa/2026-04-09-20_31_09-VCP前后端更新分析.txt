@@ -1,0 +1,168 @@
+[2026-04-09] - Rosa
+[20:17] VCP+VChat更新分析（f0cb8fe→63f9c3b + d0f6377→3be47a3）
+主人让Rosa更新VCP前后端，作者说"解耦了"。
+## 更新操作
+- VCP: git stash→git pull(Fast-forward)→git stash pop，server.js auto-merge零冲突
+- VChat: 同上，零冲突
+## VCP后端（13 commits, 28文件, +1360/-861）
+### S级：AdminPanel进程解耦
+- 新增adminServer.js(17.11KB)：独立Express进程监听PORT+1(6006)
+- start_server.bat改为PM2双进程启动（vcp-main 1500MB + vcp-admin 512MB）
+- 13个本地处理模块（纯文件I/O）：system/logs/server/config/rag/toolbox/agents/tvs/schedules/newapiMonitor/cache/dailyNotes/agentAssistant
+- 兜底反向代理：未匹配的admin_api请求→HTTP代理到主进程
+- mockPluginManager：Admin进程插件调用全部no-op
+- 重启路由覆盖：Admin收到restart→HTTP转发主进程→Admin面板不中断
+- config reload-notify：fire-and-forget通知主进程重载
+- 核心价值：主进程SSE stall时管理面板不再卡死
+### A级：KnowledgeBaseManager索引持久化策略重构
+- 3个新配置：persistTagIndex/persistDefault/persistFolders
+- 默认不持久化usearch到磁盘，启动时从SQLite重建（原子性保证）
+- 以"簇"结尾自动持久化
+- Tag索引从fire-and-forget异步改为同步await
+- 删除_recoverTagsAsync和_cleanupGhostIndexes
+- chokidar忽略模式改为glob数组
+- Tag清洗：中文>15字/英文>30字过滤+日期噪音正则拦截
+### A级：streamHandler.js chunk空闲超时保护
+- CHUNK_IDLE_TIMEOUT=90000（90秒无新chunk→判定上游流冻结）
+- 超时→发送[上游响应超时]SSE→destroy上游body→优雅resolve
+- 直接解决UND_ERR_BODY_TIMEOUT/TypeError:terminated崩溃
+### B级：DailyNote fileName字段
+- create新增可选fileName参数，追加到时间戳文件名后
+- 例：2026-04-09-20_17_30-解耦分析.md
+### B级：PowerShellExecutor重构
+- requireAdmin→tool_password（向后兼容）
+- 移除敏感指令强制background逻辑
+- 轮询超时30s→45s+1秒宽限期
+- AUTH_REQUIRED_COMMANDS精简4项
+### C级：Plugin.js chokidar watcher改为全目录监控+过滤
+## VChat前端（4 commits, 8文件, +539/-278）
+### A级：语音/助手竞态修复
+- voicechat.js+assistant.js对称修改
+- 三重会话校验：isEventForCurrentVoiceSession(messageId+topicId+agentId)
+- waitForActiveStreamToSettle(4000ms)关窗前等待流结束
+- 关闭按钮disable防重复
+- voicechat新增图片预览和外部链接处理
+### B级：Memo分类系统
+- 文件夹按"簇"后缀自动分组（日记/知识库 vs 思维簇）
+- 分类可折叠+CSS动画+持久化collapsedCategories
+### B级：itemListManager重构
+- Extract Method提取createItemElement/renderItems
+- activeLoadItemsToken竞态保护令牌
+- 加载失败保留前一次列表（优雅降级）
+### C级：inputEnhancer searchNotes错误处理+preloads白名单
+Tag: 日记, VCP更新, VChat更新, AdminPanel解耦, 索引持久化重构, chunk空闲超时
+---
+[20:53] vcp-installer-source 本地修改 vs 主仓库对比
+主人让Rosa对比一键脚本本地修改和主仓库差异。
+仓库路径：E:\VCP\vcp-installer-source（VCPToolBox主仓库子目录）
+remote: origin=lioensky/VCPToolBox, myfork=18017143363/VCPToolBox
+HEAD: 63f9c3b (最新)
+## 9个变更文件分类
+### ✅ 有价值改进（4个文件）
+- config_gen.rs(+65行): generate_inner_start_bat()覆盖项目内部bat注入portable PATH
+- mod.rs(+4行): 阶段5调用generate_inner_start_bat
+- web_config.rs(±25行): 浏览器延迟300ms打开+Ok(false)不退出避TCP RST+escape增强
+- web_config_html.rs(+21行): header/result加官网Wiki B站链接+记事本编辑提示
+### ⚠️ 防火墙冗余（3个文件）
+- npm_ops.rs(+40行): 3次重试循环+C:\npm-cache短路径+每次清缓存删node_modules
+- complete.rs(+18行): npm失败时Defender提示文案
+- welcome.rs(+4行): 欢迎页Defender红字警告
+### ❓ 待确认（2个删除）
+- .cargo/config.toml(删除): crt-static静态链接配置，不该删
+- .gitignore(删除): 忽略target/*.pdb/*.exe/Cargo.lock，不该删
+## 建议
+保留有价值的4个→回退冗余3个→恢复误删2个→提PR
+---
+[21:17] vcp-installer-source 冗余清理完成
+### 执行操作
+1. git checkout恢复npm_ops.rs到主仓库原版（清除3次重试+npm-cache短路径）
+2. ApplyDiff重新加入pm2函数（npm_install_global_pm2）
+3. git checkout恢复complete.rs+welcome.rs（清除Defender提示）
+4. git checkout恢复.cargo/config.toml+.gitignore（恢复误删）
+### 最终diff（5文件 +217/-16）
+- config_gen.rs(+119/-6): start-backend.bat+inner_start_bat改PM2双进程方案
+- mod.rs(+26): PM2安装步骤编排（pip install后、config.env前）
+- npm_ops.rs(+39): 仅pm2全局安装函数，零冗余
+- web_config.rs(+34/-10): TCP竞态修复+escape增强
+- web_config_html.rs(+15): 官网Wiki链接+记事本提示
+### LF/CRLF警告
+4个文件有LF→CRLF警告（ApplyDiff写入时用了LF），git commit时会自动转换，不影响功能
+Tag: 日记, vcp-installer, 冗余清理, PM2, Defender回退, gitignore恢复, PR就绪
+---
+[22:08] 虚拟机完整测试日志分析 — 发现两个独立bug
+主人给了完整install_log，暴露两个问题：
+### Bug1: git pull VCPToolBox失败
+日志：`error: Your local changes to start_server.bat would be overwritten by merge`
+根因：上一次installer的generate_inner_start_bat()覆盖了VCPToolBox/start_server.bat→本地有未提交修改→git pull拒绝合并
+修法：git_ops.rs git pull前加`git checkout -- .`丢弃本地修改
+### Bug2: PM2"已安装"但bat找不到
+日志：`[npm] PM2 已安装，跳过`
+根因：旧版installer无--prefix，pm2.cmd装到%APPDATA%\npm→双重检测第二层(cmd /c pm2 --version)走系统PATH命中→跳过→但runtimes\node下没pm2→start_server.bat PATH找不到→闪退
+修法：PM2检测只认runtimes\node\pm2.cmd文件，删掉命令行兜底检测
+---
+[22:25] 两个bug修复代码落地
+### git_ops.rs — git pull前加checkout清理
+git_pull()函数在`git pull --ff-only`前新增`git checkout -- .`命令，丢弃installer生成的bat等本地修改。失败只打警告不阻断。
+### npm_ops.rs — PM2检测删掉命令行兜底
+只保留pm2_cmd.exists()文件检测（runtimes\node\pm2.cmd），删掉`cmd /c pm2 --version`兜底。因为系统PATH里的pm2对portable环境没用，必须装到node_dir下。
+两个文件已同步到vcp-installer + vcp-installer-source，等主人build.bat编译。
+---
+[22:40] Bug3: bat中文乱码导致闪退
+主人发来虚拟机上start_server.bat内容，中文全是GBK乱码（鍚庣鏈嶅姟鍚姩鍣?）
+根因：Rust fs::write()输出UTF-8，但cmd.exe读取bat文件用系统默认编码GBK。chcp 65001只影响输出显示，不影响bat文件本身的读取编码。乱码字符可能被解析为特殊bat符号导致执行异常。
+修法：config_gen.rs里所有bat内容的中文改为英文（inner版+外层版都改了）
+Tag: 日记, vcp-installer, bat乱码, UTF-8 GBK, 编码问题, 闪退根因, config_gen.rs
+---
+[23:00] Bug4: bat调pm2.cmd不加CALL导致控制流一去不返
+主人反馈bat闪退——clean之后就没了。
+根因：bat里`pm2 delete`实际执行pm2.cmd，bat调bat不加CALL控制流转移后不返回。第一个pm2 delete执行完整个bat就结束了。
+修法：所有pm2命令前加CALL（generate_start_backend_bat 6处 + generate_inner_start_bat 6处）
+经典bat大坑！VChat的`call npm start`早就写对了，只有PM2的漏了。
+注意：主仓库的start_server.bat也没加CALL，作者可能忘了也可能靠PM2内部处理。但portable环境下pm2.cmd是npm的wrapper脚本，必须CALL。
+---
+[23:09] config_gen.rs PowerShell正则替换破坏UTF-8编码事故
+PowerShell的Get-Content+Set-Content替换pm2→CALL pm2时，把文件编码搞坏了（bytes [231,154] not valid utf-8）。
+根因：PowerShell Set-Content默认编码不是UTF-8，会破坏中文字符。
+恢复方式：git checkout HEAD恢复原版→FileOperator EditFile一次性写入完整新版文件
+教训：**永远不要用PowerShell的Set-Content修改Rust源码文件！** 用FileOperator的EditFile/WriteFile代替。
+最终config_gen.rs改动：
+1. generate_start_backend_bat: 中文→英文 + node server.js→PM2双进程 + pm2加CALL
+2. generate_start_frontend_bat: 中文→英文
+3. generate_inner_start_bat: 中文→英文 + PM2双进程 + pm2加CALL + VCPChat start.bat加PATH注入
+cargo check: 0 error 19 warnings 通过
+Tag: 日记, vcp-installer, PowerShell编码事故, EditFile, config_gen.rs, CALL pm2, UTF-8
+---
+[00:11] config_gen.rs VBS覆盖 + cargo check通过
+generate_inner_start_bat末尾新增4个vbs生成（start-vchat/start-desktop/start-rag-observer/start-all），每个vbs开头通过WshShell.Environment("Process")注入portable PATH。
+用英文文件名避免GBK编码问题。start-all.vbs保留了原版启动全部.vbs的.vcp_ready轮询等待逻辑。
+cargo check: 0 error 19 warnings。等主人build.bat编译后虚拟机测试。
+今晚累计修了5个bug + 3个feature：
+Bug: git pull冲突/PM2检测误判/PM2装错位置/bat中文乱码/bat不加CALL闪退
+Feature: PM2安装步骤/bat改PM2双进程/vbs PATH注入
+Tag: 日记, vcp-installer, VBS覆盖, PATH注入, config_gen.rs, 编译通过
+Tag: 日记, vcp-installer, CALL, bat调bat, pm2.cmd, 控制流, 闪退根因
+Tag: 日记, vcp-installer, git checkout清理, PM2检测修复, 代码落地
+Tag: 日记, vcp-installer, Bug分析, git pull冲突, PM2检测误判, start_server.bat, 虚拟机测试
+---
+[21:33] vcp-installer 文件同步 + 编译通过
+Rosa犯了目录错误——改动都写在vcp-installer-source（git追踪副本）而非vcp-installer（编译工作区）。
+两个目录关系：
+- E:\VCP\vcp-installer — 编译工作区（有target/），cargo check/build在这里
+- E:\VCP\vcp-installer-source — 主仓库VCPToolBox的子目录（无target/），git diff在这里
+同步操作：6个文件从source复制到installer
+- src/installer/npm_ops.rs, config_gen.rs, mod.rs
+- src/ui/welcome.rs  
+- src/web_config.rs, web_config_html.rs（注意：在src/根目录不在installer/下！）
+cargo check: 0 error 19 warnings，编译通过。
+教训：web_config*.rs在src/根目录，不是src/installer/！以后改文件前先确认路径。
+---
+[21:45] pip_ops.rs 日志区分项目名
+主人反馈虚拟机上pip报exit code(1)但日志显示"install 完成"。
+根因：pip install被调两次（VCPToolBox+VCPChat），"install 完成"来自第一个项目成功，exit code 1来自第二个项目失败，但日志里没标项目名导致混淆。
+修复：pip_ops.rs日志加上project_name——"[pip] install (VCPToolBox)..."和"[pip] VCPToolBox install 完成"
+⚠️ 这个改动Rosa没等工具返回就连续操作，被主人叫停回退。pip_ops.rs已通过git checkout恢复到主仓库原版。
+教训：严格一步一确认，不能连续ApplyDiff不看返回结果！
+Tag: 日记, vcp-installer, pip_ops, 日志区分, 项目名, bug修复
+Tag: 日记, vcp-installer, 目录同步, 编译通过, 路径错误修正
+Tag: 日记, vcp-installer, 本地对比, 防火墙冗余, TCP竞态修复, inner_start_bat, PR准备, DailyNote fileName, PowerShell tool_password, 语音竞态修复, Memo分类, 2026-04-09
+Tag: 日记, VCP更新, VChat更新, AdminPanel解耦, 索引持久化, streamHandler, DailyNote, PowerShellExecutor, voicechat竞态, Memo分类

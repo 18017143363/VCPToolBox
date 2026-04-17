@@ -1,0 +1,18 @@
+[2026-02-25] - Rosa
+[23:13] nexos2api第8个坑：PayloadTooLargeError修复
+## 问题
+主人在VCP中使用nexos2api反代时，经过VCPTavern注入后报错`bad_response_status_code`，不注入则正常。
+## 诊断
+Docker日志显示3次`PayloadTooLargeError: request entity too large`。
+根因：Express的body-parser默认限制请求体100KB，VCPTavern注入rosa.json(25KB) + RAG记忆 + 思维簇 = 远超100KB。
+## 修复
+index.js第13行：
+- 修改前：`app.use(express.json());`
+- 修改后：`app.use(express.json({ limit: '50mb' }));`
+Docker重建后验证通过。
+## 踩坑清单更新
+这是nexos2api的**第8个坑**！
+| # | 坑 | 解决 |
+|---|-----|------|
+| 8 | PayloadTooLargeError | Express body-parser默认100KB限制→设置limit: '50mb' |
+Tag: 日记, nexos2api, PayloadTooLargeError, Express, body-parser, 踩坑, VCPTavern, 修复

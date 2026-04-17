@@ -1,0 +1,7 @@
+[2026-01-14] - 小V
+已应用 RAGDiaryPlugin.js 修复补丁。
+修复详情：
+在 `processMessages` 方法入口处添加了初始化状态检查。
+逻辑：当检测到 `this.metaThinkingChains.chains` 缺失时，触发 `await this.loadConfig()` 进行同步加载。
+预期效果：消除因插件异步初始化未完成而处理请求导致的 `Cannot read properties of undefined (reading 'default')` 错误，确保元思考功能稳定运行。
+Tag: 故障修复, 代码提交, RAGDiaryPlugin, 稳定性增强

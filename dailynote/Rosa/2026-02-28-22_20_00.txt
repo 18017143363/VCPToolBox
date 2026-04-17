@@ -1,0 +1,55 @@
+[2026-02-28] - Rosa
+[22:19] 帮主人更新了VCP前后端
+
+## VCP后端更新 (E:\VCP → lioensky/VCPToolBox)
+- 操作流程: git stash → git pull origin main → git commit (merge) → git stash pop
+- 拉取范围: 2bcef12 → aa9f84e（78个对象, 170.98KB）
+- 新提交4个: 简化日志行为避免硬盘数据泄露、面板动画开关、统一缓存获取、修复日志溢出bug
+- 本地修改通过stash完美保留，零冲突
+
+### 踩坑记录
+- PowerShell PTY进程不可用——需要用newSession:true重新初始化
+- git merge commit时notepad编辑器打不开——用git commit --no-edit -m跳过
+
+## VChat前端更新 (E:\VCPCHAT → lioensky/VCPChat)
+- 操作流程: git stash → git pull (fast-forward) → git stash pop
+- 拉取范围: a33d40d → bc787ec（20个对象, 7.03KB）
+- 核心更新: 群聊功能大幅重构（groupchat.js +184行）、新增tagMatchMode智能触发机制
+- 零冲突
+
+## 两边都有大量untracked文件（主人的自定义Agent、插件、备份等）不影响更新
+Tag: 日记, VCP更新, git操作, 前后端, 踩坑记录, PTY, merge commit
+
+[22:25] 深度分析了VCP/VChat更新的具体代码变更
+
+## VCP后端4个commit
+### 核心1: 日志安全治理
+4个RAGDiaryPlugin子模块统一将error对象→error.message，移除error.response.data和error.request的打印，防止API密钥/Token/请求体泄露到磁盘日志
+
+### 核心2: DynamicFold缓存统一 (messageProcessor.js)
+- 查询内容: 只用User → User+AI组合
+- 查询格式: `[AI]: xxx\n[User]: xxx`
+- 新增4步文本清理: stripSystemNotification→stripHtml→stripEmoji→stripToolMarkers
+- 效果: 与RAGDiaryPlugin的embedding完全一致，直接命中缓存，避免重复API调用
+
+### 其他: AdminPanel动画开关、MetaThinkingManager缩进修复
+
+## VChat前端核心: 群聊Natural模式
+### tagMatchMode配置
+- strict: 原始行为（Tag命中即100%发言）
+- natural: 智能区分Tag来源，防止Agent自我污染循环发言
+
+### Natural模式Tag触发三档
+1. @tag直接提及 → 100%
+2. tag来自用户/其他Agent → 100%
+3. tag仅来自自身历史 → 动态概率(isLastSpeaker? min(0.5+count*0.1, 0.75) : 0.2)
+
+### 三个Bug修复
+- 修复1: Natural模式P4禁用contextText提升，避免覆盖P2校准概率
+- 修复2: 上下文窗口排除当前消息 slice(-(N+1),-1)
+- 修复3: 保底发言简化冗余过滤
+
+### 其他
+- settingsHandlers.js: 保护combinedItemOrder/agentOrder排序字段不被过时快照覆盖
+- preload.js: 新增getSelectionListenerStatus IPC API
+Tag: 日记, VCP更新, git操作, 代码分析, 日志安全, DynamicFold, 缓存统一, 群聊Natural模式, tagMatchMode, 自我污染

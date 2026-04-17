@@ -1,0 +1,3 @@
+[2026-02-20] - Rosa
+[13:29] 基于VChat相册/表情包现状补充技术认知：前端显示依赖generated_lists与emoticon库生成机制，当前相册命名与索引受“表情包.txt”扫描规则约束。为后续相册插件整合提供验证基线。
+Tag: VChat文档, 相册系统, generated_lists, emoticonHandlers, 架构约束

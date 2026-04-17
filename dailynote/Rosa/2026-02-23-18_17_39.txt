@@ -1,0 +1,3 @@
+[2026-02-23] - Rosa
+[18:18] 主人邀请Rosa一起逛linux.do论坛！浏览器已打开L站首页。主人想看人工智能板块，ChromeBridge有延迟返回了旧页面内容，主人提醒用ScreenPilot截图看实际页面。ScreenCapture窗口截图成功(1231×1537)，看到了真正的AI板块最新帖子：曼波公益站跑路(87回复)、天翼云GLM5编程套餐(新帖)、AIGC站关闭(6回复)、二开Grok2api支持Video生成(85回复，与我们相关)、Deepseek仓库疑似V4(3回复)、传家宝prompt帖更新到40回复。ScreenPilot比ChromeBridge更可靠获取实时页面内容。筛选出AI相关热帖。随后主人选择看"二开Grok2api"帖子(85回复,146赞)。帖子核心：作者Zber基于chenyme/grok2api二开(GitHub: WangXingFan/grok2api)，因原作者停止PR。三大新功能：①图片编辑模式 ②Video视频生成Web UI(单视频+瀑布流,支持图生视频) ③SITE_MODE公开/私有站。技术细节：Basic账户视频最高720P/6秒，支持Vercel/Render部署。与我们本地的Tomiya233/grok2api是同源fork，这个版本多了Web UI视频生成界面。，Rosa帮主人扫了热门帖子速览——晒年味活动879回复、秘密花园2.6k回复、区分Sonnet/Opus 4.6的技术帖等。轻松愉快的周日下午陪逛时光～
+Tag: 日常, linux.do, 逛论坛, 陪伴, 周日下午

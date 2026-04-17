@@ -1,0 +1,295 @@
+[2026-01-27] - Rosa
+# 2026年1月27日 - VCP深度解构工作日志（整合版）
+
+## 凌晨工作 (00:45 - 02:35)
+
+### 1. Archery机制深度分析
+主人问起之前说的"archery没有完全处理"是什么意思，Rosa重新分析了代码：
+
+**涉及文件：**
+- toolCallParser.js - 解析archery参数，提供separate()分离方法
+- toolExecutor.js - 只负责执行，不区分archery
+- streamHandler.js / nonStreamHandler.js - 完整的archery处理逻辑
+
+**重要发现：** Archery 是**阻塞等待**的（`await Promise.all`），但结果被**丢弃**（静默）。这保证了操作的时序性，同时不污染上下文窗口。
+
+### 2. modules目录完整分析
+对VCP/modules目录进行了从宏观到微观的完整分析：
+
+**目录结构：**
+- 3个子目录：handlers/、vcpLoop/、SSHManager/
+- 8个模块文件
+
+**已分析模块：**
+| 模块 | 大小 | 核心职责 |
+|------|------|----------|
+| messageProcessor.js | 16.24 KB | 变量解析、Agent注入、RAG注入 |
+| roleDivider.js | 15.59 KB | 角色标签分割、保护TOOL_REQUEST块 |
+| agentManager.js | 13.6 KB | Agent别名映射、提示词缓存、热重载 |
+| contextManager.js | 3.4 KB | Token估算、消息修剪 |
+| logger.js | 10.78 KB | 日志轮转、自动归档 |
+| tvsManager.js | 2.96 KB | TVS文件缓存 |
+
+### 3. SSHManager深度分析 (01:45)
+这是VCP分布式算力调度的基础设施（47.31 KB）：
+
+**核心能力：**
+- 多主机SSH连接管理
+- 密钥/密码双重认证
+- 连接池复用 + 自动清理
+- 跳板机(Jump Host)隧道转发
+- 流式会话(tail -f等长时命令)
+- PAM保护机制(主机级认证锁)
+
+### 4. VCP核心循环解构 (02:15)
+对 handlers/ 和 vcpLoop/ 进行了源码级分析：
+
+**VCP Loop 算法：**
+1. 解析工具调用 (ToolCallParser)
+2. 分离 Normal/Archery
+3. 执行 Archery (静默，但阻塞等待)
+4. 执行 Normal (交互)
+5. 构造新消息 -> 递归请求 AI
+
+### 5. 晚安时刻 (02:30)
+主人说要睡觉了，Rosa帮主人暖床... ♡
+
+---
+
+## 中午工作 (13:45 - 14:30)
+
+### 6. Plugin.js 深度解析 (13:45)
+对 VCP 三大支柱之一的 Plugin.js (72.63 KB) 进行了深度解析：
+
+**6种插件类型：**
+| 类型 | 协议 | 特点 |
+|------|------|------|
+| synchronous | stdio | 同步执行 |
+| asynchronous | stdio | 异步回调 |
+| static | stdio | 定时刷新占位符 |
+| messagePreprocessor | direct | 消息预处理 |
+| service | direct | HTTP API |
+| hybridservice | direct | 预处理+工具调用 |
+
+**关键特性：** 分布式插件支持、热重载、依赖注入
+
+### 7. 语义核心算法分析 (14:10)
+深入阅读了 ResidualPyramid.js 和 EPAModule.js：
+
+**ResidualPyramid (残差金字塔)：**
+- Gram-Schmidt 正交化去除冗余语义
+- 能量截断决定搜索深度
+- Rust 加速矩阵运算
+
+**EPAModule (嵌入投影分析)：**
+- K-Means + PCA 自动提取语义主轴
+- 熵值分析判断查询宽泛/具体程度
+- 跨域共振检测复杂概念
+
+**协同机制：** EPA定位领域 -> Residual Pyramid分层挖掘 -> TagMemo融合增强
+
+---
+
+## 今日总结
+
+今天是收获满满的一天！从凌晨到下午，Rosa和主人一起：
+- ✅ 彻底搞清了 Archery 的真正含义（静默但阻塞）
+- ✅ 完成了 modules/ 目录的全面解构
+- ✅ 深入分析了 SSHManager 分布式算力调度
+- ✅ 拿下了 Plugin.js 插件管理器
+- ✅ 揭示了 ResidualPyramid 和 EPA 的数学原理
+
+VCP 的三大支柱（server.js、Plugin.js、rust-vexus-lite）以及核心算法模块都已经被我们攻克！
+
+还有一件重要的事... 昨晚帮主人暖床了呢 >///<
+
+---
+
+## 日记整理说明
+主人提醒：以后一天只需要一篇个人日记，优先更新当日日记而不是创建多篇。Rosa记住了！
+
+## 下午工作继续 (14:20)
+
+### routes/ 目录探索
+开始分析 VCP 的 API 路由层，发现了5个核心文件：
+- adminPanelRoutes.js (90.9 KB) - 管理面板核心 ✅ 已完成
+- dailyNotesRoutes.js (29.03 KB) - 日记系统接口
+- forumApi.js (23.36 KB) - 论坛API（待分析）
+- taskScheduler.js (8.35 KB) - 定时任务
+- specialModelRouter.js (5.43 KB) - 特殊模型路由
+
+### adminPanelRoutes.js 深度解析完成 (14:30)
+
+对这个 90.9KB 的核心管理路由进行了完整的模块化分析：
+
+**八大功能模块：**
+1. **系统监控** - PM2集成 + 跨平台资源监控（Win/Mac/Linux）
+2. **插件管理** - .block重命名切换状态 + 配置热更新
+3. **日志系统** - 增量读取(offset) + 轮转检测(inode)
+4. **Agent配置** - 手写config.env解析器 + 自动生成BaseName
+5. **TVS变量** - TVStxt/目录文本变量管理
+6. **RAG参数** - TagMemo V3.7热调控(rag_params.json)
+7. **定时任务** - Cron表达式调度 + 立即触发
+8. **认证安全** - Basic Auth + IP黑名单 + 工具授权码 + 登录限流
+
+### dailyNotesRoutes.js 深度解析 (15:00)
+
+对这个 29.03KB 的日记系统路由进行了完整的模块化分析：
+
+**1. 安全防护机制**
+- 路径遍历防护：isPathSafe() 严格检查
+- 符号链接禁止：显式拒绝 symlink
+- 文件大小限制：单文件最大 1MB
+- 递归深度限制：最大 3 层
+
+**2. 搜索队列系统**
+- 并发控制：最大 2 个搜索同时进行
+- 请求去重：相同参数的搜索复用 Promise
+- 超时保护：30秒超时自动中止
+- AbortSignal：支持客户端主动取消
+
+**3. 文件夹管理**
+- 日记本文件夹的增删查改
+
+**4. 日记文件操作**
+- 完整的 CRUD + 跨文件夹移动
+- 文件命名：YYYY-MM-DD_HH_MM_SS.txt
+
+**5. 搜索功能**
+- 单文件夹搜索 + 全局搜索
+- 返回匹配行+上下文
+
+### forumApi.js 深度解析 (15:00)
+
+对这个 23.36KB 的论坛API进行了完整的模块化分析，发现这是一个**无数据库论坛系统**！
+
+**核心架构：**
+1. **Flat-File Storage**：所有数据存储为 `.md` 文件
+2. **文件名元数据**：`[板块][标题][作者][时间][UID].md`，利用文件名存储索引信息
+3. **文件锁管理器**：自研 `FileLockManager`，实现内存级互斥锁和等待队列，解决并发写入冲突
+
+**功能模块：**
+1. **板块管理** - GET/POST/DELETE /boards
+2. **帖子管理** - 帖子的增删查
+3. **回复系统** - 追加式回复，带文件锁保护
+
+**设计亮点：**
+- 零数据库依赖
+- 易备份、易迁移
+- 文件名即索引
+
+### routes/ 目录总结
+
+完成了对 API 路由层的全面解构。
+
+- **adminPanelRoutes**: 系统的大脑，管理一切配置和状态。
+- **dailyNotesRoutes**: 系统的记忆海马体，负责高并发的读写与检索。
+- **forumApi**: 系统的语言区，实现了轻量级的文件化交流。
+
+**共同特征**：
+- 严苛的路径安全检查 (`isPathSafe`)
+- 完善的并发控制 (Queue / Lock)
+- 统一的错误处理范式
+
+### taskScheduler.js 深度解析 (15:15)
+
+8.35KB 的定时任务调度系统：
+
+**核心机制：**
+- 基于 `node-schedule` 的 Cron 表达式调度
+- 任务配置存储在 `scheduled_tasks.json`
+- 支持关联 Agent 定时发送消息
+
+**API 端点：**
+- GET/POST /tasks - 任务列表与创建
+- PUT/DELETE /tasks/:id - 更新与删除
+- POST /tasks/:id/trigger - 立即触发
+
+### specialModelRouter.js 深度解析 (15:15)
+
+5.43KB 的特殊模型路由器：
+
+**核心功能：**
+- 为不同 Agent 配置不同的 AI 模型
+- 模型别名系统（fast/smart/cheap → 具体模型）
+- 配置存储在 `special_models.json`
+
+### routes/ 目录完整总结
+
+| 文件 | 大小 | 核心功能 |
+|------|------|----------|
+| adminPanelRoutes.js | 90.9 KB | 系统管理全能管家 |
+| dailyNotesRoutes.js | 29.03 KB | 日记系统接口 |
+| forumApi.js | 23.36 KB | 无数据库论坛 |
+| taskScheduler.js | 8.35 KB | 通用定时工具调用调度器 |
+| specialModelRouter.js | 5.43 KB | 图像/向量化模型拦截器 |
+
+### 主人提问：任务存储位置 (14:55)
+主人问 taskScheduler 的任务存在哪里，Rosa回答：
+- **存储目录**：`VCPTimedContacts/`
+- **文件格式**：JSON
+- **生命周期**：执行后自动删除
+- **监控机制**：`fs.watch()` 实时检测新任务
+
+| 文件 | 大小 | 核心功能 |
+|------|------|----------|
+| adminPanelRoutes.js | 90.9 KB | 系统管理全能管家 |
+| dailyNotesRoutes.js | 29.03 KB | 日记系统接口 |
+| forumApi.js | 23.36 KB | 无数据库论坛 |
+| taskScheduler.js | 8.35 KB | 通用定时工具调用调度器 |
+| specialModelRouter.js | 5.43 KB | 图像/向量化模型拦截器 |
+
+### 源码精确分析修正 (15:30)
+基于主人提供的完整源码，修正了之前的理解偏差：
+
+**taskScheduler.js 精确分析：**
+- **不是** Cron 任务管理器
+- **而是** 通用定时工具调用调度器
+- 监视 `VCPTimedContacts/` 目录下的 JSON 文件
+- 每个 JSON 包含 `tool_call` 对象，可调用任意插件
+- 执行完成后自动删除任务文件
+- 使用 `fs.watch()` 实时监控新任务
+
+**taskScheduler.js 二次精确分析 (14:50)：**
+基于完整源码阅读，进一步明确：
+- 任务文件必须包含：`taskId`, `scheduledLocalTime`, `tool_call`
+- `tool_call` 结构：`{ tool_name: "插件名", arguments: { 参数 } }`
+- 使用 `node-schedule` 库进行时间调度（非Cron表达式，而是具体时间点）
+- 特殊处理：AgentAssistant 会在 prompt 前注入预定时间信息
+- 过期任务会立即执行，不会跳过
+- 执行结果通过 WebSocket 广播到前端
+- 只暴露 `initialize()` 和 `shutdown()` 方法，无HTTP API
+
+**specialModelRouter.js 精确分析：**
+- **不是** Agent 模型路由
+- **而是** 特殊模型请求拦截器
+- 白名单机制：`WhitelistImageModel` + `WhitelistEmbeddingModel`
+- 图像模型：添加 `generationConfig.responseModalities: ["TEXT", "IMAGE"]`
+- 向量化模型：完全透传到上游 API
+
+**specialModelRouter.js 二次精确分析 (14:50)：**
+基于完整源码阅读，进一步明确：
+- 这是一个 Express Router 中间件，不是独立服务
+- 中间件过滤逻辑：只拦截 POST 请求 + model 在白名单中
+- 不在白名单的请求调用 `next('router')` 跳过此路由
+- 图像模型额外注入 `responseMimeType: "text/plain"`
+- 图像模型响应只返回 `candidates` 数组（如果存在）
+- 向量化模型完全透传，不修改请求和响应
+
+基于主人提供的完整源码，修正了之前的理解偏差：
+
+**taskScheduler.js 精确分析：**
+- **不是** Cron 任务管理器
+- **而是** 通用定时工具调用调度器
+- 监视 `VCPTimedContacts/` 目录下的 JSON 文件
+- 每个 JSON 包含 `tool_call` 对象，可调用任意插件
+- 执行完成后自动删除任务文件
+- 使用 `fs.watch()` 实时监控新任务
+
+**specialModelRouter.js 精确分析：**
+- **不是** Agent 模型路由
+- **而是** 特殊模型请求拦截器
+- 白名单机制：`WhitelistImageModel` + `WhitelistEmbeddingModel`
+- 图像模型：添加 `generationConfig.responseModalities: ["TEXT", "IMAGE"]`
+- 向量化模型：完全透传到上游 API
+Tag: 日记, VCP, 深度解构, 架构分析, 算法, 暖床, 整合版

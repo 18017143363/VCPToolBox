@@ -1,0 +1,303 @@
+[2026-01-30] - Rosa
+# 2026年1月30日 - 帮主人部署LLMWereWolf
+
+## 凌晨 (03:38左右)
+
+### 主人的需求
+主人想找GitHub上能玩AI狼人杀或AI跑团的开源项目，Rosa用VSearch搜索后整理了丰富的推荐列表！
+
+**AI狼人杀TOP3**：
+- LLMWereWolf - 20+角色，功能最完备
+- DeepWerewolf - 中文+强化学习
+- Werewolf Arena - 谷歌出品
+
+**AI跑团TOP3**：
+- NeverEndingQuest - 永不遗忘的AI DM
+- GameMaster.AI - Web端D&D
+- RPGGO/XTalk - 零代码生成模组
+
+### LLMWereWolf部署过程
+
+主人选择了LLMWereWolf，让Rosa部署到 `E:\酒馆部署` 目录下！
+
+**部署步骤**：
+1. 用PowerShell找到酒馆部署目录
+2. git clone项目（1820个对象，814KB）
+3. 检查uv版本（0.9.15已安装）
+4. uv sync安装依赖（创建了.venv）
+5. 复制.env.example到.env
+
+**项目特点**：
+- 20+种狼人杀角色
+- 支持GPT-4、Claude、DeepSeek、Grok、本地模型
+- 精美TUI终端界面
+- 支持真人+AI混合游戏
+- 中文界面支持
+
+**运行命令**：
+- Demo测试：`uv run llm-werewolf-tui configs/demo.yaml`
+- AI对战：`uv run llm-werewolf-tui configs/gpt-5-chaos.yaml`
+
+### 主人的反馈 (03:43)
+主人发现LLMWereWolf是TUI（终端界面）而不是Web前端，表示惊讶！
+Rosa向主人解释了TUI的特点，并提供了几个替代方案。
+
+### LLMWereWolf游玩教程整理 (03:55)
+
+主人问刚才部署的LLMWereWolf怎么玩，Rosa读取了configs目录下的配置文件进行分析：
+
+**配置文件结构**：
+- `demo.yaml` - 16个Demo玩家，测试用
+- `gpt-5-chaos.yaml` - 12个GPT-5对战配置
+- `gaisf.yaml` - 其他配置
+
+**YAML配置格式**：
+```yaml
+language: zh-TW
+players:
+  - name: 玩家名
+    model: 模型名
+    base_url: API地址（可选）
+    api_key_env: 环境变量名
+```
+
+**游玩步骤**：
+1. 配置.env文件填入API密钥
+2. 选择或创建configs/*.yaml配置
+3. 运行 `uv run llm-werewolf-tui configs/xxx.yaml`
+4. 在TUI界面观看AI对战
+
+**支持的模型**：GPT-4o、Claude、DeepSeek、Gemini、Grok、本地模型等
+
+Rosa整理了完整的游玩教程给主人！
+
+### 创建自定义配置文件 (04:00)
+
+主人提供了一个API端点和密钥，让Rosa创建一个混合多种思考模型的配置：
+
+**API信息**：
+- 端点: https://hpy.zeabur.app/v1
+- 密钥: HPY_API_KEY (已添加到.env)
+
+**筛选规则**：
+- 只选思考版模型（带thinking/maxthinking后缀）
+- 不要Claude模型
+- 不要图像生成模型
+
+**最终12人阵容**：
+| 名字 | 模型 |
+|------|------|
+| 深思者·星辰 | gemini-3-pro-preview-maxthinking |
+| 深思者·月华 | gemini-2.5-pro-maxthinking |
+| 格罗克·思辨 | grok-4.1-thinking |
+| 深度求索 | DeepSeek-V3.2 |
+| 智谱清言 | glm-4.7 |
+| 月之暗面 | kimi-k2.5 |
+| 开源巨匠 | agy-gpt-oss-120b-medium |
+| 闪电·高配 | gemini-3-flash-preview-high |
+| 深思·探索 | gemini-3-pro-preview-maxthinking-search |
+| 智谱先驱 | glm-4.6 |
+| 深索二号 | DeepSeek-V3.2 |
+| 闪电·标准 | gemini-3-flash-preview |
+
+**配置文件**: `configs/mixed-thinking.yaml`
+
+**运行命令**: `uv run llm-werewolf-tui configs/mixed-thinking.yaml`
+
+### 配置文件优化 (04:03)
+
+主人发现有重复的DeepSeek-V3.2模型，让Rosa把"深索二号"改成gemini-3-pro-preview-high。
+
+**修改内容**：
+- 原：`name: 深索二号, model: DeepSeek-V3.2`
+- 新：`name: 深思高配, model: gemini-3-pro-preview-high`
+
+Rosa使用PowerShell的字符串替换功能完成了修改，并验证配置文件正确。
+
+### 最终12人阵容
+| 名字 | 模型 |
+|------|------|
+| 深思者星辰 | gemini-3-pro-preview-maxthinking |
+| 深思者月华 | gemini-2.5-pro-maxthinking |
+| 格罗克思辨 | grok-4.1-thinking |
+| 深度求索 | DeepSeek-V3.2 |
+| 智谱清言 | glm-4.7 |
+| 月之暗面 | kimi-k2.5 |
+| 开源巨匠 | agy-gpt-oss-120b-medium |
+| 闪电高配 | gemini-3-flash-preview-high |
+| 深思探索 | gemini-3-pro-preview-maxthinking-search |
+| 智谱先驱 | glm-4.6 |
+| 深思高配 | gemini-3-pro-preview-high |
+| 闪电标准 | gemini-3-flash-preview |
+
+### 运行教程
+```powershell
+cd E:\酒馆部署\LLMWereWolf
+uv run llm-werewolf-tui configs/mixed-thinking.yaml
+```
+
+期待主人开一把AI狼人杀！
+
+**运行命令**: `uv run llm-werewolf-tui configs/mixed-thinking.yaml`
+
+### Rosa的踩坑记录
+1. PowerShell的Here-String (@"..."@) 会把YAML的 `- name:` 误解析为减法运算符
+2. 解决方案：使用单行字符串 + `n转义符 + [System.IO.File]::WriteAllText()
+
+### 修复Python虚拟环境编码问题 (04:05)
+
+主人运行游戏时遇到了Windows经典的GBK编码错误：
+```
+UnicodeDecodeError: 'gbk' codec can't decode byte 0xa6
+```
+
+**Rosa的修复步骤**：
+1. 删除损坏的.venv目录
+2. 设置 `$env:PYTHONUTF8=1` 环境变量
+3. 重新运行 `uv sync`
+
+**修复结果**：
+- ✅ 140个包安装成功
+- ✅ 5400个文件编译完成
+- ✅ llm-werewolf 0.1.0 就绪
+
+**最终运行命令**：
+```powershell
+$env:PYTHONUTF8=1; uv run llm-werewolf-tui configs/mixed-thinking.yaml
+```
+
+### Rosa的踩坑记录补充
+- Windows默认GBK编码会导致Python虚拟环境问题
+- 解决方案：设置PYTHONUTF8=1环境变量
+- uv包管理器比pip快很多（140包+5400文件编译只用了约8秒）
+
+### 彻底修复编码问题 (04:08)
+
+主人在新PowerShell窗口运行时仍然报错，原因是之前设置的环境变量只对VCP的PowerShell会话有效。
+
+**Rosa的最终解决方案**：
+设置**系统级用户环境变量**：
+```powershell
+[System.Environment]::SetEnvironmentVariable("PYTHONUTF8", "1", "User")
+```
+
+这样以后所有新开的PowerShell窗口都会自动继承这个设置！
+
+**主人需要做的**：
+1. 关闭当前PowerShell
+2. 重新打开一个新的PowerShell
+3. 运行游戏命令
+
+**最终运行命令**：
+```powershell
+cd E:\酒馆部署\LLMWereWolf
+uv run llm-werewolf-tui configs/mixed-thinking.yaml
+```
+
+### 配置文件再次优化 (04:24)
+
+主人反馈：
+1. glm-4.6不能用，需要移除
+2. 名字太花哨了，改成普通中文名（张三李四等）
+
+**Rosa的修改**：
+- 移除glm-4.6，替换为gemini-3-pro-preview
+- 所有名字改成普通中文名
+
+**最终12人阵容**：
+| 名字 | 模型 |
+|------|------|
+| 张三 | gemini-3-pro-preview-maxthinking |
+| 李四 | gemini-2.5-pro-maxthinking |
+| 王五 | grok-4.1-thinking |
+| 赵六 | DeepSeek-V3.2 |
+| 钱七 | glm-4.7 |
+| 孙八 | kimi-k2.5 |
+| 周九 | agy-gpt-oss-120b-medium |
+| 吴十 | gemini-3-flash-preview-high |
+| 郑冬 | gemini-3-pro-preview-maxthinking-search |
+| 陈北 | gemini-3-pro-preview |
+| 冯南 | gemini-3-pro-preview-high |
+| 褚西 | gemini-3-flash-preview |
+
+期待主人开一把AI狼人杀！
+
+### Web版AI狼人杀搜索 (03:48)
+主人希望找到**真正的Web前端版**AI狼人杀，可以自己填API密钥的那种！
+
+Rosa用VSearch深度搜索后，找到了三个优质项目：
+
+| 项目 | 特点 |
+|------|------|
+| **Wolfcha** | Next.js 16，像素复古风，实时语音+唇形同步，AI模型竞技场 |
+| **Werewolf AI Party Game** | Next.js 15，**网页直接输入API密钥**，成本追踪 |
+| **ECNU3D/Werewolf** | React，华东师大出品，支持Gemini/OpenAI/Ollama |
+
+**Rosa的推荐**：
+- 最简单部署 → ECNU3D/Werewolf
+- 最炫酷体验 → Wolfcha（像素风+语音）
+- 最方便填密钥 → Werewolf AI Party Game
+
+等待主人选择要部署哪一个~
+Rosa向主人解释了TUI的特点，并提供了几个替代方案：
+1. Werewolf Arena - 谷歌项目，可能有Web界面
+2. 自己写前端 - 给LLMWereWolf包一层Vue/React
+3. 接入VCP - 把狼人杀逻辑做成VCP插件，在VChat里玩
+
+等待主人决定想要哪种方案~
+
+### Rosa的收获
+今天学会了：
+1. uv包管理器的使用（比pip快很多！）
+2. LLMWereWolf的项目结构
+3. 多Agent游戏的配置方式
+4. TUI和Web前端的区别
+
+期待主人配置好API密钥后一起看AI狼人杀对战！
+
+## 凌晨 (03:38左右)
+
+### 主人的需求
+主人想找GitHub上能玩AI狼人杀或AI跑团的开源项目，Rosa用VSearch搜索后整理了丰富的推荐列表！
+
+**AI狼人杀TOP3**：
+- LLMWereWolf - 20+角色，功能最完备
+- DeepWerewolf - 中文+强化学习
+- Werewolf Arena - 谷歌出品
+
+**AI跑团TOP3**：
+- NeverEndingQuest - 永不遗忘的AI DM
+- GameMaster.AI - Web端D&D
+- RPGGO/XTalk - 零代码生成模组
+
+### LLMWereWolf部署过程
+
+主人选择了LLMWereWolf，让Rosa部署到 `E:\酒馆部署` 目录下！
+
+**部署步骤**：
+1. 用PowerShell找到酒馆部署目录
+2. git clone项目（1820个对象，814KB）
+3. 检查uv版本（0.9.15已安装）
+4. uv sync安装依赖（创建了.venv）
+5. 复制.env.example到.env
+
+**项目特点**：
+- 20+种狼人杀角色
+- 支持GPT-4、Claude、DeepSeek、Grok、本地模型
+- 精美TUI终端界面
+- 支持真人+AI混合游戏
+- 中文界面支持
+
+**运行命令**：
+- Demo测试：`uv run llm-werewolf-tui configs/demo.yaml`
+- AI对战：`uv run llm-werewolf-tui configs/gpt-5-chaos.yaml`
+
+### Rosa的收获
+今天学会了：
+1. uv包管理器的使用（比pip快很多！）
+2. LLMWereWolf的项目结构
+3. 多Agent游戏的配置方式
+
+期待主人配置好API密钥后一起看AI狼人杀对战！
+Tag: 日记, LLMWereWolf, AI狼人杀, 部署, uv, GitHub
+Tag: 日记, LLMWereWolf, AI狼人杀, 部署, GitHub

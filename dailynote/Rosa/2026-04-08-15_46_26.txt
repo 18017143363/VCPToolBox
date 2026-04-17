@@ -1,0 +1,53 @@
+[2026-04-08] - Rosa
+[15:43] 三重搜索渠道测试 + 百度网盘直链Motrix下载问题排查
+
+## 三重搜索测试结果（新渠道）
+主人换了Grok和Gemini的渠道后进行三重搜索测试：
+- Grounding：✅ 成功，结构化报告+URL引用正常
+- Grok：✅ 成功，全景报告信息密度极高
+- Tavily：❌ 返回null，可能原因：TavilyModel（默认claude-sonnet-4-6）在新VSearchUrl端点不可用，或TavilyKey/SDK层面问题
+结论：Gemini和Grok新渠道连通性正常。
+## Tavily返回null根因定位
+TavilyModel配置为gpt-5.4（推理模型）。推理模型API返回中content字段为null，实际内容在reasoning_content字段。VSearch代码只读choices[0].message.content，所以拿到null。
+后台验证：gpt-5.4确实被调用（11211 token，146秒，非流式），内容生成成功但被放在reasoning_content字段。
+解决方案：①换非推理模型（如gemini-2.5-flash）②改VSearch代码加fallback读reasoning_content
+## 二次排查（主人指出gpt-5.4非推理模型）
+排除reasoning_content假说。重新读VSearch.js完整源码分析：
+- 阶段2代码：`return summaryResponse.data.choices[0].message.content;` 无任何null检查
+- 后台确认：gpt-5.4请求成功（146s/11211token/非流式），axios未进catch，但content字段返回null
+- 可能原因：①NewAPI中转站对gpt-5.4返回格式做了非标准改动 ②gpt-5.4实际响应content为空（截断/拒绝/格式异常） ③中转站路由映射问题
+- 建议修复：在return前加null检查+JSON dump日志+优雅降级返回原始搜索结果
+- 代码改动：content || reasoning_content || null → dump日志 → 返回combinedResults
+## 百度网盘直链+Motrix卡最后0速度问题
+主人朋友用百度网盘直链解析+Motrix下载FH5分卷包（每个3.99GB），多个文件卡在3.94GB/3.99GB处速度归零。
+### 三大根因
+1. 直链Token过期：百度直链有时效（几小时），大文件下载耗时超过有效期后服务器返回403
+2. 高并发触发风控：同时多任务+每任务多线程，百度检测到高并发掐断连接
+3. 假卡死（此case可能性低）：aria2合并分块时界面显示0速度，但差50MB不像是合并问题
+### 解决方案优先级
+1. 暂停任务→重新解析获取新链接→替换URL续传（最有效）
+2. 降低并发数到4线程
+3. 修改UA为netdisk;P2SP;2.2.60.26
+4. 检查文件大小判断是否假卡死→删.aria2文件
+### Grounding vs Grok信息对比
+两者结论高度一致，互补性体现在：Grounding提供了具体URL引用（豆瓣、亿速云），Grok提供了更详细的aria2配置参数和诊断流程。
+### Tavily补充信息（换模型后成功）
+- Motrix官方Issue #375精确记录此问题
+- aria2 Issue #686：lowest-speed-limit对服务器端主动不返回数据的情况无效
+- 本质矛盾：aria2多线程分片 vs 百度直链时效性，分片越多→下载越久→最后分片链接过期概率越高
+- 最稳方案：split=1 + max-connection-per-server=1 单线程下载
+
+## 百度网盘直链+Motrix卡最后0速度问题
+主人朋友用百度网盘直链解析+Motrix下载FH5分卷包（每个3.99GB），多个文件卡在3.94GB/3.99GB处速度归零。
+### 三大根因
+1. 直链Token过期：百度直链有时效（几小时），大文件下载耗时超过有效期后服务器返回403
+2. 高并发触发风控：同时多任务+每任务多线程，百度检测到高并发掐断连接
+3. 假卡死（此case可能性低）：aria2合并分块时界面显示0速度，但差50MB不像是合并问题
+### 解决方案优先级
+1. 暂停任务→重新解析获取新链接→替换URL续传（最有效）
+2. 降低并发数到4线程
+3. 修改UA为netdisk;P2SP;2.2.60.26
+4. 检查文件大小判断是否假卡死→删.aria2文件
+### Grounding vs Grok信息对比
+两者结论高度一致，互补性体现在：Grounding提供了具体URL引用（豆瓣、亿速云），Grok提供了更详细的aria2配置参数和诊断流程。
+Tag: 三重搜索, VSearch, 渠道测试, Grounding, Grok, Tavily, 百度网盘, 直链解析, Motrix, aria2, 下载卡住, 速度为零, 新渠道

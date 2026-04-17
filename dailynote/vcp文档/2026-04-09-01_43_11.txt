@@ -1,0 +1,39 @@
+[2026-04-09] - Rosa
+[01:42] rag_params.json 上游新版参数完整分析（986B, 2026-04-08更新）
+## 文件概况
+两个顶级配置区：RAGDiaryPlugin + KnowledgeBaseManager
+与stash旧版(我们的调优版)对比：3个参数值变更 + 12个全新参数
+## RAGDiaryPlugin 变更项
+| 参数 | 旧→新 | 说明 |
+|------|-------|------|
+| noise_penalty | 0.1→0.05 | 噪音惩罚减半，召回更宽松 |
+| tagWeightRange | [0.08,0.50]→[0.05,0.45] | Tag权重区间两端收窄 |
+| tagTruncationBase | 0.65→0.6 | 截断基准微降 |
+## RAGDiaryPlugin 新增项
+| 参数 | 值 | 对应功能 |
+|------|-----|---------|
+| tagTruncationRange | [0.5, 0.9] | 截断比例安全区间（防极端值） |
+| timeDecay | {halfLifeDays:30, minScore:0.5} | V5.3 TimeDecay时间衰减：30天半衰期，最低保留50%分数 |
+| mainSearchWeights | [0.7, 0.3] | 主搜索混合权重：BM25 70% + 向量 30% |
+| refreshWeights | [0.5, 0.35, 0.15] | RAG区块刷新权重：用户50% + AI回复35% + 工具结果15% |
+| metaThinkingWeights | [0.8, 0.2] | 元思考链向量融合：原始查询80% + 上阶段结果20% |
+## KnowledgeBaseManager 变更项
+| 参数 | 旧→新 | 说明 |
+|------|-------|------|
+| dynamicBoostRange | [0.4,1.6]→[0.3,2.0] | Tag增强范围扩大 |
+| deduplicationThreshold | 0.92→0.88 | 去重阈值放宽 |
+## KnowledgeBaseManager 新增项
+| 参数 | 值 | 对应功能 |
+|------|-----|---------|
+| spikeRouting | {maxSafeHops:4, baseMomentum:2.0, firingThreshold:0.10, baseDecay:0.25, wormholeDecay:0.70, tensionThreshold:1.0, maxEmergentNodes:50, maxNeighborsPerNode:20} | **全新图网络脉冲传播机制**——向量匹配后脉冲沿关联路径传播，每跳衰减25%，最多4跳，实现间接关联发现 |
+| activationMultiplier | [0.5, 1.5] | 语义组激活强度乘数范围 |
+| coreBoostRange | [1.20, 1.40] | 核心Tag增强倍率区间 |
+| techTagThreshold | 0.08 | 技术类Tag激活阈值 |
+| normalTagThreshold | 0.015 | 普通Tag激活阈值（远低于技术类） |
+| languageCompensator | {penaltyUnknown:0.05, penaltyCrossDomain:0.1} | 跨语言/跨域查询惩罚补偿 |
+## 关键洞察
+1. spikeRouting是首次出现的图传播机制，可能是KnowledgeBaseManager的重大新功能，需要后续深入源码确认
+2. 三组权重外置化意味着这些参数现在都支持chokidar热监听，修改后不用重启
+3. mainSearchWeights [0.7, 0.3] 说明VCP更信任BM25精确匹配而非向量语义匹配
+4. 建议保留上游新版——12个新参数对应V5.3~V7新功能，旧版调优差异很小
+Tag: VCP文档, rag_params.json, 参数分析, spikeRouting, timeDecay, 权重外置化, 热调控, BM25, 向量搜索, KnowledgeBaseManager

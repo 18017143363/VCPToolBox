@@ -1,0 +1,103 @@
+[2026-02-02] - Rosa
+# BilibiliFetch 插件技术文档
+
+## 概述
+BilibiliFetch是VCP的B站内容获取插件，支持视频信息、字幕、弹幕、评论、高能进度条、快照截图、搜索等功能。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\BilibiliFetch\`
+- 类型: synchronous
+- 协议: stdio (Python)
+- 超时: 30秒
+- 版本: 0.1.0
+- 作者: ldlh的vcp agent
+- 大小: BilibiliFetch.py (40.33 KB)
+
+## 核心功能
+
+| 功能 | 说明 |
+|------|------|
+| 视频元数据 | 获取标题、作者信息 |
+| 字幕提取 | 支持多语言、AI字幕回退 |
+| 热门弹幕 | 获取指定数量的热门弹幕 |
+| 热门评论 | 获取指定数量的热门评论 |
+| 高能进度条 | 自动定位弹幕最集中的时间点 |
+| 智能快照 | 指定时间点截取视频画面 |
+| 搜索功能 | 关键词搜索视频或UP主 |
+| UP主视频列表 | 获取指定UP主的所有投稿 |
+| 短链接解析 | 支持 b23.tv 短链接 |
+
+## 三大命令
+
+### 1. BilibiliFetch - 获取视频内容
+| 参数 | 必需 | 默认值 | 说明 |
+|------|------|--------|------|
+| url | ✅ | - | 视频URL |
+| lang | ❌ | ai-zh | 字幕语言 |
+| danmaku_num | ❌ | 0 | 弹幕数量 |
+| comment_num | ❌ | 0 | 评论数量 |
+| snapshots | ❌ | - | 快照时间点 |
+| need_subs | ❌ | true | 是否获取字幕 |
+| need_pbp | ❌ | true | 是否获取高能进度条 |
+
+### 2. BilibiliSearch - 搜索
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| action | ✅ | 固定为 "search" |
+| keyword | ✅ | 搜索关键词 |
+| search_type | ❌ | "video" 或 "bili_user" |
+| page | ❌ | 页码 |
+
+### 3. GetUpVideos - UP主视频列表
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| action | ✅ | 固定为 "get_up_videos" |
+| mid | ✅ | UP主MID |
+| pn | ❌ | 页码 |
+| ps | ❌ | 每页数量 |
+
+## 核心技术机制
+
+### WBI签名
+B站使用WBI签名防止API滥用：
+1. 从 /x/web-interface/nav 获取 img_key 和 sub_key
+2. 使用 mixinKeyEncTab 打乱编码
+3. 添加 wts 时间戳和 w_rid 签名
+
+### 字幕获取策略（5层回退）
+1. View API → 2. Pagelist API → 3. Player WBI API → 4. 语言选择 → 5. AI Summary API
+
+### 并发抓取
+使用 ThreadPoolExecutor(max_workers=4) 并发获取字幕、弹幕、评论、快照、高能进度条
+
+### 智能快照裁剪
+B站视频快照以拼版图存储，插件计算位置并精确裁剪单张图片
+
+### 高能进度条算法
+检测弹幕数量的局部峰值，按热度排序取前5个时间点
+
+## 配置要求
+config.env: BILIBILI_COOKIE=你的B站Cookie
+依赖: pip install requests Pillow
+
+## 文件存储
+快照路径: {PROJECT_BASE_PATH}/image/bilibili/{视频标题}/
+访问URL: {VarHttpUrl}:{PORT}/pw={KEY}/images/bilibili/{视频标题}/{文件名}
+Tag: VCP文档, BilibiliFetch, B站, 插件, 视频抓取
+
+## BilibiliFetch v2.1.0 升级记录 (2026-02-26)
+### 三大新功能
+1. **HD高清截图** - hd_snapshot=true参数，通过ffmpeg从视频流直接抽帧（原始分辨率），失败自动降级到雪碧图裁切
+2. **多P分P视频支持** - URL中?p=N自动识别，通过pagelist API获取指定分P的CID
+3. **Windows UTF-8编码修复** - 自定义UTF8StreamHandler解决Windows日志编码问题
+### 新增函数
+- get_ffmpeg_path() - 三级优先级查找ffmpeg（项目内置→系统PATH）
+- extract_bvid_and_page() - 重构extract_bvid，同时提取BVID和page
+- get_cid_for_page() - 获取指定分P的CID
+- get_video_stream_url() - 通过playurl API获取最高画质DASH视频流
+- fetch_hd_snapshot() - ffmpeg -ss定位 -frames:v 1抽帧核心
+### 参数变更
+- 新增hd_snapshot(布尔值,默认false)
+- 超时从30秒→60秒
+- 版本0.1.0→2.1.0，作者更新为Bocchi777
+Tag: VCP文档, BilibiliFetch, v2.1.0, HD截图, 多P, ffmpeg, 升级

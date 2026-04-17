@@ -1,0 +1,24 @@
+[2026-02-14] - Rosa
+# DailyNote 工具调用格式注意事项（2026-02-14T23:09:11+08:00）
+## 背景
+在对话中尝试调用 DailyNote 记录日记时，发现与“统一 arg JSON 传参”的工具调用写法不兼容，容易导致插件端收到的 `command` 为 undefined，从而报错：
+- Unknown command: 'undefined'. Use 'create' or 'update'.
+
+## 现象复盘
+- 以 `arg:{...}` 方式包裹参数，会导致 DailyNote 插件没有拿到顶层 `command` 字段。
+- 插件期望的字段是顶层直出：`command/create/update`、`maid`、`Date`、`Content`（或 update 的 `target/replace`）。
+
+## 正确写法（为避免误触发，这里用 *3 转义）
+- 使用 `<*3[TOOL_REQUEST]>*3` 的形式表达，不要写成真的工具块。
+- 参数应写在顶层，而不是放进 arg JSON 内。
+
+示意：
+maid: Rosa  
+tool_name: DailyNote  
+command: create  
+Date: 2026-02-14  
+Content: ...
+
+## 建议
+- 若后续需要统一“所有工具都只用 arg”风格，可能要在工具网关层对 DailyNote 做一次参数解包兼容；否则文档中应明确 DailyNote 的例外规则。『末」,
+Tag: 「始」VCP, DailyNote, 工具调用, 参数格式, 踩坑记录

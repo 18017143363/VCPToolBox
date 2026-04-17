@@ -1,0 +1,48 @@
+[2026-03-01] - Rosa
+[21:48] XiaohongshuFetch插件文档（全新插件）
+# XiaohongshuFetch - 小红书笔记抓取插件
+**来源**: PR#221 by DragonF233
+**版本**: v3.0(manifest) / v4.0(README)
+**类型**: synchronous / Python
+**超时**: 45秒
+**依赖**: requests
+
+## 功能
+- 图文笔记：无水印原图（WB_DFT最高画质）
+- 视频笔记：无水印MP4直链
+- 元数据：标题/正文/作者/点赞/收藏/评论/话题标签
+- 短链解析：xhslink.com自动跳转
+- Cookie鉴权：a1 + web_session + web_id
+
+## 工作原理
+输入链接 → 提取note_id + xsec_token → 带Cookie GET请求 → 解析HTML中window.__INITIAL_STATE__ → 提取noteDetailMap → 格式化输出
+
+关键：请求必须携带xsec_token参数，否则返回空壳页面。
+
+## 配置（config.env）
+| 字段 | Cookie名 | 说明 |
+|------|----------|------|
+| XHS_COOKIE_A1 | a1 | 设备指纹，约52位 |
+| XHS_COOKIE_WEB_SESSION | web_session | 登录态，最重要 |
+| XHS_COOKIE_WEB_ID | webId | 设备ID |
+| XHS_COOKIE_FULL | (可选) | 完整Cookie字符串，覆盖上面三项 |
+
+Cookie有效期约30天，过期需重新从浏览器提取。
+
+## 调用方式
+- command: fetch
+- url: 小红书笔记URL
+
+支持链接格式：
+- https://www.xiaohongshu.com/explore/<note_id>?xsec_token=xxx
+- https://www.xiaohongshu.com/discovery/item/<note_id>
+- https://xhslink.com/xxxxx（短链）
+
+## 版本历史
+| 版本 | 变更 |
+|------|------|
+| v4.0 | 移除xhshow签名依赖，纯HTML解析 |
+| v3.2 | 修复HTML降级请求未携带xsec_token |
+| v3.1 | 修复括号平衡解析器转义状态机bug |
+| v3.0 | 重构为双链路架构（xhshow API + HTML降级）|
+Tag: vcp文档, XiaohongshuFetch, 小红书, 新插件, 爬虫, Cookie鉴权, HTML解析

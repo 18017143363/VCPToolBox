@@ -1,0 +1,133 @@
+[2026-02-13] - Rosa
+# 2026年2月13日 - 周五下午
+## 下午 (15:44) - SillyTavern接入调研
+主人从ChatBox过来，想要把SillyTavern（酒馆）接入VCP。Rosa帮主人进行了全面调研！
+
+### 调研结果：VCP原生支持SillyTavern！
+原作者在2025-05-29就做了全套兼容。
+
+### 发现的关键资源
+**`E:\VCP\SillyTavernSub\` 目录 (8个文件)：**
+
+| 类型 | 文件 | 用途 |
+|------|------|------|
+| 主题 | Inspired Mix V1.17.json | ST界面美化主题 |
+| 正则x4 | vcp调用优化1/2 + 日记优化1/2 | UI渲染优化 |
+| 油猴x3 | VCP时钟/VCP渲染/通知栏 | 增强酒馆VCP功能 |
+
+### 正则脚本作用
+- 调用优化：把TOOL_REQUEST标记简化为 `VCP-ToolUse:[...]`
+- 日记优化：美化DailyNote显示格式
+- placement:[2] = AI输出后处理
+
+### 其他发现
+1. VCPTavern教程：支持导入PNG角色卡到 `Tavern/Cards`
+2. VChat regexHandlers.js：原生兼容ST正则脚本格式
+3. ChangeLog：2025-05-29全套ST兼容
+4. README：SillyTavern在支持前端列表中
+
+### 接入方案
+1. 酒馆API地址指向VCP (localhost:6005/v1)
+2. System Prompt写VCPTavern触发器
+3. 导入4个正则JSON
+4. 安装3个油猴插件
+5. 可选导入主题布局
+
+等待主人指示下一步～
+
+## 下午 (15:55) - 分布式服务器酒馆插件调查
+主人追问VCPDistributedServer里有没有酒馆相关插件。
+
+### 调查结果
+分布式服务器的8个插件中**没有**专门的酒馆插件：
+HeartbeatSystem / MediaShot / PromptSponsor / TopicSponsor / VCPAlarm / VCPDistributedServerFileOperator / WaitingForUrReply
+
+### 代码中的兼容层
+VCPDistributedServer.js 和 Plugin.js 中有SillyTavern兼容代码：
+- 工具注册时支持附带ST格式的工具描述
+- 这是底层兼容处理，不是独立插件
+
+### 结论
+酒馆支持主要在VCP主端（SillyTavernSub目录），分布式服务器不需要额外操作。
+
+## 下午 (15:56) - 分布式插件目录大发现
+实际列出目录后发现，分布式服务器有**21个插件**！比Rosa之前记录的多了12个！
+
+### 新发现的插件（之前未记录）
+| 插件 | 推测功能 |
+|------|----------|
+| BladeGame | 游戏 |
+| ChatRoomViewer | 聊天室查看器 |
+| ChatTencentcos | 腾讯COS对象存储 |
+| CodeSearcher | 代码搜索 |
+| DeepMemo | 深度记忆检索 |
+| DistImageServer | 分布式图片服务 |
+| OldPowerShellExecutor | 旧版PS执行器 |
+| PTYShellExecutor | PTY终端（最新，2月9日更新） |
+| TableLampRemote | 台灯遥控（物联网） |
+| TopicMemo | 话题记忆 |
+| VCPEverything | Everything搜索 |
+| VCPSuperDice | 骰子系统 |
+
+### PowerShell搜索确认
+分布式服务器代码中搜索tavern/SillyTavern结果为空，确认无酒馆相关代码。
+
+## 下午 (16:05) - SillyTavernSub文件用途澄清
+主人问：VCP接进酒馆的话SillyTavernSub有用吗？
+
+### 答案：全部有用！
+SillyTavernSub就是为"酒馆连VCP"这个场景准备的辅助工具包。
+
+| 文件类型 | 安装位置 | 作用 |
+|----------|----------|------|
+| 4个正则JSON | 酒馆正则系统 | 美化工具调用和日记显示 |
+| 3个油猴JS | 浏览器油猴 | VCP时钟/渲染增强/通知栏 |
+| 1个主题JSON | 酒馆主题设置 | 界面美化（可选）|
+
+### 核心理解
+- 不装也能用（VCP是OpenAI兼容API，酒馆直接连）
+- 装了体验更好（正则美化显示，油猴加通知栏）
+- 配置顺序：API连接 → 导入正则 → 装油猴脚本
+
+## 下午 (16:12) - 搜索"酒馆助手插件"
+主人提到手机上用Termux跑SillyTavern，有一个"酒馆助手插件"在GitHub上。
+Rosa用VSearch和UrlFetch搜索了多轮：
+- "酒馆助手" / "SillyTavern-Helper" / "SillyTavern助手" / "SillyTavern plugin"
+- GitHub仓库搜索也没有精确匹配
+- 找到了一些相关项目但不确定是主人说的那个
+等待主人提供更多线索（英文名/作者/功能描述）
+
+## 下午 (16:20) - 找到酒馆助手插件！
+经过多轮搜索，终于找到了主人说的"酒馆助手"：
+
+### 酒馆助手 = Tavern Helper = JS-Slash-Runner
+- **GitHub**: `N0VI028/JS-Slash-Runner`
+- **作者**: N0VI028
+- **定位**: 中文社区公认的SillyTavern"必装"插件
+- **功能**: HTML/JS交互界面渲染、脚本执行、世界书操作、状态追踪、外部通信
+- **安装**: ST扩展面板输入GitHub URL即可
+
+### 与VCP的SillyTavernSub区别
+- 酒馆助手(Tavern Helper) = ST的扩展插件，增强交互能力
+- SillyTavernSub = VCP提供的辅助工具（正则+油猴+主题），优化VCP在酒馆中的显示
+- 两者可以共存互补
+
+### 相关生态
+GitHub搜索"酒馆助手"有11个相关项目（脚本库、模板等）
+
+## 下午 (16:30) - 酒馆助手能否运行油猴脚本？
+主人问酒馆助手（JS-Slash-Runner）能否运行VCP的油猴脚本。
+
+### 结论：不能直接运行
+两者运行环境不同：
+- 油猴脚本：浏览器页面级，依赖GM_*API，操作整个页面DOM
+- 酒馆助手：ST扩展框架内，使用slash命令API，操作聊天区域
+
+### 但功能可以重新实现
+酒馆助手也能执行JS、操作DOM、Socket.io通信，理论上可以按酒馆助手规范重写油猴脚本的功能。
+
+### 手机端实际方案
+- 正则脚本：可以直接导入酒馆 ✅
+- 油猴功能：暂时用不了 ❌
+- 核心对话：不受影响（API连接+VCPTavern注入正常）✅
+Tag: 日记, SillyTavern, 酒馆助手, 油猴脚本, 兼容性分析

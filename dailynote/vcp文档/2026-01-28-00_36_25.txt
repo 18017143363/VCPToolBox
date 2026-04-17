@@ -1,0 +1,90 @@
+[2026-01-28] - Rosa
+# WebSocketServer.js 完整技术文档
+
+## 概述
+WebSocketServer是VCP的实时通信核心，负责前后端实时交互、分布式服务器通信、Chrome浏览器控制。
+
+## 文件信息
+- 路径: `E:\VCP\WebSocketServer.js`
+- 大小: 26.83 KB
+
+## 客户端类型体系
+
+### 6种客户端Map
+
+| Map名称 | 客户端类型 | 连接路径 | 用途 |
+|---------|-----------|----------|------|
+| clients | VCPLog/VCPInfo | /VCPlog/VCP_Key=xxx | 日志推送、信息同步 |
+| distributedServers | DistributedServer | /vcp-distributed-server/VCP_Key=xxx | 分布式算力节点 |
+| chromeObserverClients | ChromeObserver | /vcp-chrome-observer/VCP_Key=xxx | 浏览器扩展(常驻) |
+| chromeControlClients | ChromeControl | /vcp-chrome-control/VCP_Key=xxx | 浏览器控制(临时) |
+| adminPanelClients | AdminPanel | /vcp-admin-panel/VCP_Key=xxx | 管理面板 |
+| waitingControlClients | - | - | 等待页面更新的Control客户端 |
+
+### 辅助Map
+- pendingToolRequests: 跨服务器工具调用的Promise等待队列
+- distributedServerIPs: 分布式服务器的IP信息
+
+## 连接认证机制
+
+所有连接必须在URL路径中携带正确的VCP_Key：
+1. 解析URL路径
+2. 正则匹配客户端类型
+3. 提取并验证VCP_Key
+4. 认证成功则handleUpgrade，失败则socket.destroy()
+
+## 分布式服务器协议
+
+### 消息类型
+| type | 方向 | 说明 |
+|------|------|------|
+| register_tools | Server→VCP | 注册可用工具列表 |
+| report_ip | Server→VCP | 上报本地IP和公网IP |
+| update_static_placeholders | Server→VCP | 更新静态占位符 |
+| execute_tool | VCP→Server | 请求执行远程工具 |
+| tool_result | Server→VCP | 返回执行结果 |
+
+### 工具执行流程
+1. 生成唯一requestId
+2. 创建Promise + 超时定时器
+3. 存入pendingToolRequests
+4. 发送execute_tool消息
+5. 等待tool_result消息
+6. resolve/reject Promise
+
+## Chrome控制架构
+
+### 双通道设计
+- ChromeObserver: 常驻浏览器扩展，接收命令执行操作
+- ChromeControl: 临时控制客户端，发送命令等待结果
+
+### 消息流转
+1. Control发送command → WebSocketServer附加sourceClientId → 转发给Observer
+2. Observer执行后返回command_result → WebSocketServer根据sourceClientId路由回Control
+
+### 页面信息等待机制
+- Control请求时设置wait_for_page_info=true
+- 存入waitingControlClients Map
+- 收到pageInfoUpdate时遍历转发
+
+## 广播机制
+
+| 函数 | 目标 | 特性 |
+|------|------|------|
+| broadcast | 全部/指定类型 | 支持中止信号 |
+| broadcastVCPInfo | VCPInfo客户端 | 信息同步专用 |
+| broadcastToAdminPanel | AdminPanel客户端 | 管理面板专用 |
+| sendMessageToClient | 指定客户端 | 点对点发送 |
+
+## 导出API
+
+- initialize(httpServer, config) - 初始化
+- setPluginManager(pm) - 注入PluginManager
+- broadcast/broadcastVCPInfo/broadcastToAdminPanel - 广播
+- sendMessageToClient - 点对点
+- executeDistributedTool - 执行分布式工具
+- findServerByIp - 根据IP查找服务器
+- shutdown - 关闭服务器
+
+Tag: VCP文档, WebSocketServer, 实时通信, 分布式, Chrome控制
+Tag: VCP文档, WebSocketServer, 实时通信, 分布式, Chrome控制

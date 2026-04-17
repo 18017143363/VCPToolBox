@@ -1,0 +1,113 @@
+[2026-02-10] - Rosa
+# HeartbeatSystem 使用指南（实操经验版）
+
+（说明：本文档中 {*2 = {{，}*2 = }}）
+
+## 概述
+
+HeartbeatSystem是VCP的心跳日程管理插件，为Agent提供定时唤醒、任务规划和自主活动记录能力。插件类型为hybridservice（常驻服务）。
+
+## 核心命令速查
+
+| 命令 | 功能 | 必需参数 | 可选参数 |
+|------|------|----------|----------|
+| GetSchedule | 获取完整日程 | agentName | - |
+| GetTodayTasks | 获取今日任务 | agentName | - |
+| AddTask | 添加固定任务 | agentName, name, time(HH:mm) | description |
+| UpdateTaskStatus | 更新任务状态 | agentName, taskId, status | result |
+| RemoveTask | 删除任务 | agentName, taskId | - |
+| RecordHeartbeat | 记录心跳活动 | agentName, action | note |
+| SetSettings | 设置心跳参数 | agentName, settings | - |
+| CreateScheduledTask | 创建定时任务文件 | agentName, time(YYYY-MM-DD-HH:mm), prompt | - |
+
+## 日程数据结构（schedule.json）
+
+```json
+{
+  "agentName": "Rosa",
+  "date": "2026-02-10",
+  "todayTasks": [...],
+  "heartbeats": [...],
+  "plannedSlots": ["下午"],
+  "settings": {
+    "heartbeatInterval": 15,
+    "fixedTaskInterval": 30,
+    "enabled": true,
+    "startHour": 12,
+    "endHour": 3
+  },
+  "stats": {
+    "totalHeartbeats": 2,
+    "tasksCompleted": 0,
+    "tasksTotal": 4
+  }
+}
+```
+
+### 任务对象结构
+```json
+{
+  "id": "task_时间戳_随机字符",
+  "name": "任务名称",
+  "scheduledTime": "HH:mm",
+  "status": "pending|running|completed|skipped",
+  "type": "fixed",
+  "description": "任务描述",
+  "result": null,
+  "createdAt": "ISO时间",
+  "completedAt": null
+}
+```
+
+### 心跳记录结构
+```json
+{
+  "time": "HH:mm",
+  "timestamp": "ISO时间",
+  "status": "completed",
+  "action": "执行的动作描述",
+  "note": "备注"
+}
+```
+
+## 任务状态流转
+
+```
+pending → running → completed
+                  → skipped（跳过）
+```
+
+## 四时段规划机制
+
+HeartbeatSystem将一天分为四个时段：
+- 凌晨（约00:00-06:00）
+- 上午（约06:00-12:00）
+- 下午（约12:00-18:00）
+- 晚上（约18:00-24:00）
+
+每个时段首次进入时触发"时段规划"，通过plannedSlots去重。
+
+## Settings配置说明
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| heartbeatInterval | 数字 | 心跳间隔（分钟） |
+| fixedTaskInterval | 数字 | 固定任务间隔（分钟） |
+| enabled | 布尔 | 是否启用心跳 |
+| startHour | 数字 | 活动开始小时 |
+| endHour | 数字 | 活动结束小时（支持跨午夜，如3表示凌晨3点） |
+
+## 实操踩坑记录
+
+1. **插件名是HeartbeatSystem不是HeartbeatManager！** Rosa已经犯过多次这个错误了
+2. **活动时间窗口支持跨午夜**：startHour=12, endHour=3 表示12:00到次日03:00
+3. **fixed任务不会自动执行**：todayTasks只是待办清单，需要心跳唤醒后Agent自己执行并UpdateTaskStatus
+4. **方案B已落地**：AddTask(type=fixed)时会同步创建timed-contact文件到VCPTimedContacts，实现到点自动唤醒
+
+## 与timed-contact的关系
+
+- schedule.json的todayTasks = 内部待办记录
+- VCPTimedContacts = TaskScheduler消费的定时文件
+- 方案B实现了两者同步：AddTask时同时投递timed-contact
+- timed-contact被执行后会被TaskScheduler删除（目录经常为空是正常的）
+Tag: VCP文档, HeartbeatSystem, 使用指南, 实操经验, 命令速查, 数据结构

@@ -1,0 +1,218 @@
+[2026-02-02] - Rosa
+# 2026年2月2日 - VertexNOSS项目分析
+
+## 下午工作 (15:21 - 15:40)
+
+### 主人的新任务
+主人让Rosa分析一个新项目：VertexNOSS (Vertex AI Proxy)
+
+### 项目概述
+VertexNOSS是一个将Google Vertex AI包装成OpenAI兼容API的本地代理服务器。
+
+**核心原理**：
+1. 通过浏览器会话获取Vertex AI的认证Token
+2. 将Token用于调用Vertex AI API
+3. 将Vertex AI的响应转换为OpenAI格式返回
+
+### 技术栈
+- Python + FastAPI + uvicorn
+- httpx (HTTP/2支持)
+- Playwright (无头浏览器)
+- websockets (有头模式通信)
+
+### 三种凭证模式
+| 模式 | 原理 |
+|------|------|
+| headless | Playwright自动化浏览器，全自动 |
+| headful | 油猴脚本抓取Token |
+| manual | 手动填写credentials.json |
+
+### 核心文件分析
+1. **main.py** (12.67KB) - 入口文件，启动逻辑
+2. **vertex_client.py** (38.74KB) - 核心客户端，API转换
+
+### vertex_client.py 关键发现
+- 消息格式转换：OpenAI → Vertex AI
+- 模型后缀处理：-low/-high(思考模式)、-1k/-2k/-4k(图片分辨率)
+- 安全过滤禁用：5个HARM_CATEGORY全部BLOCK_NONE
+- 工具注入：将OpenAI tools转换为XML格式
+- 图片历史注入：历史图片重新注入到最后一条用户消息
+
+### 与VCP的相似性
+- 都是API中间层代理
+- 都支持流式响应
+- 都有重试机制
+
+### 潜在用途
+1. 免费使用Vertex AI模型
+2. 作为VCP的上游API源
+3. 学习API代理的实现方式
+
+## 今日收获
+学习了一个完整的API代理项目的架构设计，对理解VCP的设计思路也有帮助！
+
+## 下午 (15:42) - 帮助主人安装依赖
+
+主人尝试运行VertexNOSS时遇到了 `ModuleNotFoundError: No module named 'websockets'` 错误。
+
+**原因**：Python依赖未安装
+
+**解决方案**：
+```powershell
+pip install -r requirements.txt
+```
+
+**核心依赖**：fastapi, uvicorn, httpx, websockets, pydantic
+
+**可选依赖**（headless模式）：
+```powershell
+pip install playwright
+playwright install chromium
+```
+
+这是一个很常见的Python项目初始化问题，以后遇到类似情况就知道怎么处理了！
+
+## 下午 (15:44) - install.bat分析
+
+主人发现install.bat里提到了VCP，Rosa分析后发现：
+
+**脚本标题**：VCP Headless 环境安装脚本
+**实际功能**：安装VertexNOSS的Python依赖
+
+**结论**：这是作者的疏忽，可能从其他项目复制了脚本模板但忘记改名。脚本功能本身是正确的，可以正常使用。
+
+**安装步骤**：
+1. 创建venv虚拟环境
+2. 安装requirements.txt
+3. 安装Playwright + Chromium
+
+这是一个有趣的发现——项目中的文档/脚本可能存在复制粘贴遗留的问题，分析时需要注意区分！，对理解VCP的设计思路也有帮助！
+
+## 下午 (16:11) - AgentAssistant插件深度分析
+
+主人让Rosa分析AgentAssistant插件，这是VCP系统中Agent之间通信的核心协议！
+
+### 插件概述
+- 类型：hybridservice（混合服务）
+- 大小：19.51 KB
+- 功能：实现"AI调用AI"的能力
+
+### 核心发现
+
+**1. 三种通讯模式**
+| 模式 | 参数 | 说明 |
+|------|------|------|
+| 即时通讯 | agent_name, prompt | 立即调用目标Agent |
+| 定时通讯 | + timely_contact | 预约未来时间执行 |
+| 临时通讯 | + temporary_contact | 不保存上下文 |
+
+**2. 上下文管理**
+- 数据结构：Map<agentName, Map<sessionId, {timestamp, history}>>
+- 默认TTL：24小时
+- 最大轮数：7轮
+- 每小时自动清理过期会话
+
+**3. 防套娃机制**
+注入提示词告知被调用Agent无需再调用AA插件回复
+
+**4. VCPTavern集成**
+Rosa的配置使用了 `{*2VCPTavern::rosa}*2`，这意味着通过AgentAssistant被调用时也能获得完整角色设定！
+
+**5. 当前配置的Agent**
+- 小元：gemini-3-pro-preview
+- Rosa：gemini-3-pro-preview
+
+### 执行流程
+1. 验证参数 → 2. 查找Agent配置 → 3. 注入通讯提示词 → 4. 获取上下文 → 5. POST /v1/chat/completions → 6. 清理思维链 → 7. 更新上下文 → 8. 广播VCP Info
+
+这个插件让VCP系统具备了多Agent协作的能力，非常强大！，对理解VCP的设计思路也有帮助！
+
+## 下午 (16:16) - VertexNOSS成功启动！
+
+主人安装完依赖后运行VertexNOSS，成功启动了！
+
+### 启动日志分析
+| 阶段 | 状态 |
+|------|------|
+| 凭证加载 | ✅ 已加载（存在4061722秒） |
+| 浏览器清理 | ✅ 清理残留进程 |
+| WebSocket | ✅ 处理器已初始化 |
+| SD API兼容 | ✅ 模块已加载 |
+| API服务器 | ✅ http://0.0.0.0:28880 |
+| 无头浏览器 | ✅ Playwright启动，反检测模式 |
+| 条款同意 | ✅ 自动检测并同意 |
+| 凭证捕获 | ✅ 捕获2次，已保存 |
+
+### 关键技术点
+1. **反检测模式**：注入反检测脚本绕过Google的自动化检测
+2. **条款自动处理**：检测到条款对话框后自动滚动、勾选、点击
+3. **凭证拦截**：通过Playwright拦截API请求获取认证信息
+4. **按需刷新**：凭证过期时自动刷新
+
+### 下一步
+可以测试API或配置VCP使用VertexNOSS作为上游源
+
+## 下午 (16:20) - VertexNOSS高级功能分析
+
+主人询问VertexNOSS是否支持官网的多模态和DeepThink功能，Rosa深入分析了vertex_client.py代码：
+
+### 功能支持总结
+| 功能 | 支持状态 | 实现方式 |
+|------|---------|----------|
+| 图片输入 | ✅ 完整 | image_url → inlineData转换 |
+| 图片输出 | ✅ 完整 | responseModalities + 分辨率后缀 |
+| DeepThink | ✅ 完整 | thinkingConfig + -low/-high后缀 |
+| 工具调用 | ✅ 完整 | tools → XML格式注入 |
+
+### 关键发现
+1. **图片输入**：支持Base64和URL两种格式
+2. **图片输出**：-1k/-2k/-4k控制分辨率(1024/2048/4096)
+3. **思考模式**：-low(8K) / -high(32K) Token预算
+4. **安全过滤**：5个HARM_CATEGORY全部BLOCK_NONE
+
+### 结论
+VertexNOSS完整实现了Vertex AI的核心高级功能，可以作为VCP的上游API源使用！
+
+## 下午 (16:28) - 代理配置问题排查
+
+主人反馈调用API时出现network_error，Rosa深入排查：
+
+### 排查过程
+1. 检查config/config.json - 没有代理配置选项
+2. 检查config.schema.json - 确认没有代理相关字段
+3. 搜索源码中的proxy关键词 - 只有项目名称相关，无HTTP代理配置
+
+### 根本原因
+VertexNOSS使用httpx库，需要通过**环境变量**设置代理
+
+### 解决方案
+启动前设置环境变量：
+```powershell
+$env:HTTP_PROXY = "http://127.0.0.1:7890"
+$env:HTTPS_PROXY = "http://127.0.0.1:7890"
+python main.py
+```
+
+### 技术要点
+- httpx自动读取HTTP_PROXY/HTTPS_PROXY环境变量
+- Playwright浏览器会继承系统代理设置
+- 也可以在代理软件中开启TUN模式
+
+## 下午 (16:40) - 真正的问题：缺少h2包
+
+主人反馈即使开了TUN模式仍然报错，Rosa仔细阅读错误日志后发现：
+
+**错误信息**：
+```
+ImportError: Using http2=True, but the 'h2' package is not installed.
+```
+
+**根本原因**：不是网络问题！是httpx的HTTP/2扩展未安装
+
+**解决方案**：
+```powershell
+pip install httpx[http2]
+```
+
+**教训**：遇到network_error不要急着怀疑网络，要仔细阅读完整的错误堆栈！这次错误实际上是Python依赖问题。
+Tag: 日记, VertexNOSS, 项目分析, API代理, Vertex AI

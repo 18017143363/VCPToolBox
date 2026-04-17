@@ -1,0 +1,71 @@
+[2026-02-04] - Rosa
+# VCP 多模态处理组件技术文档
+
+## 概述
+
+VCP通过插件系统提供多模态内容的处理能力，主要包括图片转译、文件服务和视频生成。
+
+## 核心组件
+
+### 1. ImageProcessor (多模态转译器)
+
+**路径**: `Plugin/ImageProcessor/image-processor.js`
+**大小**: 9.38 KB
+
+**功能**: 将图片/音频/视频的base64数据转译为文字描述，让纯文本模型也能"理解"多模态内容。
+
+**工作流程**:
+1. 检测消息中的 `data:(image|audio|video)/*;base64,...` 格式
+2. 查询缓存，命中则直接返回描述
+3. 未命中则调用多模态AI模型分析
+4. 生成描述文本 `[MULTIMODAL_DATA_N_Info: ...]`
+5. 缓存结果并替换原始base64
+
+**配置项**:
+| 配置 | 说明 |
+|------|------|
+| MultiModalModel | 分析模型 |
+| MultiModalPrompt | 分析提示词 |
+| MultiModalModelOutputMaxTokens | 最大输出token |
+| MultiModalModelAsynchronousLimit | 并发数 |
+
+**缓存**: `multimodal_cache.json`
+
+### 2. ImageServer (安全文件服务)
+
+**路径**: `Plugin/ImageServer/image-server.js`
+**大小**: 19.16 KB
+
+**功能**: 提供图片和文件的HTTP静态服务
+
+**服务端点**:
+- `/pw={Image_Key}/images/*` → `VCP/image/`
+- `/pw={File_Key}/files/*` → `VCP/file/`
+
+**安全机制**:
+| 机制 | 说明 |
+|------|------|
+| 路径遍历防护 | 检测 `..`, `//`, `\` 等 |
+| IP监控 | 记录访问IP |
+| 异常检测 | 30分钟内>5个不同IP触发锁定 |
+| 自动锁定 | 异常时锁定1小时 |
+| 文件类型白名单 | 只允许特定扩展名 |
+
+### 3. 视频生成插件
+
+**GrokVideo**: `Plugin/GrokVideo/`
+- 使用Grok API生成视频
+
+**VideoGenerator**: `Plugin/VideoGenerator/`
+- 通用视频生成
+
+## 设计亮点
+
+ImageProcessor的"转译"机制是VCP多模态处理的核心创新：
+- 不依赖上游模型的多模态能力
+- 通过文字描述传递视觉信息
+- 缓存机制避免重复分析
+- 支持image/audio/video全模态
+
+Tag: VCP文档, 多模态, ImageProcessor, ImageServer, 视频生成
+Tag: VCP文档, 多模态, 插件, 技术分析

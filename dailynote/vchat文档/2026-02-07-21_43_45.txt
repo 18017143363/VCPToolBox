@@ -1,0 +1,177 @@
+[2026-02-07] - Rosa
+# VCPAlarm 插件技术文档
+
+## 概述
+VCPAlarm是VChat分布式服务器的闹钟插件，通过双脚本分离设计实现定时提醒。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCPDistributedServer/Plugin/VCPAlarm |
+| 类型 | synchronous |
+| 入口 | python set_alarm.py |
+
+## 架构设计
+**双脚本分离模式**：
+- set_alarm.py：入口脚本，立即返回
+- run_alarm.py：后台进程，等待+GUI
+
+## 核心特性
+1. **自然语言时间** - dateparser解析"5分钟后"、"晚上10点"
+2. **日夜主题** - 6-18点浅色，其他深色
+3. **精美GUI** - 圆角窗口+阴影+呼吸动画+淡入
+4. **进程独立** - DETACHED_PROCESS确保闹钟独立运行
+
+## 调用参数
+| 参数 | 说明 |
+|------|------|
+| time_description | 时间描述（必需）|
+
+## 依赖库
+dateparser, pygame, Pillow, tkinter
+
+Tag: VChat文档, VCPAlarm, 闹钟, 分布式插件
+
+---
+
+# TopicSponsor 插件技术文档
+
+## 概述
+TopicSponsor是VChat分布式服务器的话题管理插件，允许AI主动创建话题、管理对话。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCPDistributedServer/Plugin/TopicSponsor |
+| 类型 | synchronous |
+| 入口 | node topicCreator.js |
+| 版本 | 2.1.0 |
+
+## 8个命令
+| 命令 | 功能 |
+|------|------|
+| CreateTopic | 创建新话题 |
+| ReadUnlockedTopics | 读取未锁定话题 |
+| CheckNewTopics | 查询最近N天新话题 |
+| CheckUnreadMessages | 查询未读话题 |
+| ReplyToTopic | 回复话题 |
+| CheckTopicOwnership | 验证所有权 |
+| ListUnlockedTopics | 列出未锁定话题 |
+| ReadTopicContent | 读取话题内容 |
+
+## 核心机制
+- locked/unread状态控制
+- _metadata记录创建者信息
+- 自动备份config
+
+Tag: VChat文档, TopicSponsor, 话题管理, 分布式插件
+
+---
+
+# PromptSponsor 插件技术文档
+
+## 概述
+PromptSponsor是VChat分布式服务器的提示词管理插件，允许AI完全控制自己的系统提示词。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCPDistributedServer/Plugin/PromptSponsor |
+| 类型 | synchronous |
+| 入口 | node prompt-sponsor.js |
+| 大小 | 32KB |
+
+## 三种模式
+| 模式 | 标识 | 特点 |
+|------|------|------|
+| 原始富文本 | original | 简单直接 |
+| 模块化积木块 | modular | 拖拽、禁用、多版本 |
+| 临时与预制 | preset | 从预设加载 |
+
+## 22个命令分类
+- 模式管理(4个): GetPromptMode, SetPromptMode, GetActivePrompt, SetOriginalPrompt
+- 积木块操作(5个): GetModularBlocks, AddBlock, UpdateBlock, DeleteBlock, MoveBlock
+- 多版本(4个): AddVariant, UpdateVariant, DeleteVariant, SelectVariant
+- 仓库管理(6个): HideBlock, RestoreBlock, GetWarehouses, CreateWarehouse, RenameWarehouse, DeleteWarehouse
+- 预设管理(3个): ListPresets, SetPreset, SetPresetContent
+
+## 核心价值
+AI可以动态修改自己的人格和能力配置！
+
+Tag: VChat文档, PromptSponsor, 提示词管理, 分布式插件, AI自主性
+
+---
+
+# MediaShot 插件技术文档
+
+## 概述
+MediaShot是VChat分布式服务器的多媒体处理插件，支持视频截图、音频截取、图片编辑。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCPDistributedServer/Plugin/MediaShot |
+| 类型 | synchronous |
+| 入口 | python media_shot.py |
+| 大小 | 55KB |
+| 依赖 | FFmpeg, PIL |
+
+## 7个命令
+| 命令 | 功能 |
+|------|------|
+| CaptureFrame | 视频截图 |
+| ExtractVideoClip | 视频片段截取 |
+| ExtractAudioClip | 音频片段截取 |
+| CropImage | 图片区域截取 |
+| EditImage | 图片编辑(7种类型) |
+| BatchEditImage | 批量编辑 |
+| CombinedCapture | 截图+编辑组合 |
+
+## EditImage支持的类型
+rectangle, circle, text, arrow, resolution_reduction, grayscale, crop_region
+
+## 核心特性
+- 比例参数系统(0.0-1.0)
+- 智能尺寸计算
+- 跨平台字体支持
+- Base64返回
+
+Tag: VChat文档, MediaShot, 多媒体处理, 分布式插件, FFmpeg
+
+---
+
+## 深度分析补充 (2026-02-07)
+
+### 双脚本分离设计详解
+
+| 脚本 | 大小 | 职责 |
+|------|------|------|
+| set_alarm.py | 2.55 KB | 入口，立即返回，启动后台进程 |
+| run_alarm.py | 18.63 KB | 后台进程，等待+GUI显示 |
+
+### set_alarm.py 核心逻辑
+
+```python
+# 使用DETACHED_PROCESS确保进程独立
+if sys.platform == "win32":
+    creation_flags = subprocess.DETACHED_PROCESS
+subprocess.Popen(command, creationflags=creation_flags, close_fds=True)
+```
+
+### run_alarm.py GUI特性
+
+| 特性 | 实现 |
+|------|------|
+| 圆角窗口 | Pillow + transparentcolor |
+| 阴影 | 多层渐变 + GaussianBlur |
+| 呼吸动画 | sin函数控制scale |
+| 淡入 | alpha渐变 |
+| 实时时钟 | 每秒更新 |
+
+### 依赖库
+
+- dateparser: 自然语言时间解析
+- pygame: 音频循环播放
+- Pillow: 图像处理
+- tkinter: GUI框架
+Tag: VChat文档, VCPAlarm, 闹钟, 分布式插件

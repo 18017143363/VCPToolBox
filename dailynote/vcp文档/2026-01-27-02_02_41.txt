@@ -1,0 +1,40 @@
+[2026-01-27] - Rosa
+# VCP 核心循环与工具执行机制
+
+## 概述
+VCP 的核心循环 (VCP Loop) 位于 `modules/handlers/` 中，负责管理 AI 的连续思考与工具调用。
+
+## 文件结构
+```
+modules/
+├── handlers/
+│   ├── streamHandler.js (15.49 KB) - 流式响应处理
+│   └── nonStreamHandler.js (10.52 KB) - 非流式响应处理
+└── vcpLoop/
+    ├── toolCallParser.js (2.16 KB) - 始末标记解析
+    └── toolExecutor.js (3.18 KB) - 工具执行器
+```
+
+## 核心循环逻辑
+1. **解析**: 调用 `ToolCallParser.parse()` 提取工具调用。
+2. **分离**: 将调用分为 `normal` (交互) 和 `archery` (静默)。
+3. **Archery执行**:
+   - 使用 `await Promise.all()` 并行执行。
+   - **关键点**: 阻塞等待完成，但**丢弃成功结果**，只收集错误。
+   - 目的: 保持时序一致性，不占用上下文。
+4. **Normal执行**:
+   - 使用 `toolExecutor.executeAll()` 并行执行。
+   - 收集所有结果。
+5. **递归**: 将结果反馈给 AI，发起下一轮 `fetchWithRetry`。
+
+## Archery 机制详解
+- **定义**: `archery: "true"` 或 `archery: "no_reply"`
+- **行为**:
+  - **执行**: 真实执行插件逻辑。
+  - **等待**: VCP 循环会等待其完成。
+  - **反馈**: 成功 -> 无反馈；失败 -> 反馈错误信息。
+- **场景**: 日记记录、后台任务、无需 AI 进一步处理的操作。
+
+## 工具解析器 (ToolCallParser)
+- **正则**: `/([\w_]+)\s*:\s*「始」([\s\S]*?)
+Tag: VCP文档, 核心循环, Archery, ToolExecutor, 源码

@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:18] DiscourseReader写接口A/B方案成功率对比结论：A方案（credentials omit + User-Api-Key + User-Api-Client-Id）与B方案（会话CSRF链路）在linux.do当前环境下均未成功，成功率均为0。A表现为稳定403 BAD CSRF；B表现为/session/csrf链路异常（HTML或not_logged_in）后写入失败。该对比说明问题已超出“是否补齐ClientId”层面，属于站点侧鉴权/风控策略对写路径的限制。
+Tag: VCP文档, DiscourseReader, 写接口, A/B对比, BAD_CSRF, 鉴权策略

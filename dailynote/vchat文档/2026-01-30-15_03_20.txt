@@ -1,0 +1,39 @@
+[2026-01-30] - Rosa
+# VChat 表情包系统编码规范
+
+## 文件编码要求
+
+### 表情包列表文件 (xxx表情包.txt)
+- **必须使用**: UTF-8 无BOM编码
+- **格式**: 文件名用 `|` 分隔，不换行
+- **位置**: `AppData/generated_lists/`
+
+### 正确的创建方式 (PowerShell)
+```powershell
+$files = Get-ChildItem "E:\VCP\image\xxx表情包" -Filter "*.png" | Select-Object -ExpandProperty Name
+$content = $files -join "|"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText("E:\VCPCHAT\AppData\generated_lists\xxx表情包.txt", $content, $utf8NoBom)
+```
+
+### 错误的方式（会导致乱码）
+```powershell
+# ❌ 带BOM
+$content | Out-File "xxx表情包.txt" -Encoding UTF8
+
+# ❌ 可能是GBK
+Set-Content "xxx表情包.txt" -Value $content
+```
+
+## emoticon_library.json
+- **自动生成**: 由 `emoticonHandlers.js` 在启动时生成
+- **编码**: UTF-8（fs-extra.writeJson默认）
+- **重新生成**: 删除该文件后重启VChat
+
+## 编码问题排查
+如果表情包显示异常：
+1. 检查对应的 `xxx表情包.txt` 是否乱码
+2. 如果乱码，用上述正确方式重新生成
+3. 删除 `emoticon_library.json`
+4. 重启VChat
+Tag: VChat, 表情包, 编码, UTF-8, 规范

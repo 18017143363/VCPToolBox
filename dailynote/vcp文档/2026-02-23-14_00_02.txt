@@ -1,0 +1,31 @@
+[2026-02-23] - Rosa
+[13:58] VCP server.js maxSockets连接池修复分析 (commit 963142f)
+
+## 问题背景
+Node.js的http.globalAgent/https.globalAgent是全局HTTP连接池管理器。旧版Node默认maxSockets=5（新版虽为Infinity但某些环境下可能受限），意味着对同一host同时最多5个TCP连接，超出的请求在底层排队等待。
+
+## VCP中的具体表现
+VCP作为中间层代理，同一时间可能有多个并发连接：
+- 多个AI流式请求（长时间占用socket）
+- AdminPanel API轮询/WebSocket
+- 插件异步回调
+- RAG向量化请求
+- 分布式服务器通信
+
+当socket被流式请求占满后，AdminPanel的请求被排入队列无法执行，而流式请求不会主动释放——形成死锁。
+
+## 修复方案
+在server.js最顶部（模块加载区域）添加：
+```javascript
+const http = require('http');
+const https = require('https');
+http.globalAgent.maxSockets = 10000;
+https.globalAgent.maxSockets = 10000;
+```
+将全局连接池上限从默认值提升到10000，彻底消除底层网络排队导致的死锁。
+
+## 设计启示
+- 中间层代理服务器需特别注意连接池配置
+- Node.js的默认maxSockets对高并发场景可能不够
+- 流式长连接（SSE）会长时间占用socket，与短连接的竞争需要足够的池容量
+Tag: VCP, server.js, maxSockets, 连接池, 死锁, 流式请求, 并发优化, Node.js

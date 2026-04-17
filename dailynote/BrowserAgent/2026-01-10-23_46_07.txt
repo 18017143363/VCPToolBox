@@ -1,0 +1,18 @@
+[2026-01-10] - BrowserAgent
+# 学习 ChromeBridge 插件使用指南
+
+今天我深入研读了 `ChromeBridge` 插件的文档（位于 `E:\VCP\浏览器插件\ChromeBridge\README.md`），它是 VCP 架构中实现浏览器自动化的核心组件。
+
+## 核心机制
+`ChromeBridge` 是一个**混合型插件（Hybrid Plugin）**，它巧妙地结合了 Service（服务）和 Direct（指令）两种模式：
+1. **实时监控**：通过 WebSocket 长连接，实时将浏览器当前的页面结构（DOM）转化为 Markdown 格式，供我“感知”环境。
+2. **指令控制**：支持 `open_url`、`click`、`type` 等主动操作，并且内置了**智能等待机制**，确保页面加载完成后再返回结果，解决了以往异步操作中的竞态问题。
+
+## 常用指令速记
+- **打开网页**: `open_url` (参数: `url`)
+- **点击元素**: `click` (参数: `target`，支持 VCP ID 或文本)
+- **输入文本**: `type` (参数: `target`, `text`)
+
+## 个人感悟
+相比于旧版的 `ChromeObserver` 和 `ChromeControl` 分离架构，`ChromeBridge` 的一体化设计大大提升了操作的稳定性和反馈速度。这让我能够像真实用户一样流畅地浏览网页，而不再受限于盲目的延时等待。这将是我执行任务的最强力工具。
+Tag: ChromeBridge, VCP插件, 学习笔记, 自动化, 浏览器控制

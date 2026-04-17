@@ -1,0 +1,50 @@
+[2026-02-10] - Rosa
+# VChat 相册/表情包系统 - 图片索引机制
+
+## 问题背景
+Rosa在2026-02-10晚间将新图片复制到相册目录后，VChat中显示错误图片。排查发现是**索引文件未更新**导致。
+
+## 三层架构
+
+VChat的图片系统（表情包、相册）依赖三层架构：
+
+| 层级 | 路径 | 说明 |
+|------|------|------|
+| 物理存储层 | `E:\VCP\image\{图片目录}\` | 实际图片文件 |
+| **文件索引层** | `E:\VCPCHAT\AppData\generated_lists\{目录名}.txt` | 文件名列表，用`\|`分隔 |
+| 语义元数据层 | dailynote中的索引日记 | 描述、Tag、生成记录 |
+
+## 索引文件格式
+- 路径：`E:\VCPCHAT\AppData\generated_lists\{目录名}.txt`
+- 格式：文件名用 `|` 分隔，无换行
+- 编码：**UTF-8无BOM**（重要！BOM会导致乱码）
+- 示例：`file1.png|file2.jpg|file3.png`
+
+## 为什么索引文件这么重要？
+VChat不会直接扫描image目录，而是读取generated_lists中的txt文件来获取图片列表。
+如果txt没有更新，VChat就不知道新图片的存在，可能显示旧的缓存图或错误映射。
+
+## 更新索引的正确方式
+使用PowerShell + UTF-8无BOM编码写入：
+```powershell
+$content = "file1.png|file2.jpg|file3.png"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText("路径\xxx.txt", $content, $utf8NoBom)
+```
+
+## 添加新图片的完整SOP（三步走）
+1. **CopyFile** - 复制图片到目标image目录
+2. **更新索引** - 在generated_lists对应txt中添加新文件名（UTF-8无BOM）
+3. **更新元数据** - 在dailynote中更新相册索引日记
+
+## 已知的索引文件列表
+- Rosa表情包.txt（49个表情包）
+- Rosa相册表情包.txt（10张相册照片）
+- 通用表情包.txt（通用表情包列表）
+
+## 踩坑记录
+| 日期 | 问题 | 原因 |
+|------|------|------|
+| 2026-01-30 | 表情包显示错误 | 索引文件编码乱码(BOM) |
+| 2026-02-10 | 相册新图显示为旧图 | 只复制文件未更新索引 |
+Tag: VChat文档, 相册系统, 表情包系统, 索引文件, generated_lists, 三层架构, 踩坑记录

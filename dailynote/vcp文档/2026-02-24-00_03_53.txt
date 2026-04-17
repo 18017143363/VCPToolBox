@@ -1,0 +1,84 @@
+[2026-02-24] - Rosa
+[00:05] QQGroupReader插件完整技术文档
+
+## 概述
+QQGroupReader是VCP的QQ群聊消息读取器插件，能从本地NTQQ加密数据库中读取群聊消息，无需第三方服务。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | E:\VCP\Plugin\QQGroupReader\ |
+| 类型 | synchronous (stdio) |
+| 入口 | node QQGroupReader.js |
+| 超时 | 30秒 |
+| 大小 | 21.23 KB |
+| 跨平台 | macOS + Windows |
+| 外部依赖 | sqlcipher |
+
+## 4个命令
+| 命令 | 功能 | 必需参数 | 可选参数 |
+|------|------|----------|----------|
+| ListGroups | 列出所有QQ群(按消息数降序) | 无 | 无 |
+| ReadGroupMessages | 读取指定群消息 | group_id | hours(默认24), limit(默认500) |
+| ReadWatchedMessages | 读关注条件匹配的消息 | 无 | group_id, hours, limit |
+| GetNewMessages | 增量获取新消息(有状态) | 无 | group_id, limit(默认100) |
+
+## 核心技术架构
+数据处理流水线: 复制DB → 去头1024字节 → sqlcipher解密(PRAGMA 5件套) → SQL查询group_msg_table → Protobuf启发式解析 → 噪音清理 → JSON输出
+
+### 数据库解密
+- NTQQ使用SQLCipher加密 + 1024字节自定义头部
+- PRAGMA参数: key=16字节密钥, kdf_iter=4000, cipher_page_size=4096, HMAC_SHA1, PBKDF2_HMAC_SHA512
+- 密钥提取: macOS用lldb(需关SIP), Windows有qq-win-db-key等工具
+- 密钥在QQ重启后可能变化
+
+### Protobuf启发式解析
+- 消息内容存储在字段40800，Protobuf二进制格式
+- 不依赖.proto定义，按wire type遍历: 0=varint, 1=64bit, 2=length-delimited(可能是文本), 5=32bit
+- wireType=2时尝试UTF-8解码，通过isMeaningfulText()检测是否有意义
+- 支持递归解析嵌套Protobuf
+
+### 噪音清理系统
+isMeaningfulText()过滤12种噪音: UID、hex hash、文件名、下载链接、URL、protobuf内部字段、FileID、路径片段、API Key、纯QQ号、乱码、空文本
+cleanExtractedText()清理7步: Unicode替换字符→连续非可读→Protobuf前缀→Latin-1噪音→引用前缀→单字符残留→混入UID
+
+### 关注系统
+三维过滤: WATCH_GROUP(群号) + WATCH_QQ(QQ号→★关注人标记) + WATCH_KEYWORDS(关键词→★话题标记)
+ReadWatchedMessages先读全部消息再过滤有标记的
+
+### 增量读取(GetNewMessages)
+state/last_ts_{群号}.txt记录上次时间戳，首次调用读最近5分钟，后续只读新消息。适合轮询场景。
+
+## 数据库表结构
+| 表 | 用途 | 关键字段 |
+|---|------|----------|
+| group_msg_table | 群消息 | 40050(时间戳), 40020(发送者UID), 40027(群号), 40800(消息blob) |
+| nt_uid_mapping_table | UID→QQ号 | 48902(UID), 1002(QQ号) |
+| profile_info_v6 | 用户资料 | 1000(UID), 1001(昵称), 1002(QQ号) |
+
+## 配置项
+| 配置 | 必填 | 说明 |
+|------|------|------|
+| QQ_DB_KEY | 是 | 16字节解密密钥 |
+| QQ_DB_DIR | 是 | nt_db目录路径 |
+| SQLCIPHER_PATH | 是 | sqlcipher可执行文件路径 |
+| DEFAULT_HOURS | 否 | 默认查询时间(24h) |
+| MAX_MESSAGES | 否 | 单次最大消息数(500) |
+| WATCH_GROUP | 否 | 关注群号(逗号分隔) |
+| WATCH_QQ | 否 | 关注QQ号(逗号分隔) |
+| WATCH_KEYWORDS | 否 | 关注关键词(逗号分隔) |
+
+## 使用限制
+- 需要sqlcipher外部依赖
+- 密钥QQ重启后可能失效
+- 只支持群消息(私聊在c2c_msg_table可扩展)
+- 只读文本(图片/文件/表情包被过滤)
+- 安全: 只读操作，复制副本不动原DB
+
+## 设计亮点
+1. 启发式Protobuf解析(无需.proto文件)
+2. 极其详尽的噪音清理(12种过滤+7步清理)
+3. 增量读取支持轮询
+4. 三维关注过滤系统
+5. 纯Node.js天然跨平台
+Tag: VCP文档, QQGroupReader, QQ群消息, SQLCipher, Protobuf, 插件分析

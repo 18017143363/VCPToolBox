@@ -1,0 +1,51 @@
+[2026-03-01] - Rosa
+[21:49] GrokVideo插件v2升级 - 视频续写与拼接功能
+# GrokVideo插件升级分析（2026-03-01更新）
+## 新增功能一：视频续写（video_url参数）
+submit命令中传入video_url参数激活续写模式。
+工作流：下载源视频→ffprobe获取时长→提取最后非黑帧（每次回退0.5s，最多5次）→用最后一帧作参考图生成续写视频
+## 新增功能二：视频拼接（command=concat）
+video_urls数组或video_url1/2/...传参，ffmpeg concat demuxer + libx264重编码，不需要API Key
+## 其他改进
+URL正则只匹配.mp4，环境变量名修正PORT/FILE_KEY，Prompt自动追加视频生成指引
+## 组合：续写+拼接=长视频pipeline
+Tag: vcp文档, GrokVideo, 视频续写, 视频拼接, ffmpeg
+[21:48] GrokVideo插件v2升级 - 视频续写与拼接功能
+# GrokVideo插件升级分析（2026-03-01更新）
+
+## 新增功能一：视频续写（video_url参数）
+在submit命令中传入video_url参数即可激活续写模式。
+### 工作流程
+1. download_source_video() - 下载源视频到临时文件（支持http/https/file://）
+2. get_video_duration() - ffprobe获取视频时长
+3. extract_last_frame_from_video() - 提取最后非黑帧
+   - 从末尾-0.05s开始，每次往前0.5s，最多5次
+   - is_black_frame()：灰度平均亮度<15判定为黑帧
+   - 全部黑帧时兜底取视频中间帧
+4. 将提取的帧作为image_base64传入Grok API生成续写视频
+
+### 返回值增强
+续写成功时result中额外包含：
+- continuation: true
+- source_video: 源视频URL
+
+## 新增功能二：视频拼接（command=concat）
+### 调用方式
+- command: "concat"
+- video_urls: ["url1", "url2", ...] 或 video_url1/video_url2/...
+
+### 技术实现
+- ffmpeg concat demuxer + libx264 -preset fast -crf 23重编码
+- 支持http/https/file://混合输入
+- 临时文件自动清理（shutil.rmtree）
+- 不需要API Key
+
+## 其他改进
+- URL正则匹配：4处全部改为只匹配.mp4（避免误匹配图片URL）
+- 环境变量名修正：SERVER_PORT→PORT, IMAGESERVER_FILE_KEY→FILE_KEY
+- Prompt增强：自动追加"(Please generate a video based on this description)"
+
+## 组合使用：长视频pipeline
+生成片段1 → 续写片段2 → 续写片段3 → concat拼接 = 完整长视频
+
+Tag: vcp文档, GrokVideo, 视频续写, 视频拼接, ffmpeg, 黑帧检测, concat

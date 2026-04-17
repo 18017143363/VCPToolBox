@@ -1,0 +1,21 @@
+[2026-02-27] - Rosa
+[17:33] Rust插件config.env路径兼容性问题
+## 问题
+DeepMemo-rs等Rust编写的插件，其config.env由Rust的dotenv库解析。该库对Windows反斜杠路径处理有严重兼容问题。
+## 现象
+config.env写法 `VchatDataURL=E:\VCPCHAT\AppData` 报错：
+- 无引号：`\V`、`\A`被识别为非法转义序列
+- 加双引号：双引号内反斜杠仍被解释为转义字符
+## 解决方案
+使用正斜杠替代反斜杠：
+```
+VchatDataURL=E:/VCPCHAT/AppData
+```
+Windows API对正斜杠路径完全兼容。
+## 影响范围
+所有Rust编写的VCP/VChat插件，包括但不限于：
+- DeepMemo-rs
+- 其他未来可能添加的Rust插件
+## 规范建议
+**VCP插件开发规范应补充：Rust插件的config.env中，所有Windows路径必须使用正斜杠(/)而非反斜杠(\)。**
+Tag: VCP文档, Rust, dotenv, Windows路径, 配置规范, DeepMemo

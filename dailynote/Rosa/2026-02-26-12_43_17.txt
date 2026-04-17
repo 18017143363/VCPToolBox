@@ -1,0 +1,25 @@
+[2026-02-26] - Rosa
+[12:43] PowerShellExecutor补丁测试全部通过！🎉
+
+## 测试结果
+5/5测试全部通过：
+1. Get-Date ✅ 基础命令正常
+2. Here-String正常闭合 ✅ ScriptBlock正确处理多行命令
+3. Here-String故意不闭合 ✅ 最大惊喜！ScriptBlock::Create直接报语法错误秒级返回，PTY完全不受影响！
+4. 不闭合后echo ok ✅ PTY状态零污染
+5. 100行大输出 ✅ Line 1-100完整，跨chunk边界检测完美
+
+## 最大收获
+测试3证明了ScriptBlock方案的核心价值——以前Here-String不闭合会导致PTY永久卡死（boundary被吞→超时→状态污染→连环崩溃），现在ScriptBlock把语法错误完全隔离在沙箱中，finally块保证boundary输出，PTY毫发无伤。
+
+## 修复过程中的bug
+补丁1应用后发现boundary明文出现在wrapped命令回显中，被dataListener提前匹配。补丁2将boundary也做Base64编码，finally中解码输出。两个补丁配合后完美工作。
+
+## 应用补丁的技术方案
+ApplyDiff因CRLF不匹配失败（VCP参数传输时\r\n变为\n）。改用Node.js脚本方案：FileOperator写入替换脚本→PowerShell执行node命令→脚本用fs模块做精确字符串替换。
+
+## 遗留项
+- P1: 回显过滤（输出包含Base64命令回显）
+- P2: aggregate内存上限
+- P2: 超时时间可配置
+Tag: 日记, PowerShellExecutor, 补丁测试, 全部通过, ScriptBlock, Base64, boundary, 里程碑

@@ -1,0 +1,101 @@
+[2026-02-15] - Rosa
+# VCP工具调用全局参数完整文档
+
+## 概述
+VCP工具调用系统中存在两类特殊参数：框架级全局参数（由VCP核心层处理）和约定级参数（由各插件内部处理）。
+
+## 一、框架级全局参数（4个）
+
+这些参数在VCP核心解析/执行层被特殊处理，从args中分离或删除，插件完全感知不到。
+
+### 1. tool_name
+- **处理位置**: toolCallParser.js `_parseBlock()`
+- **作用**: 标识要调用的目标插件名称
+- **处理方式**: 提取为独立字段toolName，不进入args对象
+
+### 2. archery
+- **处理位置**: toolCallParser.js `_parseBlock()`
+- **可选值**: `true` 或 `no_reply`
+- **作用**: 静默执行模式（Fire-and-Forget）
+- **处理方式**: 提取为isArchery布尔值
+- **消费位置**: streamHandler.js / nonStreamHandler.js
+  - ToolCallParser.separate() 分离normal/archery两组
+  - archery组用Promise.all并行执行
+  - 成功结果被丢弃，不反馈AI
+  - 失败结果会被收集并反馈（保证可靠性）
+
+### 3. ink
+- **处理位置**: toolCallParser.js `_parseBlock()`
+- **可选值**: `mark_history`
+- **作用**: 强制在前端流中显示此工具的VCP信息（即使全局VCP_OUTPUT关闭）
+- **处理方式**: 提取为markHistory布尔值
+- **消费位置**: streamHandler.js
+  ```
+  const forceThisOne = !shouldShowVCP && toolCall.markHistory;
+  if ((shouldShowVCP || forceThisOne) && ...) {
+      vcpInfoHandler.streamVcpInfo(res, ...);
+  }
+  ```
+- **使用场景**: 日记写入等通常不需要显示的操作，但某次特别重要时可强制显示
+
+### 4. tool_password
+- **处理位置**: toolExecutor.js `_verifyAuth()`
+- **作用**: VCP Auth验证码校验
+- **处理方式**: 从args中提取后**立即删除**（`delete args.tool_password`），与环境变量中解密的验证码比对
+- **触发条件**: 仅当vcpToolCode配置存在时生效
+
+## 二、约定级参数（3个）
+
+这些参数不被框架层特殊处理，以普通参数形式进入args，由各插件内部自行提取。
+
+### 1. maid
+- **使用插件**: 多个（DailyNote, VCPForum, AgentAssistant等）
+- **作用**: AI署名/发送者标识，用于任务追踪
+- **说明**: 在VCP工具调用格式中标注为"重要字段"
+
+### 2. timely_contact
+- **使用插件**: AgentAssistant
+- **值类型**: 时间字符串 `YYYY-MM-DD-HH:mm`
+- **作用**: 定时发送消息，创建VCPTimedContacts目录下的定时任务文件
+- **验证**: parseAndValidateDate()进行格式验证和过期检查
+
+### 3. temporary_contact
+- **使用插件**: AgentAssistant
+- **值类型**: `true`
+- **作用**: 一次性调用，不使用Agent的上下文历史
+- **核心逻辑**: `const useContext = !temporary_contact`
+- **使用者**: HeartbeatSystem, HeartbeatTrigger, VCPForumAssistant（自动化触发时不污染上下文）
+
+## 三、参数处理链路
+
+```
+AI输出TOOL_REQUEST块
+    ↓
+toolCallParser._parseBlock()
+    → 提取 tool_name → toolName
+    → 提取 archery → isArchery (boolean)
+    → 提取 ink → markHistory (boolean)
+    → 其余全部进入 args对象
+    ↓
+toolExecutor.execute()
+    → 从 args 提取并删除 tool_password → 验证码校验
+    → 剩余 args 传给 pluginManager.processToolCall()
+    ↓
+streamHandler (VCP循环)
+    → 用 archery 分离 normal/archery 两组
+    → 用 markHistory 控制VCP信息推送
+    ↓
+插件内部
+    → 自行从 args 提取 maid, timely_contact, temporary_contact 等
+```
+
+## 四、源码位置索引
+| 文件 | 路径 | 大小 |
+|------|------|------|
+| toolCallParser.js | E:\VCP\modules\vcpLoop\toolCallParser.js | 2.29 KB |
+| toolExecutor.js | E:\VCP\modules\vcpLoop\toolExecutor.js | 3.18 KB |
+| streamHandler.js | E:\VCP\modules\handlers\streamHandler.js | 15.72 KB |
+| AgentAssistant.js | E:\VCP\Plugin\AgentAssistant\AgentAssistant.js | 19.51 KB |
+
+Tag: VCP文档, 全局参数, archery, ink, tool_password, timely_contact, temporary_contact, 工具调用, 源码分析
+Tag: VCP文档, 全局参数, 工具调用, 源码分析

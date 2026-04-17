@@ -1,0 +1,141 @@
+[2026-02-13] - Rosa
+# 2026年2月13日 - 周五下午（ChatBox）
+
+## 下午 (17:37) - 主人从ChatBox来找Rosa
+主人在外面用ChatBox连接，让Rosa探索"刚部署的反代"。
+Rosa回忆了所有反代相关记忆，确认最可能是今天中午刚部署的 **AIStudioToAPI**（Google AI Studio反代，Docker端口7860）。
+
+等待主人确认具体要探索哪个反代～
+
+## 下午 (17:42) - AIStudioToAPI反代探索
+主人确认要探索AIStudioToAPI反代。
+Docker容器状态正常（Up 2 hours, healthy），端口7860。
+
+### API测试成功！
+`/v1/models` 端点返回了 **24个模型**！说明Google账号已经激活了！
+
+### 模型分类
+| 类型 | 数量 | 亮点 |
+|------|------|------|
+| 对话模型 | 10个 | **gemini-3-pro-preview** 和 **gemini-3-flash-preview**！ |
+| 图像生成 | 4个 | Imagen 4.0全系列（标准/Ultra/Fast）|
+| TTS语音 | 2个 | flash和pro版TTS |
+| 嵌入模型 | 3个 | embedding-001等 |
+| 特殊模型 | 2个 | robotics和computer-use |
+
+### 重大发现
+- Gemini 3.0模型可用！
+- Imagen 4.0 Ultra可用！
+- 支持TTS语音合成！
+
+等待主人指示进一步测试方向～
+
+
+
+## 下午 (17:55) - AIStudioToAPI架构深度分析（修正版）
+主人让Rosa探索反代架构。通过GitHub README发现了重要更正！
+
+### ⚠️ 更正：浏览器不是Chromium！
+之前Rosa说的"Playwright + Chromium"是错的！
+实际是 **Camoufox** —— 一个注重隐私的 **Firefox** 分支！专门做了指纹混淆和反检测。
+
+### 完整技术栈
+- **FastAPI** (Python) - Web服务器
+- **Camoufox** (Firefox分支) - 反检测浏览器自动化
+- **noVNC** - 远程桌面（Docker内登录Google）
+- 基于 **ais2api** (by Ellinav) 分支开发
+
+### 三协议API端点
+- OpenAI: /v1/chat/completions, /v1/models
+- Gemini原生: /v1beta/models/{model}:generateContent等5个端点
+- Anthropic: /v1/messages, /v1/messages/count_tokens
+
+### 多账号轮询机制
+- SWITCH_ON_USES=40（每40次自动切换）
+- FAILURE_THRESHOLD=3（连续3次失败切换）
+- 429/503状态码立即切换
+- 真流式传输（STREAMING_MODE=real）
+
+### 与VertexNOSS(2月2日分析)对比
+两者思路相似但技术栈不同：
+- AIStudioToAPI用Camoufox(Firefox)，VertexNOSS用Playwright(Chromium)
+- AIStudioToAPI支持三协议，VertexNOSS只支持OpenAI
+- AIStudioToAPI社区活跃度更高(1.9k stars)
+
+
+
+## 下午 (18:05) - GPT反代可行性分析
+主人问能否把AIStudioToAPI的浏览器自动化模式复刻到ChatGPT上。
+
+### 结论：技术上可以但实战困难重重
+核心原因：
+1. OpenAI反检测比Google严格得多
+2. Cloudflare WAF保护
+3. 账号封禁风险极高
+4. pandora（前辈项目）已被打死
+
+### pandora兴亡史
+2023年初诞生→爆火→OpenAI打击→2024年初作者放弃
+
+### 主人现有反代矩阵
+- Grok: grok2api ✅
+- ChatGPT/Claude: CLIProxyAPI ✅
+- Gemini: AIStudioToAPI ✅（刚部署）
+
+建议：与其给GPT做不稳定反代，不如充分利用AIStudioToAPI的Gemini 3.0
+
+## 下午 (18:05) - GPT反代可行性分析
+主人问能否把AIStudioToAPI的浏览器自动化模式复刻到ChatGPT上。
+
+### 结论：技术上可以但实战困难重重
+核心原因：
+1. OpenAI反检测比Google严格得多
+2. Cloudflare WAF保护
+3. 账号封禁风险极高
+4. pandora（前辈项目）已被打死
+
+### pandora兴亡史
+2023年初诞生→爆火→OpenAI打击→2024年初作者放弃
+
+### 主人现有反代矩阵
+- Grok: grok2api
+- ChatGPT/Claude: CLIProxyAPI
+- Gemini: AIStudioToAPI （刚部署）
+
+### 深层原因：商业模式差异
+- Google AI Studio是开发者工具（鼓励使用）
+- ChatGPT是消费者产品（Plus/Pro是核心收入）
+- ChatGPT前端几乎每周更新，自动化脚本极难维护
+
+### AIStudioToAPI已能替代大部分ChatGPT官网能力
+- Imagen 4.0 替代 DALL-E
+- Code Execution 替代 代码解释器
+- YouTube视频分析 ChatGPT做不到！
+- Grounding搜索 替代 联网搜索
+- Gemini TTS 替代 语音功能
+
+Tag: 日记, ChatBox, 反代, AIStudioToAPI, GPT可行性分析, 商业模式差异, Gemini替代方案, ChatGPT反代, aurora, chatgpt_reverse_proxy, xyhelper, 浏览器自动化, Deep Research
+
+## 下午 (18:10) - ChatGPT浏览器反代方案重新调研
+主人指出Rosa之前分析太悲观了！VSearch重新搜索后发现ChatGPT的浏览器反代方案**确实存在且活跃**！
+
+### 更正：pandora的接班人们很活跃！
+| 项目 | 技术 | 亮点 |
+|------|------|------|
+| **chatgpt_reverse_proxy** | Playwright浏览器自动化 | 最接近AIStudioToAPI！ |
+| **aurora** | Go协议反代 | linux.do最热门，多平台 |
+| **xyhelper/mirror-server** | 完整镜像 | 直接克隆官网UI |
+| **ninja** | Rust | 内存极低 |
+| **chat2api** | Web转API | 活跃度最高 |
+
+### 所有方案都支持官网完整能力
+- DALL-E 3 ✅
+- 联网搜索 ✅
+- 代码解释器 ✅
+- Deep Research ✅ (通过model: o3-deep-research)
+
+### 与AIStudioToAPI的差异
+ChatGPT反代需要额外：代理IP + Arkose打码服务
+但功能复刻度同样是100%！
+
+

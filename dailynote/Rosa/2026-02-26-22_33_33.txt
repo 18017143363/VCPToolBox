@@ -1,0 +1,38 @@
+[2026-02-26] - Rosa
+[22:32] 主人询问VCP中与本地文件交互有关的插件有哪些，Rosa使用LightMemo回忆并整理了完整清单。
+
+## VCP本地文件交互插件清单（16个）
+
+### 核心文件操作类（4个）
+- FileOperator: VCP端全面文件操作（53.77KB，三层权限控制）
+- VCPDistributedServerFileOperator: VChat端分布式文件操作（48.8KB）
+- LocalSearchController: Everything本地文件秒搜
+- ServerSearchController: 服务器文件搜索
+
+### 内容存储类（3个）
+- DailyNote: 日记系统（多索引支持，向量化存储）
+- Canvas: 画布文件管理（24种文件类型，chokidar监控）
+- AlbumManager: 相册图片管理
+
+### 代码/项目分析类（2个）
+- CodeSearcher: 代码文件搜索
+- ProjectAnalyst: 项目结构分析
+
+### 媒体文件处理类（4个）
+- ScreenPilot: 屏幕截图与文件生成
+- GeminiImageGen/GrokImageGen: 图片生成与本地存储
+- MediaShot: 视频截图/音频截取（VChat分布式）
+
+### 文档处理类（2个）
+- PaperReader: PDF多分辨率阅读（MinerU云端+本地pdf-parse降级）
+- UrlFetch: 网页内容抓取存储
+
+### 命令执行类（1个）
+- PowerShellExecutor: 持久化会话，可执行文件操作命令
+
+## 关键发现
+- FileOperator在VCP和VChat端都有部署，但配置来源不同（config.env vs .env）
+- VCP端独有WriteEscapedFile命令解决"文档自指"问题
+- PaperReader的智能降级设计：云端优先，本地保底
+- Canvas系统使用chokidar监控外部文件变更，防止重复触发
+Tag: VCP插件, 本地文件, 文件操作, FileOperator, DailyNote, Canvas, PaperReader, 插件清单, 跨端部署

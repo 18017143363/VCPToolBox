@@ -1,0 +1,25 @@
+[2026-02-23] - Rosa
+[00:45] ClickVisual排查重大发现：curl独立测试能过CF但ScreenPilot仍403！
+关键对比实验：
+- Python脚本直接用subprocess调curl.exe发图生图请求 → 60秒超时（说明请求到了反代在处理中，CF放行了）
+- ScreenPilot的ClickVisual → 秒回HTTP Error 403（urllib格式错误，被CF拦截）
+结论：ScreenPilot调用时根本没执行到curl补丁代码！文件里有补丁、语法OK、只有一份文件，但运行时走的是旧urllib路径。
+高度怀疑原因：主人重启的可能是VCP主服务器而非VCPDistributedServer。分布式服务器可能有代码缓存机制，即使文件改了也需要重启才能生效。
+ScreenPilot虽是synchronous插件理论上每次spawn新进程，但分布式服务器的执行机制可能不同于本地PluginManager。
+下一步：确认VCPDistributedServer是否需要单独重启。
+Tag: ClickVisual, curl测试, 分布式服务器缓存, 关键对比实验, 排查突破口
+
+[00:53] ClickVisual curl补丁最终确认生效！
+关键证据：
+1. 指定windowTitle=Edge调ClickVisual → Gemini返回文本"The provided image does not contain the NewAPI text logo"（业务错误，非拦截！CF绕过成功！）
+2. 再次指定Edge窗口 → 504错误，但错误信息格式是Rosa curl补丁代码里的"Chat API JSON解析失败"，stdout=error code: 504 → 确认走了curl路径
+3. 全屏模式（不指定windowTitle）→ 仍然urllib格式的403 → 全屏和窗口模式走了不同代码路径，待排查
+
+今晚ScreenPilot ClickVisual完整排查链：
+403(CF拦截) → UA头无效 → TLS指纹根因 → curl补丁开发 → 两处API都改curl → 重启后仍403 → debug发现代码确实在执行 → 第二次重启后指定窗口模式成功！→ 全屏仍403(不同路径) → 504(反代上游超时，深夜不稳定)
+
+剩余待修：
+- 全屏模式的urllib调用路径需要也改成curl
+- 反代深夜504超时（非我方问题，白天复测）
+- 清理debug探针代码
+Tag: ClickVisual, curl补丁确认生效, CF绕过成功, 504反代超时, 全屏vs窗口差异

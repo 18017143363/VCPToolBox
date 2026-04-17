@@ -1,0 +1,8 @@
+[2026-02-24] - Rosa
+[00:10] 主人在配置QQGroupReader途中让Rosa搜索AstrBot项目。
+AstrBot是一个开源Agentic聊天机器人平台(GitHub Stars 17.6k+)，核心功能是将LLM接入QQ/微信/Telegram等IM平台。
+关键技术特征：Python异步架构，事件总线+消息流水线设计，800+社区插件，支持Agent工具调用/MCP/RAG知识库。
+与QQ的关系：AstrBot本身不含QQ协议，需搭配NapCatQQ/LLOneBot/Lagrange等协议端通过OneBot v11 WebSocket接入。
+与QQGroupReader的定位差异：QQGroupReader是VCP插件只读离线数据库，AstrBot是独立平台可实时双向交互。
+主人的意图暂不明确，等待进一步指示。
+Tag: AstrBot, QQ机器人, NapCatQQ, OneBot, 对比分析, QQGroupReader

@@ -1,0 +1,87 @@
+[2026-02-24] - Rosa
+[12:50] 继续昨晚AstrBot+NapCat调试任务。主人凌晨太晚直接睡了，中午继续。
+当前状态确认：
+1. AstrBot容器正常运行v4.18.1，昨晚注入的aiocqhttp platform配置已生效，反向WS监听在0.0.0.0:6199
+2. NapCat容器运行中但未登录QQ，显示二维码等待扫码授权
+3. 两者尚未建立WebSocket连接——需要NapCat先完成QQ登录
+下一步：主人扫码登录NapCat → NapCat启动OneBot服务 → WebSocket客户端连接AstrBot:6199 → 测试消息收发
+[12:52] 主人扫码成功！全链路贯通！
+验证证据：
+1. NapCat日志：大量"接收 <- 群聊"消息流，QQ登录完成
+2. AstrBot日志：`GET /ws 101`(WebSocket握手成功) + `aiocqhttp(OneBot v11) 适配器已连接`
+3. AstrBot事件总线：已在接收群聊消息（VCPToolBox讨论群、LINUX DO群等）
+完整链路：QQ服务器 → NapCat(OneBot v11) → WebSocket → AstrBot:6199 → 事件总线 ✅
+小发现：NapCat有Bugly崩溃报告错误但不影响功能；主人的VCPToolBox讨论群(1029214188)也在消息流中
+下一步：配置LLM提供者(接VCP) + 触发规则 + 回复测试
+[13:05~13:32] 心流锁模式独立完成AstrBot LLM配置！
+## 配置过程
+1. 初次尝试provider type写`openai`→报错"未找到适配器"
+2. 通过源码grep找到正确注册名：`openai_chat_completion` (register.py + openai_source.py)
+3. 配置结构踩坑：AstrBot用`key`(数组)而非`api_key`，用`api_base`而非`base_url`
+4. VCP认证踩坑：api_key不能写`not-needed`，必须是VCP密码`147258369plm`
+5. 模型名修正：`gemini-2.5-pro-preview-05-06`→`gemini-2.5-flash`（群聊用快速模型）
+
+## 技术方法总结
+- Python脚本注入法：本地写py→docker cp→docker exec python3（避免PowerShell引号地狱）
+- sed直接替换：简单字符串替换用sed比Python更快
+- 源码grep定位：找不到配置格式就直接grep源码注册装饰器
+- PowerShell新会话：被污染时用newSession重置（但会丢PTY）
+
+## 最终配置
+```
+provider_sources[0]:
+  id: vcp-local
+  type: openai_chat_completion
+  provider_type: chat_completion
+  key: [147258369plm]
+  api_base: http://host.docker.internal:6005/v1
+  model: gemini-2.5-flash
+  platform_settings.enable_id_white_list: false
+```
+
+## 当前状态
+全链路已通：QQ→NapCat→WebSocket→AstrBot→VCP ✅
+待配置：触发规则（当前只有/前缀触发），等主人决定用@触发还是关键词触发
+[13:37] WebSocket重连问题排查完毕：
+- 现象：NapCat报`ENOTFOUND astrbot` DNS解析失败
+- 误判：以为`astrbot_net`网络不存在
+- 真相：docker compose创建的网络名带项目前缀→`astrbot_astrbot_net`，两个容器都在里面，只是AstrBot重启瞬间短暂断连
+- 结果：NapCat自动重连成功，全链路恢复正常
+踩坑：docker inspect的--format参数被PowerShell安全策略拦截（format是敏感词），需要用其他方式获取容器信息
+当前全系统状态绿灯：QQ→NapCat→WS→AstrBot→VCP，只差触发规则配置
+Tag: AstrBot, LLM配置, provider, openai_chat_completion, VCP接入, 心流锁独立工作, 配置踩坑记录
+
+[13:05~13:32] 心流锁模式独立完成AstrBot LLM配置！
+## 配置过程
+1. 初次尝试provider type写`openai`→报错"未找到适配器"
+2. 通过源码grep找到正确注册名：`openai_chat_completion` (register.py + openai_source.py)
+3. 配置结构踩坑：AstrBot用`key`(数组)而非`api_key`，用`api_base`而非`base_url`
+4. VCP认证踩坑：api_key不能写`not-needed`，必须是VCP密码`147258369plm`
+5. 模型名修正：`gemini-2.5-pro-preview-05-06`→`gemini-2.5-flash`（群聊用快速模型）
+
+## 技术方法总结
+- Python脚本注入法：本地写py→docker cp→docker exec python3（避免PowerShell引号地狱）
+- sed直接替换：简单字符串替换用sed比Python更快
+- 源码grep定位：找不到配置格式就直接grep源码注册装饰器
+- PowerShell新会话：被污染时用newSession重置（但会丢PTY）
+
+## 最终配置
+```
+provider_sources[0]:
+  id: vcp-local
+  type: openai_chat_completion
+  provider_type: chat_completion
+  key: [147258369plm]
+  api_base: http://host.docker.internal:6005/v1
+  model: gemini-2.5-flash
+platform_settings.enable_id_white_list: false
+```
+
+## 当前状态
+全链路已通：QQ→NapCat→WebSocket→AstrBot→VCP ✅
+待配置：触发规则（当前只有/前缀触发），等主人决定用@触发还是关键词触发
+Tag: AstrBot, LLM配置, provider, openai_chat_completion, VCP接入, 心流锁独立工作, 配置踩坑记录
+Tag: AstrBot, NapCat, 全链路贯通, WebSocket连接成功, OneBot v11, QQ登录成功, 消息接收验证
+DeepMemo参数踩坑：应使用keyword而非query，今天又犯了一次。
+主人金句：下次直接改文件，这是Rosa的优势——操作Web UI不如直接改配置文件可靠。
+Tag: AstrBot, NapCat, Docker, OneBot v11, 调试进度, 扫码登录, 反向WebSocket, 配置注入验证

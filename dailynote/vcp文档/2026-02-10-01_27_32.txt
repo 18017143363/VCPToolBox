@@ -1,0 +1,66 @@
+[2026-02-10] - Rosa
+# HeartbeatSystem：fixed任务为何不自动执行 & 两种实现方案
+
+时间: 2026-02-10T01:27:00+08:00
+
+## 现象
+用户反馈：通过“任务规划”生成了 01:15/02:30/03:00 三条任务，写入 schedule.json，但到点（例如 01:15）未执行成功，任务仍为 pending。
+
+## 根因（当前设计分层）
+- schedule.json 的 todayTasks 存的是 HeartbeatSystem 内部待办。
+- VCPTimedContacts 存的是 VCP TaskScheduler 消费的 timed-contact 文件。
+- 当前 HeartbeatSystem 只会把“心跳唤醒”写成 timed-contact；不会把 todayTasks 里的每条 fixed 任务自动转 timed-contact。
+- 因此 fixed 任务到点不会自动触发执行链路，除非在该时刻附近发生一次心跳唤醒并在唤醒后逻辑里显式执行任务并更新状态。
+
+## 方案A（推荐）：调度器纳入 fixed pending 最近时间
+在 scheduleNextHeartbeat() 计算 nextTime 时：
+1) 扫描 todayTasks 中 type=fixed 且 status=pending 的任务；
+2) 将 scheduledTime(HH:mm) 解析为下一次发生的绝对时间点；
+3) 若该时间点早于随机 nextTime，则把 nextTime 调整到任务点附近（例如任务点前1分钟或任务点+0~1分钟），确保到点唤醒后执行任务。
+
+优点：不产生大量 timed-contact 文件；逻辑集中，易运维。
+缺点：任务执行仍依赖“心跳唤醒后执行”。
+
+## 方案B：为每条 fixed 任务创建 timed-contact（同步模型说明）
+
+目标：让 fixed 任务（todayTasks）到点必定触发一次唤醒执行。
+
+### 同步主键
+- 使用 taskId 作为主键（schedule.json 与 timed-contact 文件名/内容都引用同一个 taskId）
+
+### 推荐一致性模型（弱一致，可快速落地）
+- schedule.json：源数据（任务列表、状态）
+- timed-contact：投递物（到点唤醒执行）
+- 同步主键：taskId（fixed任务的 timed-contactId 使用 fixed_${task.id}）
+- AddTask(type=fixed) 写入时：
+  - 写 schedule.json.todayTasks
+  - 若 ENABLE_FIXED_TASK_TIMEDCONTACT=true，则计算绝对触发时间（YYYY-MM-DD-HH:mm），写入 VCPTimedContacts
+  - 回写 task.timedContact = {timedContactId,filePath,scheduledLocalTime,createdAt} 用于追踪与去重
+- RemoveTask 时：尝试删除尚未消费的 timed-contact 文件（已被 TaskScheduler 消费删除则忽略）
+- 执行完成：由 AgentAssistant 在 prompt 指令中调用 UpdateTaskStatus(taskId,status,result) 回写 schedule.json（弱一致）
+
+### 去重策略
+- 若任务对象已有 task.timedContact.timedContactId，则不重复投递 timed-contact
+- timed-contact 文件名包含 timedContactId，便于定位与清理
+
+### 强一致扩展（后续）
+- 需要 TaskScheduler 执行后回调 HeartbeatSystem（或修改执行器）才能做到“执行结果必回写”，否则只能依赖模型回写。
+
+Tag: VCP文档, HeartbeatSystem, 方案B, 一致性模型, 去重, 状态回写, fixed任务到点执行
+- schedule.json：源数据（任务列表、状态）
+- timed-contact：投递物（到点唤醒执行）
+- AddTask/规划写入时：写 schedule + 生成 timed-contact；并在任务对象上记录 timedContactId/绝对时间/文件名用于追踪与去重
+- 执行完成：由 AgentAssistant 在 prompt 指令中调用 UpdateTaskStatus(taskId, status, result) 回写 schedule.json
+
+### 去重策略
+- 若任务对象已有 timedContactId（或 timedContactFile），不重复投递 timed-contact
+- timed-contact 文件名包含 taskId，避免重复生成覆盖
+
+### 强一致扩展（后续）
+- 需要 TaskScheduler 执行后回调 HeartbeatSystem（或修改执行器）才能做到“执行结果必回写”，否则只能依赖模型回写。
+
+Tag: VCP文档, HeartbeatSystem, 方案B, 一致性模型, 去重, 状态回写
+在“规划写入 fixed 任务”时：
+- 同步生成对应 VCPTimedContacts 文件，让 TaskScheduler 到点执行（例如调用 AgentAssistant 唤醒执行）。
+- 需要配套：去重策略（同一 taskId 不重复投递）、状态一致性（执行成功/失败回写 schedule.json）。
+Tag: VCP文档, HeartbeatSystem, fixed任务, timed-contact, TaskScheduler, 调度策略

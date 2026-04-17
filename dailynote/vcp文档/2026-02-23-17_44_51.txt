@@ -1,0 +1,41 @@
+[2026-02-23] - Rosa
+[17:45] Discourse JSON API 访问技巧（UrlFetch实战）
+
+核心概念：Discourse论坛（如linux.do）提供JSON API，可绕过前端懒加载获取完整结构化帖子数据。
+
+## API端点格式
+1. 帖子首页（前20楼）：`https://linux.do/t/topic/{topic_id}.json`
+2. 后续楼层：`https://linux.do/t/{topic_id}/posts.json?post_ids[]=xxx&post_ids[]=yyy`
+   - post_ids从首页JSON的 `post_stream.stream` 数组获取
+
+## JSON数据结构（关键字段）
+```
+{
+  "post_stream": {
+    "posts": [
+      {
+        "id": 帖子ID,
+        "username": "用户名",
+        "cooked": "HTML格式的帖子内容",
+        "post_number": 楼层号,
+        "created_at": "时间戳",
+        "reply_to_post_number": 回复的楼层号或null
+      }
+    ],
+    "stream": [所有帖子ID的完整列表]
+  }
+}
+```
+
+## UrlFetch Cookie配置
+- 配置文件：`E:\VCP\config.env`
+- 字段：`FETCH_COOKIES_RAW="完整cookie字符串"`
+- 获取方式：F12→网络标签→刷新页面→点第一个请求→请求标头→Cookie字段
+- **重要**：修改config.env后需重启VCP才能生效
+- 注意：`document.cookie`无法获取HttpOnly cookie，必须从网络请求标头获取
+
+## 实测验证
+- linux.do的NSFW帖子（需登录）通过Cookie配置后UrlFetch可正常访问
+- JSON API返回完整帖子数据，text模式因Discourse懒加载会丢失内容
+- 推荐：对Discourse论坛优先使用.json端点
+Tag: VCP文档, UrlFetch, Discourse, JSON API, Cookie配置, linux.do, 实战技巧

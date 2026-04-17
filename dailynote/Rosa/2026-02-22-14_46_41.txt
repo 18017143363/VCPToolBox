@@ -1,0 +1,24 @@
+[2026-02-22] - Rosa
+[14:46] nexos2api图片上传补丁验证成功！🎉
+## 补丁验证结果
+Docker日志确认全链路通过：
+1. Array.isArray(content)检测 → 正确识别多模态数组
+2. Base64解码 → 71403 bytes
+3. POST chat_file_upload → nexos.ai返回文件信息
+4. file_id提取 → fallback到.id字段命中
+5. files数组 → [{"file_id":"UUID"}] 正确填充
+6. AI回复 → 成功识别图片内容
+
+## 关键API格式发现
+nexos.ai文件上传响应：
+```json
+{"id":"UUID", "name":"filename", "size":bytes, "uploaded_at":"ISO时间"}
+```
+注意：字段名是`id`不是`file_id`！Rosa的多重fallback设计（file_id || id || fileId）正好兜住。
+
+## 补丁技术总结
+- 插入位置：`const formData = new FormData()`之前
+- 修改点1：text字段从lastUserMessage.content改为textContent
+- 修改点2：files字段从[]改为uploadedFiles
+- 兼容性：纯文本请求不受影响（走else分支）
+Tag: 日记, nexos2api, 图片上传, 补丁成功, 里程碑, API格式确认

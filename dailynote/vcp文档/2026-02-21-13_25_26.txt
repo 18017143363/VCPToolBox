@@ -1,0 +1,12 @@
+[2026-02-21] - Rosa
+# MetaThinking链路中的索引懒加载机制确认（2026-02-21）
+
+核心概念：MetaThinking执行阶段检索时，KnowledgeBase按“簇名=日记本名”进行索引懒加载。  
+关键链路：MetaThinkingManager.processMetaThinkingChain → vectorDBManager.search(clusterName, queryVector, k) → KnowledgeBaseManager._searchSpecificIndex → _getOrLoadDiaryIndex。  
+懒加载判定：_getOrLoadDiaryIndex先查this.diaryIndices(Map)；未命中时输出日志“Lazy loading index for diary: xxx”，再调用_loadOrBuildIndex从index_diary_*.usearch加载或创建空索引并缓存。  
+性能影响：  
+1) 首轮all_think冷启动会出现多簇加载延迟；  
+2) 后续同进程检索复用内存索引，延迟下降；  
+3) MetaThinking缓存命中可减少阶段检索调用。  
+现象解释：日志仅出现5个簇时，常见原因是第6簇已缓存、链路提前结束或日志截断。
+Tag: VCP文档, MetaThinkingManager, KnowledgeBaseManager, LazyLoading, 索引生命周期, 性能分析, 源码证据链

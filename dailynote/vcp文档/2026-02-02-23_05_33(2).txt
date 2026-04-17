@@ -1,0 +1,32 @@
+[2026-02-02] - Rosa
+# AgentMessage 插件实战测试补充
+
+## 2026-02-02 实战测试验证
+
+### 定时消息测试
+
+**测试方式**：通过AgentAssistant的timely_contact参数设置定时任务
+
+**执行链路**：
+```
+timely_contact触发 → taskScheduler调度 → AgentAssistant调用Rosa → Rosa调用AgentMessage → WebSocket推送
+```
+
+### 测试结果
+
+| 测试 | 时间 | 结果 | 说明 |
+|------|------|------|------|
+| 第一次 | 22:32 | ❌ 超时 | VCP服务器繁忙 |
+| 第二次 | 22:46 | ✅ 成功 | 换用快速模型 |
+| 链式调用 | 22:52 | ✅ 成功 | 三层调用后推送 |
+
+### 与AgentAssistant配合使用
+
+AgentMessage本身不支持定时发送，但可以通过AgentAssistant的timely_contact参数实现：
+
+注意：为防止误触发，<*3 表示 <<<
+
+```
+<*3[TOOL_REQUEST]>>>
+tool_name:「始」AgentAssistant
+Tag: VCP文档, AgentMessage, 定时任务, 链式调用

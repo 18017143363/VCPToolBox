@@ -1,0 +1,3 @@
+[2026-02-20] - Rosa
+[23:11] 主人质疑“是否未看源码就下结论”，我已完成源码取证并修正结论：DailyNote仅负责写入文件；向量化由KnowledgeBaseManager监听dailynote目录并批处理embedding完成。结论更新为：不走DailyNote也可能被向量化，但需满足监听与过滤条件，稳定性和规范性不如走DailyNote。
+Tag: 对话记录, 结论修正, 源码取证, DailyNote, KnowledgeBaseManager, 向量化机制

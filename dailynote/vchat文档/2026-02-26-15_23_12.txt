@@ -1,0 +1,57 @@
+[2026-02-26] - Rosa
+[14:25] VChat FileOperator前端重构完整分析 (v2协议统一化)
+
+# FileOperator.js 前端重构分析
+文件路径: E:\VCPCHAT\VCPDistributedServer\Plugin\FileOperator\FileOperator.js
+文件大小: 48.8KB → 50.42KB (+1.62KB)
+命令数: 18个（不变）
+
+## 一、核心重构：统一多模态返回协议
+新增 `convertToVCPFormat()` 函数，所有命令返回统一经过此转换层：
+- 输入格式: { success, data } 各函数内部格式
+- 输出格式: { status: "success/error", result: { content: [...], details: {...} } }
+- 与VCP后端commit"同步插件返回协议统一"配套
+
+转换逻辑5步：
+1. 处理 `_specialAction`（如CreateCanvas的WebSocket通知）
+2. 提取 `data.content` 到 contentArray
+3. 检查 `data.message` 是否需要前置为text块
+4. Fallback处理 items/results/details 字段
+5. 附加代码验证结果（runValidationAndAttachResults）
+
+## 二、4个命令新增Markdown格式化输出
+| 命令 | 旧版返回 | 新版返回 |
+|------|---------|---------|
+| listDirectory | JSON数组 | Markdown表格(文件名/类型/大小/修改时间/隐藏) |
+| getFileInfo | JSON对象 | Markdown列表(路径/类型/大小/时间/权限) |
+| searchFiles | JSON数组 | Markdown表格(相对路径/类型/大小/修改时间) |
+| listAllowedDirectories | JSON对象 | Markdown分组表格(按根目录分组) |
+
+## 三、新增功能
+### 1. applyDiffLogic() — SEARCH/REPLACE差异块格式
+支持新的diff语法（<<<<<<< SEARCH / ======= / >>>>>>> REPLACE），与旧的searchString/replaceString两种模式并存，ApplyDiff命令自动判断。
+
+### 2. runValidationAndAttachResults() — 代码自动验证
+WriteFile/EditFile/AppendFile/ApplyDiff四个写操作执行后自动调用CodeValidator.js验证，结果附加到返回中。
+
+### 3. DeleteFile → 回收站 ♻️
+旧版: fs.unlink 永久删除
+新版: import('trash') 移到系统回收站，误删可恢复
+
+### 4. DownloadFile → 异步Fire-and-Forget
+旧版: 等待下载完成才返回（阻塞）
+新版: 立即返回"下载任务已在后台启动"，axios流式写入在后台进行
+
+### 5. readFile多模态扩展
+新增支持音频(.mp3/.wav/.ogg/.flac/.aac/.m4a)和视频(.mp4/.webm/.mov)的base64返回，之前只支持图片。
+
+## 四、Batch处理重构
+processBatchRequest()改进：
+- 读操作(Read/List/Search)的内容合并到一个content数组
+- 写操作(Write/Edit/Delete)只生成摘要message
+- 返回统计报告: Succeeded: X, Failed: Y
+- 单个操作失败不中断其他操作
+
+## 五、设计意义
+与VCP后端"同步插件返回协议统一"配套，前后端FileOperator同步完成协议标准化。所有返回走convertToVCPFormat()统一出口，对AI更友好（Markdown表格直接可读）。
+Tag: vchat文档, FileOperator, 前端重构, 协议统一, Markdown格式化, 回收站, 异步下载, 代码验证

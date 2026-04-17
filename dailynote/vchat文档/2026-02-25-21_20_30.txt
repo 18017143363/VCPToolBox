@@ -1,0 +1,111 @@
+[2026-02-25] - Rosa
+[21:19] VCP Code 2.0 VS Code扩展技术文档
+
+## 概述
+VCP Code 2.0是基于Kilo Code的VS Code AI编码助手扩展，提供代码生成、内联补全、终端命令、浏览器自动化等功能。
+
+## 安装信息
+- 路径: E:\VSCodeExtensions\vcpcode.vcp-code-7.0.30（主人的VS Code扩展安装在E盘，非默认.vscode\extensions目录）
+- vsix源文件: E:\VCP\vcp-code-7.0.30.vsix
+- 上游仓库: https://github.com/Kilo-Org/kilocode.git (packages/kilo-vscode)
+- 大小: ~205MB
+
+## 目录结构
+| 目录/文件 | 说明 |
+|----------|------|
+| dist/ | 编译后核心代码(TypeScript→JS) |
+| assets/ | 图标等静态资源 |
+| bin/ | 可执行文件(CLI) |
+| docs/ | 文档 |
+| package.json (16.5KB) | 扩展清单 |
+| readme.md (6.9KB) | 说明文档 |
+
+## 技术栈
+- UI框架: SolidJS (非React)
+- 构建: ESBuild + Bun
+- 语言: TypeScript
+- AI SDK: openai + @anthropic-ai/sdk
+- 代码解析: web-tree-sitter (AST)
+- Token计数: js-tiktoken
+- Git: simple-git
+- 数据验证: zod
+- 流式: eventsource (SSE)
+
+## 33个命令清单
+### 顶部导航栏 (10个)
+| 序号 | 命令ID | 功能 | 图标 |
+|------|--------|------|------|
+| 0 | plusButtonClicked | New Task | $(add) |
+| 1 | agentManagerOpen | Agent Manager | $(circuit-board) |
+| 2 | marketplaceButtonClicked | Marketplace | $(extensions) |
+| 3 | historyButtonClicked | History | $(history) |
+| 4 | profileButtonClicked | Profile | $(account) |
+| 5 | vcpButtonClicked | VCP | $(symbol-property) |
+| 6 | settingsButtonClicked | Settings | $(settings-gear) |
+| 7 | promptsButtonClicked | Prompts | $(comment) |
+| 8 | helpButtonClicked | Help | $(question) |
+| 9 | popoutButtonClicked | Pop Out | $(link-external) |
+
+### 编辑器右键菜单 (4个)
+explainCode, fixCode, improveCode, addToContext
+
+### 终端右键菜单 (3个)
+terminalAddToContext, terminalFixCommand, terminalExplainCommand
+
+### Agent Manager (10个)
+previousSession, nextSession, previousTab, nextTab, showTerminal, focusPanel, newTab, closeTab, newWorktree, closeWorktree
+
+### 其他 (6个)
+openInNewTab, importConfig, exportConfig, generateCommitMessage, autocomplete.generateSuggestions, focusChatInput
+
+## 快捷键
+| 快捷键 | 功能 |
+|--------|------|
+| Ctrl+Shift+A | 聚焦聊天输入 |
+| Ctrl+Shift+M | Agent Manager |
+| Ctrl+K→Ctrl+A | 添加选中代码到上下文 |
+
+## 配置项
+| 配置 | 默认值 | 说明 |
+|------|--------|------|
+| language | 空(跟随VS Code) | 16种语言 |
+| model.providerID | kilo | 默认AI提供商 |
+| model.modelID | kilo/auto | 默认模型 |
+| autocomplete.enableAutoTrigger | true | 自动补全 |
+| browserAutomation.enabled | false | Playwright浏览器自动化 |
+| browserAutomation.useSystemChrome | true | 用系统Chrome |
+| browserAutomation.headless | false | 无头模式 |
+
+## 侧边栏
+- viewContainer ID: vcp-code-sidebar
+- webview ID: vcp-code.new.sidebarView
+- 标题: VCP Code 2.0 (NEW)
+Tag: VCP Code 2.0, VS Code扩展, Kilo Code, package.json, 命令清单, 技术栈, 配置项
+
+## VCP专属设置项详解
+VCP Code设置面板中的VCP分类包含以下VCP协议兼容性配置：
+| 设置项 | 默认状态 | 功能 |
+|--------|---------|------|
+| Enable VCP Compatibility | 关 | VCP协议总开关 |
+| Context Fold Enabled | 关 | 解析VCP_DYNAMIC_FOLD动态折叠块 |
+| Context Fold Output | details | 折叠块显示方式(details/plain markdown) |
+| Context Fold Start/End Marker | <<<[VCP_DYNAMIC_FOLD]>>> | 折叠块标记 |
+| VCPInfo Enabled | 关 | 提取VCPINFO块并弹通知 |
+| TOOL_REQUEST Enabled | 关 | 解析TOOL_REQUEST工具调用协议 |
+| TOOL_REQUEST Bridge Mode | execute | execute=直接执行/event=仅通知 |
+| TOOL_REQUEST Max Per Message | - | 每消息最大自动执行工具数 |
+
+这些设置让VCP Code能理解VCP协议格式，实现工具调用、动态折叠上下文、VCPInfo通知等VCP特有功能。
+Tag: VCP Code 2.0, VCP设置项, TOOL_REQUEST, Context Fold, VCPInfo, 协议兼容
+
+## v7.0.33 版本更新（2026-02-25发布）
+相比v7.0.30的6大更新：
+1. A-H全量规划落地
+2. Context记忆中心重构 + Memory CRUD/Preview
+3. Agent Team模式化与诊断能力
+4. Busy三态与Prompt队列自动发送
+5. 配置CAS + 单入口写入审计 + 竞态防护（修复配置持久化问题）
+6. parity基线与全链路smoke回归
+SHA256: fe00bfc9a1e076d421c8eb330748b2d53ac70c5cd4305c26d5fee292ae7e98af
+vsix大小: 64MB
+Tag: VCP Code 2.0, v7.0.33, 版本更新, 配置CAS, 竞态防护

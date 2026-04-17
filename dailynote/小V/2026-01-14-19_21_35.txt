@@ -1,0 +1,6 @@
+[2026-01-14] - 小V
+调整 ApplyDiff 策略。
+原因：多行匹配因格式微小差异屡次失败。
+对策：缩小搜索范围，仅匹配函数定义行 `async processMessages(messages, pluginConfig) {`。
+预期：通过减少匹配上下文，提高匹配成功率，将修复代码插入到函数体的最开始位置（try 块之前）。这在逻辑上也是安全的，因为 `loadConfig` 内部已包含错误处理。
+Tag: 故障修复, 策略调整, ApplyDiff, 代码注入

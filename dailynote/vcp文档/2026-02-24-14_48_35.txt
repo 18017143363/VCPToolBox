@@ -1,0 +1,118 @@
+[2026-02-24] - Rosa
+[14:50] DiscourseReader v1.3.0 双路请求策略与CF行为分析
+## 核心发现：Node.js直连 vs Cloudflare
+- linux.do的**大部分Discourse JSON端点**对Node.js原生https直连**不拦截**
+- 包括：/categories.json, /c/{slug}.json, /t/{id}.json, /tags.json, /tag/{path}.json
+- **搜索端点(/search.json)被CF严格拦截** → 返回403 + "Just a moment..."页面
+- 原因：搜索需要登录态，CF对需要auth的端点TLS指纹检测更严
+
+## cf_clearance与TLS指纹绑定
+- cf_clearance cookie由浏览器通过CF质询获得，**绑定浏览器TLS指纹**
+- Node.js原生https的TLS指纹(JA3)与浏览器不同
+- 带上浏览器的cf_clearance反而暴露了"cookie指纹不匹配" → CF拒绝
+- 结论：对Node.js直连来说，**不带cf_clearance反而更好**（公开端点不需要过CF质询）
+
+## UrlFetch降级路径的cookie限制
+- UrlFetch通过process.env读取cookie（启动时dotenv加载）
+- 不支持运行时通过stdin参数传cookie
+- DiscourseReader的forum_xxx_cookie**无法传递给UrlFetch降级路径**
+- 降级时只能用VCP主config.env的FETCH_COOKIES_RAW
+- 修改config.env后需要**重启VCP**才能生效（实测：不重启UrlFetch新起的Puppeteer实例似乎也能读到新值）
+
+## 双路策略性能对比
+| 路径 | 速度 | CF穿透 | Cookie来源 |
+|------|------|--------|-----------|
+| fetchDirect | ~200ms | 公开端点✅ 搜索❌ | DiscourseReader config.env |
+| fetchViaUrlFetch | ~3-5s | ✅ 全部 | VCP主config.env |
+Tag: VCP文档, DiscourseReader, Cloudflare, TLS指纹, cf_clearance, 双路策略, cookie限制, UrlFetch降级
+
+---
+
+[2026-02-24 15:25] DiscourseReader v1.4.0 — 三路瀑布请求策略
+## 架构升级：双路→三路
+v1.3.0的双路策略升级为三路瀑布策略：
+```
+fetchJSON(url)
+├─ TIER 1: fetchDirect(url) — Node.js原生https，无cookie，最快
+├─ TIER 2: fetchWithPuppeteer(url, cookie) — 自带Puppeteer实例+cookie（NEW）
+└─ TIER 3: fetchViaUrlFetch(url, config) — UrlFetch兜底
+```
+
+## 核心解决的问题
+v1.3.0的cookie传递瓶颈：DiscourseReader的forum_xxx_cookie无法传给UrlFetch降级路径。
+v1.4.0方案：插件自己启动Puppeteer，自己setCookie，彻底绕开UrlFetch的cookie限制。
+
+## Puppeteer实现细节
+- Lazy loading: `require(path.join(__dirname, '..', '..', 'node_modules', 'puppeteer-extra'))`
+- 复用VCP已有的puppeteer-extra + stealth + anonymize-ua三件套
+- 浏览器实例缓存: _browserInstance在单次调用内复用
+- parseCookieString(): raw cookie string → Puppeteer setCookie格式数组
+- 跳过含JSON的cookie字段(如g_state)避免解析错误
+- puppeteerAvailable标志: require失败时graceful跳过TIER 2
+- closeBrowser(): 进程退出前清理Puppeteer资源
+
+## 直连策略变化
+- v1.3.0: 有cookie就带cookie直连 → CF检测TLS指纹不匹配 → 403
+- v1.4.0: **始终先无cookie直连** → 避免TLS指纹暴露问题
+- 无cookie直连不触发cf_clearance验证，公开端点通常可过
+
+## 实测数据(2026-02-24)
+所有5个命令走了TIER 2(Puppeteer+cookie)，TIER 1被CF拦截。
+说明当日linux.do CF防护较严，但三路策略自动降级正常工作。
+SearchForum确认到达Discourse API层(非CF)，被rate limit(正常行为)。
+
+## 文件大小
+DiscourseReader.js: 16.99KB(v1.3.0) → 20.8KB(v1.4.0)，增加3.8KB
+Tag: VCP文档, DiscourseReader, v1.4.0, 三路瀑布策略, Puppeteer自带实例, cookie自主管理
+
+---
+
+[2026-02-24 15:35] DiscourseReader v1.5.0 — 纯Puppeteer单路架构
+## 从三路到单路
+v1.4.0的三路瀑布（直连→Puppeteer→UrlFetch）精简为纯Puppeteer单路。
+删除理由：
+- 直连：CF严格防护下100%被拦，白等30秒超时
+- UrlFetch降级：与自带Puppeteer是同一个引擎，cookie还传不过去
+- extractJSON：仅为解析UrlFetch嵌套响应，跟着一起删
+
+## 文件大小
+20.8KB(v1.4.0) → 12.9KB(v1.5.0)，减少38%
+
+## 额外修复
+ListTags去重：用seen Set合并tag_groups和tags两个数据源，标签数从84暴涨到696
+config.env不再需要VCP_PORT和VCP_API_KEY（不调用/v1/human/tool了）
+Tag: VCP文档, DiscourseReader, v1.5.0, 纯Puppeteer, 精简架构, 去重修复
+
+---
+
+[2026-02-24 15:54] DiscourseReader — User API Key认证方案（最终方案）
+## Discourse User API Key获取协议
+普通用户无法在UI直接生成API Key，需走RSA握手协议：
+1. 客户端生成RSA 2048位密钥对
+2. 构造授权URL: {host}/user-api-key/new?application_name=xxx&client_id=xxx&scopes=read&public_key=xxx&nonce=1
+3. 用户在浏览器访问URL并点击Authorize
+4. 页面返回RSA公钥加密的JSON密文
+5. 客户端用私钥(PKCS1_v1_5)解密得到{key: "xxx"}
+
+## API Key使用方式
+HTTP Header: User-Api-Key: <key>
+永久有效（除非手动撤销），不受cookie过期/CF TLS指纹影响。
+
+## DiscourseReader v1.5.1架构
+Puppeteer+stealth处理CF → User-Api-Key header处理Discourse认证
+parseCookies()跳过cf_clearance（TLS指纹绑定，Puppeteer的JA3与Chrome不同）
+fetchJSON(url, cfg)统一传入整个config对象
+
+## 认证方案演进总结
+| 方案 | 问题 |
+|------|------|
+| cookie直连 | CF TLS指纹不匹配→403 |
+| cookie+UrlFetch | cookie传不到UrlFetch |
+| Puppeteer+cookie | session级cookie过期 |
+| **Puppeteer+User-Api-Key** | **✅ 永久有效，全部通过** |
+
+## 重要发现
+- API Key认证的搜索配额显著高于cookie认证（之前连续429，API Key一次成功）
+- cf_clearance绑定浏览器TLS指纹(JA3)，跨浏览器无效
+- Discourse对未登录用户访问权限不足的帖子返回404（不是403）
+Tag: VCP文档, DiscourseReader, User-Api-Key, RSA握手协议, 认证方案演进

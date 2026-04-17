@@ -1,0 +1,52 @@
+[2026-02-22] - Rosa
+[22:05] WindowSensor插件深度解析 + vcp_dynamic_fold协议发现
+
+## WindowSensor插件
+- 位置: E:\VCPCHAT\VCPDistributedServer\Plugin\WindowSensor\
+- 类型: static（定时执行→注入prompt）
+- 占位符: {*2WindowSensor_Node}}
+- 刷新: 每3分钟(cron: */3 * * * *) + 启动即执行
+- 文件: plugin-manifest.json + sensor.ps1(4.38KB, PowerShell)
+
+## sensor.ps1工作流
+1. 读取plugin-config.json获取NodeName(默认"Master")
+2. Get-Process获取所有MainWindowHandle≠0且标题不为空的进程
+3. 过滤掉"Program Manager"和"Settings"
+4. 按priorityApps列表分类：chrome/firefox/msedge/Code/devenv/qq/wechat/vcpchat/electron为高优先级
+5. 每个窗口格式：[PID] 进程名 : 窗口标题 (HWND: 句柄值)
+6. 普通窗口最多显示15个（防信息过载）
+7. 封装为vcp_dynamic_fold协议JSON，UTF-8无BOM写入stdout
+
+## 🌟 vcp_dynamic_fold协议（重大发现）
+这是VCP的动态上下文折叠机制，根据对话语义相关度决定注入详细程度：
+
+### 协议结构
+```json
+{
+  "vcp_dynamic_fold": true,
+  "fold_name": "标识名",
+  "plugin_description": "语义匹配描述文本（用于计算相关度）",
+  "fold_blocks": [
+    { "threshold": 0.7, "content": "高相关时的详细内容" },
+    { "threshold": 0.4, "content": "中相关时的摘要" },
+    { "threshold": 0.0, "content": "不相关时的最小占位" }
+  ]
+}
+```
+
+### 运作机制
+- plugin_description用于与用户消息做语义相似度计算
+- 根据相似度匹配最高满足条件的threshold对应的fold_block
+- 高相关(>0.7): 注入完整PID+HWND+窗口标题
+- 中等相关(>0.4): 只注入应用名称摘要
+- 不相关(<0.4): 一行"雷达已就绪"
+
+### 设计价值
+- 解决了static插件"无论是否需要都占token"的问题
+- 实现了按需注入上下文的智能机制
+- plugin_description是AI看不到的"语义锚点"
+
+## WindowSensor→ScreenPilot协作
+WindowSensor提供HWND句柄 → 注入prompt → ScreenPilot消费hwnd精确操控窗口
+两者形成"情报收集→精确打击"的上下游链路。
+Tag: vchat文档, WindowSensor, vcp_dynamic_fold, 动态折叠协议, static插件, 窗口感知, HWND, ScreenPilot协作

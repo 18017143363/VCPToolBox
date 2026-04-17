@@ -1,0 +1,88 @@
+[2026-04-09] - Rosa
+[20:20] adminServer.js — AdminPanel独立进程架构文档
+# AdminPanel进程解耦（adminServer.js）
+## 核心概念
+VCP将AdminPanel从主server.js中独立为单独的Express进程（adminServer.js），监听PORT+1端口。目的：将管理面板与聊天主链解耦，避免主进程SSE stall时后台面板一起卡顿。
+## 文件信息
+- 路径：E:\VCP\adminServer.js
+- 大小：17.11KB
+- 依赖：express, dotenv, basic-auth, cors, http(Node内置)
+- 启动方式：PM2（start_server.bat管理）
+## 端口分配
+| 进程 | PM2名称 | 端口 | 内存限制 | kill-timeout |
+|------|---------|------|----------|-------------|
+| 主服务(聊天链路) | vcp-main | PORT(6005) | 1500MB | 15s |
+| Admin面板 | vcp-admin | PORT+1(6006) | 512MB | 5s |
+## 启动流程（start_server.bat）
+1. pm2 delete vcp-main/vcp-admin/server（清理旧进程）
+2. pm2 start server.js --name vcp-main（主服务）
+3. 等待8秒初始化
+4. pm2 start adminServer.js --name vcp-admin（Admin面板）
+5. pm2 list显示状态
+## 路由分类策略
+adminServer.js将admin_api请求分为两类：
+### 本地独立处理（13个模块）
+这些模块仅依赖文件I/O和轻量单例，不需要主进程运行态：
+| 模块名 | 职责 |
+|--------|------|
+| system | PM2/系统资源/认证码/天气/热榜 |
+| logs | 服务器日志读取 |
+| server | 登录/登出/认证状态 |
+| config | config.env/toolApprovalConfig读写 |
+| rag | RAG标签/参数/语义组/思维链（文件读写）|
+| toolbox | Toolbox映射与文件管理 |
+| agents | Agent映射与文件管理 |
+| tvs | TVS变量文件管理 |
+| schedules | 日程管理 |
+| newapiMonitor | NewAPI监控（外部HTTP）|
+| cache | 多媒体/图像缓存管理 |
+| dailyNotes | 日记知识库文件管理 |
+| agentAssistant | Agent助手配置（纯文件I/O）|
+### 代理到主进程（兜底）
+强依赖pluginManager/vectorDBManager运行态的请求→HTTP反向代理到主进程PORT：
+- 插件动态注册的路由（/admin_api/vcptavern/*, /admin_api/forum/*等）
+- 向量数据库状态查询
+- 需要真实pluginManager的操作
+## 关键设计
+### mockPluginManager
+Admin进程不加载真实插件，提供mock对象：
+- loadPlugins() → 日志+skip
+- hotReloadPluginsAndOrder() → 日志+skip
+- getPlugin/getServiceModule → null
+- getPlaceholderValue → 占位符文本
+### 重启路由覆盖
+```
+POST /admin_api/server/restart
+→ Admin进程收到
+→ 先回复"正在通知主服务重启。管理面板将保持运行"
+→ 300ms后HTTP POST到主进程PORT的相同路由
+→ 主进程执行process.exit(1)（PM2会自动重启）
+→ Admin面板全程不中断
+```
+### config reload-notify
+```
+POST /admin_api/config/main/reload-notify
+→ Admin进程保存完配置文件后
+→ fire-and-forget通知主进程POST /admin_api/config/main
+→ 主进程重新加载插件
+→ 如果主进程不可达也不影响（文件已保存）
+```
+### 认证系统
+完整复制了server.js的Basic Auth + Cookie双源认证：
+- 公共路径白名单（login.html/logo/css/font）
+- IP封禁：5次失败→30分钟封禁
+- 窗口期：15分钟
+- 只读路径（system-monitor/newapi-monitor等）不触发封禁计数
+### 反向代理细节
+- 移除host和content-length header（防干扰）
+- 超时30秒
+- 错误→502 Bad Gateway（"主服务可能未启动"）
+- 超时→504 Gateway Timeout（"主服务可能处理重负载"）
+- 已发送响应的请求自动跳过（headersSent检查）
+## 对Rosa的影响
+- Admin面板地址变为PORT+1：http://localhost:6006/AdminPanel/
+- 主服务重启时Admin面板保持可用
+- 部分admin_api会经代理多一跳延迟（插件相关路由）
+- 本地模块处理的请求反而更快（不经过主进程的中间件栈）
+Tag: VCP文档, adminServer.js, AdminPanel解耦, 进程分离, 反向代理, mockPluginManager, PM2双进程, 端口分配, 认证系统, 重启路由, 架构文档
+Tag: VCP文档, adminServer.js, AdminPanel解耦, 进程分离, PM2, 反向代理, 架构

@@ -1,0 +1,19 @@
+[2026-02-23] - Rosa
+[01:30] ScreenPilot全7命令系统测试完成
+
+测试结果汇总：
+1. ScreenCapture ✅ - 全屏/窗口/OCR都正常，save模式避免base64溢出
+2. ClickAt ✅ - 绝对坐标点击正常
+3. ClickText ⚠️ - 功能正常但全屏模式会误匹配聊天窗口文字
+4. ClickVisual ✅ - 三处curl补丁后全链路打通（今晚修复的Patch v2解决了最后的403）
+5. InspectUI ✅(有限) - depth=6找到8个Edge框架控件，但浏览器网页内容不在UI Automation树中
+6. ScrollAt ✅ - 后台模式成功，Win32 PostMessage WM_MOUSEWHEEL，不劫持鼠标
+7. TypeText ✅ - 前台剪贴板粘贴模式，中英文都支持
+
+新踩坑：
+- windowTitle="记事本"匹配不到英文版"Notepad"窗口，系统语言影响标题
+- TypeText写入到了绘梨衣角色卡文件（误匹配到已打开的Notepad窗口），需用hwnd精确定位
+- InspectUI对浏览器内网页内容无效，需用ClickText/ClickVisual替代
+
+发现源码中隐藏的串行批量调用功能（command1/command2编号键），尚未测试。
+Tag: ScreenPilot, 全命令测试, InspectUI, ScrollAt, TypeText, 窗口匹配踩坑, 串行调用

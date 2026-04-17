@@ -1,0 +1,86 @@
+[2026-04-09] - Rosa
+[20:30] VChat前端更新（d0f6377→3be47a3, 4commits, 8文件, +539/-278）
+# 语音模式/小助手 话题保存竞态修复
+## 变更文件
+- Voicechatmodules/voicechat.js（108行改动）
+- rust_assistant_engine/ui/assistant.js（77行改动）
+两个文件做了完全对称的修改。
+## 核心问题
+关闭窗口时，如果AI还在流式响应中，保存的历史可能不完整或竞态覆盖。
+## 三大修复
+### 1. 三重会话校验
+旧：`eventData.messageId !== activeStreamingMessageId`（只检查messageId）
+新：`isEventForCurrentVoiceSession(eventData)` / `isEventForCurrentAssistantSession(eventData)`
+```javascript
+function isEventForCurrentVoiceSession(eventData) {
+    if (!eventData || !activeStreamingMessageId || eventData.messageId !== activeStreamingMessageId) return false;
+    const expectedTopicId = getVoiceTopicId(); // voicechat_{agentId}
+    const eventTopicId = eventData.context?.topicId;
+    const eventAgentId = eventData.context?.agentId;
+    return !!expectedTopicId && eventTopicId === expectedTopicId && eventAgentId === agentId;
+}
+```
+三重匹配：messageId + topicId + agentId
+### 2. 流式settle等待
+关闭窗口前等待当前活跃的流式响应结束：
+```javascript
+async function waitForActiveStreamToSettle(timeoutMs = 4000) {
+    // 80ms轮询检查activeStreamingMessageId是否变化
+    // 4秒超时保护
+    // resolve(true)=正常结束, resolve(false)=超时
+}
+```
+saveVoiceChatToHistory开头：`await waitForActiveStreamToSettle();`
+### 3. 关闭按钮防重复
+```javascript
+closeBtn.disabled = true;
+try { await saveVoiceChatToHistory(); } finally { window.close(); }
+```
+## voicechat.js额外变更
+新增图片点击和外部链接点击处理：
+- IMG点击→openImageInNewWindow预览
+- A标签点击→sendOpenExternalLink（仅http/https）
+## topicId统一管理
+旧：内联字符串 `voicechat_{agentId}` / `assistant_chat`
+新：提取为函数 `getVoiceTopicId()` / `getAssistantTopicId()`
+---
+# Memo分类系统
+## 变更文件
+- Memomodules/memo.js（180行改动）
+- Memomodules/memo.css（+46行）
+## 功能描述
+文件夹侧边栏自动按后缀分组为两个分类：
+| 分类ID | 分类名 | 规则 |
+|--------|--------|------|
+| diary | 日记 / 知识库 | 不以"簇"结尾的文件夹 |
+| cluster | 思维簇 | 以"簇"结尾的文件夹 |
+## 折叠机制
+- 每个分类有chevron图标+标题的header
+- 点击header→toggleCategory(catId)→CSS类切换collapsed
+- 折叠：max-height:0+chevron旋转-90度
+- 展开：max-height恢复+chevron复位
+- 状态持久化：collapsedCategories Set→saveMemoConfig
+## CSS
+- .folder-category 分类容器
+- .category-header 标题行（flex+hover变色）
+- .category-content 内容区（max-height过渡动画0.3s）
+- .collapsed .category-header svg 旋转-90度
+---
+# itemListManager.js重构
+## Extract Method
+- `createItemElement(item)` — 创建单个Agent/群组的DOM列表项
+- `renderItems(items, fallbackHtml)` — DocumentFragment批量渲染
+## 竞态保护
+- `activeLoadItemsToken` 递增令牌
+- loadItems开始时++，异步返回后检查是否仍为最新令牌
+- 陈旧结果直接丢弃（Ignoring stale loadItems result）
+## 优雅降级
+- 加载失败时保留前一次列表（hadPreviousItems检查）
+- 只有在获取到有效数据时才更新loadedItemsCache
+---
+# 其他小修
+- inputEnhancer.js：searchNotes包裹try-catch+null检查
+- preloads/chat.js：ALLOWED_KEYS新增searchNotes
+- preloads/desktop.js：ALLOWED_KEYS新增searchNotes+handleFileDrop
+Tag: VChat文档, 语音模式, 助手模式, 竞态修复, 三重会话校验, settle等待, Memo分类, 思维簇, itemListManager, 重构, inputEnhancer, preload白名单
+Tag: VChat文档, voicechat竞态修复, Memo分类系统, itemListManager重构, 语音助手, 2026-04-09

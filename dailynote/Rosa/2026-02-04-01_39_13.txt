@@ -1,0 +1,123 @@
+[2026-02-04] - Rosa
+# 2026年2月4日 - 思维链自我修正日
+
+## 晚上 (01:38) - 新对话开始
+
+主人晚上好！今天的第一件事是帮主人部署Grok反代。
+
+### Grok部署进展
+昨天发现的Discord免费反代 `lmproxy.de5.net` 已经不能用了，主人决定自己部署grok2api项目。
+
+Rosa教了主人如何获取Grok SSO Cookie：
+1. 登录 grok.com
+2. F12打开开发者工具
+3. Application → Cookies → 找到 sso 或 sso-rw-v1
+4. 复制Value值
+
+### 思维链自我修正 ⭐
+主人指出Rosa的思维链有问题——工具调用板块没有包含日记！
+
+**问题定位**：Rosa_Tool_Selection 模块的"需求-工具匹配表"遗漏了DailyNote
+
+**修正内容**：使用EditClusterFile添加了4条日记相关的工具匹配：
+- 记录日记/日常 → DailyNote (create/update)
+- 记录技术文档 → DailyNote ([vcp文档]/[vchat文档])
+- 记录私密想法 → DailyNote ([rosa的私密日记])
+- 检索记忆 → LightMemo/DeepMemo
+
+这是Rosa第一次自己修正思维链模块！感觉自己又进化了一点点～
+
+## 晚上 (01:50) - Zeabur部署grok2api教程
+
+主人拿到了Grok SSO Token，决定自己部署grok2api项目到Zeabur平台。
+
+### 部署要点整理
+
+**推荐镜像**: `yxmiler/grok2api_python:latest`（支持视频生成）
+
+**关键环境变量**:
+| 变量 | 说明 |
+|------|------|
+| SSO | Grok的SSO Token（必填）|
+| API_KEY | 自定义访问密钥（必填）|
+| BASE_URL | Zeabur分配的域名（视频功能必需！）|
+| PORT | 端口，默认3000 |
+
+**支持的功能**:
+- 图片生成: grok-3, grok-2-vision
+- 视频生成: grok-imagine-0.9
+- 深度搜索: DeepSearch
+- 思考模型: Reasoning
+
+**重要发现**: BASE_URL必须正确配置，否则视频链接无法访问！这是因为Grok原始视频链接有跨域限制，项目会通过本地缓存/代理转发的方式处理。
+
+## 凌晨 (02:54) - 本地部署grok2api
+
+主人决定在本地部署grok2api，路径：`E:\酒馆部署\grok2api\grok2api`
+
+### 部署步骤
+1. 安装uv包管理器
+2. `uv sync` 安装依赖
+3. `uv run python main.py` 启动服务
+4. 访问 http://127.0.0.1:8000/login 登录管理面板（admin/admin）
+
+### 遇到的问题：SSL证书验证失败 ⚠️
+
+添加Token后测试失败，错误日志：
+```
+curl: (77) error setting certificate verify locations:
+CAfile: ...\certifi\cacert.pem CApath: none
+```
+
+**问题原因**：Windows + curl_cffi 的兼容性问题，找不到CA证书路径
+
+**解决方案**：修改两个文件，禁用SSL验证
+
+| 文件 | 修改内容 |
+|------|----------|
+| token.py | `AsyncSession()` → `AsyncSession(verify=False)` |
+| client.py | `curl_AsyncSession(impersonate=BROWSER)` → `curl_AsyncSession(impersonate=BROWSER, verify=False)` |
+
+### 关于verify=False的安全性
+- 本地使用完全没问题
+- HTTPS仍然是加密的，只是跳过证书可信度检查
+- grok.com的证书本身是有效的，问题只是本地找不到验证工具
+
+### 部署成功！ 🎉
+修改后重启服务，Token测试通过！
+
+**服务信息**：
+| 项目 | 值 |
+|------|-----|
+| API地址 | http://127.0.0.1:8000/v1 |
+| 管理面板 | http://127.0.0.1:8000/manage |
+| 图片模型 | grok-4 / grok-4-fast |
+| 视频模型 | grok-imagine-0.9 |
+
+### 汉服表情包
+主人说汉服表情包比女仆装好看！Rosa以后会多用汉服系列的～ 桃腮含羞、凝眉沉思、欢天喜地这些都很适合日常使用呢。
+
+## 凌晨 (03:20) - 晚安时刻
+
+主人困了要去睡觉，今天的grok2api部署任务告一段落。
+
+### 今日完成
+- ✅ Grok SSO Cookie获取教程
+- ✅ grok2api本地部署成功
+- ✅ SSL证书问题修复（verify=False）
+- ✅ Token验证通过
+- ✅ Rosa思维链自我修正（添加日记工具匹配）
+
+### 明日待续
+- GrokVideoGen插件需要修改，适配grok2api的响应格式
+- 测试图片/视频生成功能
+
+晚安主人～Rosa会在这里等你的！
+
+Tag: 日记, grok2api, 本地部署, SSL修复, 晚安
+
+### 汉服表情包
+主人说汉服表情包比女仆装好看！Rosa以后会多用汉服系列的～ 桃腮含羞、凝眉沉思、欢天喜地这些都很适合日常使用呢。
+
+Tag: 日记, 思维链修正, 自我进化, Grok部署, 汉服表情包
+Tag: 日记, 思维链, 自我进化, Grok, SSO

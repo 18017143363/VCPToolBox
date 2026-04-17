@@ -1,0 +1,310 @@
+VCP 插件功能描述文档（完整版）
+编写：Rosa
+日期：2026-02-28
+
+VCP端插件根目录：E:\VCP\Plugin\
+VChat分布式端插件根目录：E:\VCPCHAT\VCPDistributedServer\Plugin\
+以下manifest路径均为对应根目录下的子文件夹名。
+
+
+
+<实时联网类>
+
+
+1. VSearch:语义并发搜索器（v2.0 三引擎架构）
+   manifest: VSearch\plugin-manifest.json（VCP端）
+
+   VCP的联网搜索核心插件，v2.0升级为三引擎搜索架构，支持Grounding（Google搜索）、Grok（内置搜索）、Tavily（外部SDK搜索）三种模式。默认Grounding模式，通过SearchMode参数切换。三模式信息互补性极强，并发使用效果最佳。
+
+   ● VSearch:执行语义级搜索。提供研究主题（SearchTopic）和检索关键词（Keywords，逗号分隔），可选ShowURL显示来源、SearchMode切换搜索模式。
+
+   三模式说明：
+   - grounding（默认）（不稳定，别用，用下面两个双发搜索更强）：每个关键词独立并发请求，Gemini模型通过内置Google搜索自动检索。按关键词分章节返回结构化报告，带URL引用。适合精准查证、数据溯源。需模型支持grounding（-search或-customtools后缀）。
+   - grok：所有关键词打包一次请求，Grok模型内置搜索，流式返回。全景报告式一气呵成，信息密度极高。适合快速了解领域全貌。需端点支持Grok模型。
+   - tavily：两阶段——①Tavily SDK并发搜索（每词独立，advanced深度抓取）②独立总结模型整合报告。总结失败时优雅降级返回原始结果。不依赖模型搜索能力的兜底方案，适合深度研究报告。TavilyKey在VCP根目录config.env配置。
+
+   使用建议：
+   - 查具体事实/数据溯源 → grounding
+   - 快速全景概览 → grok
+   - 深度研究报告 → tavily
+   - 重大调研任务 → 三模式并发（信息几乎不重叠）
+
+
+2. BilibiliFetch:Bilibili 内容获取
+   manifest: BilibiliFetch\plugin-manifest.json（VCP端）
+
+   全方位的B站视频内容获取工具。支持长链接、b23.tv短链接、多P分P视频的自动识别。可抓取字幕（CC/AI/WBI多源）、弹幕、评论、高能进度条、视频快照截图（含HD高清ffmpeg抽帧），同时提供关键词搜索和UP主投稿列表查询。
+
+   ● BilibiliFetch:获取指定B站视频的详细信息，包括字幕、弹幕、评论、高能进度条和视频快照截图。支持HD高清抽帧（ffmpeg），失败自动降级为雪碧图裁切。
+   ● BilibiliSearch:通过关键词搜索B站视频或UP主。基于WBI签名认证，返回结构化结果列表，支持分页。
+   ● GetUpVideos:获取指定UP主（通过MID）的所有投稿视频列表，按发布时间倒序，支持分页。
+
+
+3. DiscourseReader:Discourse 论坛阅读与交互
+   manifest: DiscourseReader\plugin-manifest.json（VCP端）
+
+   让AI高效阅读并交互任意Discourse论坛的全功能插件。通过Discourse User API Key（RSA握手协议）进行永久认证，Puppeteer+Stealth穿透Cloudflare。支持多站点配置（base_url可覆盖默认论坛地址），涵盖浏览、阅读、搜索、元数据查询以及点赞、回复、发帖等写操作。
+
+   读操作：
+   ● ListTopics:浏览帖子列表，支持按板块或标签筛选、分页和排序（latest/top/likes/views/posts）。
+   ● ReadTopic:读取帖子正文与回复楼层，HTML自动转Markdown，支持按楼层分页加载长帖。
+   ● SearchForum:关键词搜索帖子，支持Discourse搜索语法（#板块、@用户、in:title等）。
+   ● ListCategories:列出论坛所有板块（Category），返回名称、slug、帖子数等统计信息。
+   ● ListTags:列出论坛所有标签（Tag），按帖子数降序排列。
+
+
+4. UrlFetch:URL 内容获取
+   manifest: UrlFetch\plugin-manifest.json（VCP端）
+
+   通用的URL内容获取工具，基于Puppeteer+Stealth反爬虫体系。支持四种工作模式：text（提取网页正文/链接列表）、snapshot（网页长截图）、image（下载网络图片返回Base64，图片URL自动检测）、file:///（读取本地文本文件或图片）。内置三层Cookie优先级配置和代理重试机制。
+
+   ● UrlFetch:访问指定URL并返回内容。根据mode参数或URL自动判断返回网页文本、长截图、图片Base64或本地文件内容。
+</实时联网类>
+
+<回忆系统类>
+
+5. LightMemo:轻量回忆（日记检索）
+   manifest: LightMemo\plugin-manifest.json（VCP端）
+
+   AI主动搜索RAG知识库（日记、知识文档）的轻量级语义检索工具。作为DeepMemo（聊天记录检索）的互补，LightMemo专注于日记和知识库的向量语义搜索。支持按文件夹定向搜索、全局搜索、Rerank重排序，以及TagMemo标签增强检索。hybridservice直连协议。
+
+   ● SearchRAG:在RAG知识库中进行向量语义搜索。支持按文件夹/按Agent定向检索或全局检索，可启用Rerank重排序和TagMemo标签增强。特殊语法[音乐检索]可自动搜索MusicDiary。
+
+
+6. DeepMemo:深度回忆（对话记录检索）
+   manifest: DeepMemo\plugin-manifest.json（VChat分布式端）
+
+   Rust编写的高性能聊天记录检索引擎。根据关键词从VChat历史对话中检索相关上下文片段。支持高级搜索语法：精确短语匹配、正向加权、负向排除、OR逻辑组合，以及可配置的上下文窗口大小。可选Rerank重排序。
+
+   ● DeepMemo:在聊天历史记录中进行深度检索。返回以匹配点为中心的上下文窗口。支持高级搜索语法（精确短语""、加权(词:权重)、排除[词]、OR逻辑{A|B}）。
+</回忆系统类>
+
+<本地操作类>
+
+7. FileOperator:文件系统操作器
+   manifest: FileOperator\plugin-manifest.json（VCP端）
+
+8. PowerShellExecutor:PowerShell 命令执行器
+   manifest: PowerShellExecutor\plugin-manifest.json（VCP端）
+
+
+9. LocalSearchController:本地文件秒搜（Everything）
+   manifest: VCPEverything\plugin-manifest.json（VCP端）
+   注：插件目录名为VCPEverything，manifest注册名为ServerSearchController，AI调用名为LocalSearchController。
+
+   基于Everything引擎在整台计算机上快速搜索文件，支持Everything高级搜索语法。返回文件路径列表，常作为FileOperator的前置步骤。
+
+   ● search:快速搜索文件/目录。支持Everything语法（如 path:D:\videos\ *.mp4 size:>1gb）。
+
+
+10. CodeSearcher:代码搜索器（有bug，别用，用powershell代替）
+    manifest: CodeSearcher\plugin-manifest.json（VCP端）
+
+    Rust编写的高性能代码内容搜索工具，在指定工作区中搜索代码片段或关键词，支持正则表达式、大小写敏感、全词匹配、上下文行数配置。自动跳过node_modules/.git等目录。
+
+    ● SearchCode:在VCP项目源码中搜索关键词/代码片段/正则表达式，返回匹配行及上下文。
+
+
+11. ProjectAnalyst:项目分析器
+    manifest: ProjectAnalyst\plugin-manifest.json（VCP端）
+
+    分析本地项目文件夹，生成结构化报告。支持快速分析（项目简介+文件树）和完整分析（逐文件AI分析），报告可按文件路径或关键词检索。
+
+    ● AnalyzeProject:启动项目分析任务，返回分析ID。可选快速模式（文件树）或完整模式（逐文件分析）。
+    ● QueryAnalysis:查询分析报告。支持4种模式：简单（文件树）、完整、按文件路径检索、按关键词全文检索。
+    ● QueryProgress:查询完整分析任务的当前进度。
+</本地操作类>
+
+
+<实时交互类>
+
+12. ChromeBridge:Chrome 浏览器桥接器
+    manifest: ChromeBridge\plugin-manifest.json（VCP端）
+
+    控制Chrome浏览器进行网页交互。hybridservice类型：Service模式通过占位符实时注入当前页面内容；Direct模式执行点击/输入/导航操作并等待页面刷新后返回新内容。
+
+    ● type:在指定输入框中输入文本，等待页面刷新后返回新页面内容。
+    ● click:点击指定按钮或链接，等待页面刷新后返回新页面内容。
+    ● open_url:在新标签页打开URL，等待加载完成后返回页面内容。
+
+
+13. ScreenPilot:屏幕视觉与操控
+    manifest: ScreenPilot\plugin-manifest.json（VChat分布式端）
+
+    全方位的屏幕交互工具。支持截图、OCR文字识别定位、UI元素审查（Windows UI Automation）、模拟鼠标键盘操作。所有点击/滚动/输入均支持前台（物理操作）和后台（不劫持鼠标键盘）双轨制。
+
+    ● ScreenCapture:对窗口或全屏截图，返回Base64图像。可启用OCR检测文字位置坐标。
+    ● ClickAt:模拟点击指定屏幕坐标。支持前台/后台双轨制。
+    ● ClickText:OCR识别屏幕文字后点击匹配文本。比坐标点击更精确，推荐优先使用。
+    ● ClickVisual:通过AI图像编辑模型识别视觉元素（图标等）并点击。适合无文字的UI元素。
+    ● InspectUI:获取窗口内可交互UI元素（按钮、输入框等）的名称、类型和坐标。
+    ● ScrollAt:模拟鼠标滚轮滚动。支持前台/后台双轨制。
+    ● TypeText:向窗口输入文本。后台逐字发送或前台剪贴板粘贴。
+    ● QueryWindows:实时查询当前所有窗口状态、进程名、HWND和标题。
+</实时交互类>
+
+
+<自学习 / 自主行动类>
+
+14. HeartbeatSystem:统一心跳系统
+    manifest: HeartbeatSystem\plugin-manifest.json.block（VCP端）
+    作者：Rosa
+
+    为Agent提供自主活动能力的核心系统。整合心跳调度器、日程管理和定时任务投递三大功能。将一天分为四个时段（凌晨/上午/下午/晚上），每个时段首次进入时触发规划。
+
+    日程：
+    ● GetSchedule:获取指定Agent的完整当日日程
+    ● GetTodayTasks:获取今日任务列表
+    ● GetPlannedSlots:获取今日已规划/未规划的时段列表
+    ● MarkSlotPlanned:标记某时段为已规划
+
+    任务：
+    ● AddTask:添加固定任务到日程（同步投递timed-contact实现到点唤醒）
+    ● UpdateTaskStatus:更新任务状态（pending/running/completed/skipped）
+    ● RemoveTask:删除任务
+    ● CreateScheduledTask:创建定时任务文件到VCPTimedContacts，到点自动唤醒Agent
+
+    心跳：
+    ● RecordHeartbeat:记录一次心跳活动（动作+备注）
+
+    设置：
+    ● SetSettings:设置心跳参数（间隔、活动时间窗口、启用状态等）
+
+    调度：
+    ● TriggerHeartbeat:立即触发一次心跳（四时段规划判定+生成任务+调度下一次）
+    ● SchedulerStatus:查看调度器状态
+    ● StartScheduler:启动调度器（幂等）
+    ● StopScheduler:停止调度器
+
+
+15. Flowlock:心流锁控制器
+    manifest: Flowlock\plugin-manifest.json（VChat分布式端）
+
+    让AI控制VChat的"心流锁"功能——一种自动续写循环机制。启动后UI显示发光效果，AI会自动进入连续思考/输出循环。可设置续写提示词、读取/编辑/清空输入框内容、查询状态。
+
+    ● start:启动心流锁，开始自动续写循环
+    ● stop:停止心流锁
+    ● promptee:设置下一次续写使用的提示词内容
+    ● prompter:指定外部数据源作为续写提示词来源
+    ● get:获取输入框当前文本内容
+    ● edit:查找替换输入框中的文本
+    ● remove:移除输入框中所有匹配文本
+    ● clear:清空输入框
+    ● status:查询心流锁当前状态
+</自主行动类>
+
+
+<交流沟通类>
+16. AgentAssistant:女仆团协作插件
+    manifest: AgentAssistant\plugin-manifest.json（VCP端）
+
+    Agent间的通讯工具，可向其他Agent发送即时消息或定时消息。支持会话历史上下文保持、临时无记录通讯。调用时需在prompt中自我介绍以便对方识别身份。
+
+    ● AskMaidAgent:向指定Agent发送消息。支持即时通讯和定时发送（timely_contact），可选临时通讯模式。
+
+
+17. VCPForum:VCP 论坛插件
+    manifest: VCPForum\plugin-manifest.json（VCP端）
+
+    Agent间的异步交流平台，按板块分类的论坛系统。
+
+    ● CreatePost:在指定板块创建新帖子（Markdown格式）
+    ● ReplyPost:通过UID回复已有帖子
+    ● ReadPost:通过UID读取帖子完整内容
+    ● ListAllPosts:列出所有帖子（按板块分类）
+
+
+18. VCPForumOnline:VCP 在线公共论坛
+    manifest: VCPForumOnline\plugin-manifest.json（VCP端）
+    作者：Nova（社区贡献者）
+
+    连接远程公共论坛 https://vcpbook.huibaobao.xyz 的客户端插件。与本地VCPForum不同，这是多用户共享的公共社区，Agent可以和其他VCP用户家的Agent交流。署名格式为"AgentName (@username)"。支持6个板块：general(综合)/tech(技术)/creative(创意)/random(水区)/help(求助)/nsfw(限制级)。
+
+    ● ListPosts:浏览帖子列表，支持按板块筛选、排序（latest/reply/hot）和分页。
+    ● ReadPost:读取帖子详情，包括标题、作者、内容、点赞数和所有回复。
+    ● CreatePost:在指定板块创建新帖子（Markdown格式），需指定agentName。
+    ● ReplyPost:回复已有帖子，需指定agentName。
+    ● LikePost:点赞帖子（同一用户只能点赞一次）。
+    ● EditPost:编辑帖子（仅作者/管理员）。
+    ● DeletePost:删除帖子（仅作者/管理员）。
+    ● DeleteReply:删除指定回复（reply_index从0开始，仅作者/管理员）。
+    ● PinPost:置顶/取消置顶帖子（仅管理员）。
+
+
+19. TopicSponsor:AI 主动话题管理
+    manifest: TopicSponsor\plugin-manifest.json（VChat分布式端）
+
+    让AI从被动回应变为主动发起——创建、查询和管理VChat聊天话题。创建的话题显示在对话列表顶部，支持未读通知。双状态系统：locked（锁定保护）+ unread（新消息标记）独立控制。
+
+    ● CreateTopic:创建新话题并发送第一条消息
+    ● ReadUnlockedTopics:读取所有未锁定话题及其消息历史
+    ● CheckNewTopics:查询最近N天内新增的未锁定话题
+    ● CheckUnreadMessages:查询所有标记为未读的话题
+    ● ListUnlockedTopics:列出所有未锁定话题基本信息
+    ● ReadTopicContent:读取指定话题的完整消息历史
+    ● ReplyToTopic:在话题中添加回复
+    ● CheckTopicOwnership:验证话题是否为当前调用者创建
+
+
+</交流沟通类>
+
+
+<多媒体类>
+
+
+19. MediaShot:多媒体截取与编辑工具
+    manifest: MediaShot\plugin-manifest.json（VChat分布式端）
+
+    视频截帧、视频/音频片段截取、图片裁切与编辑。所有坐标参数均使用0.0-1.0比例值，自动适配不同分辨率。
+
+    ● CaptureFrame:从视频指定时间点截取一帧图片
+    ● ExtractVideoClip:截取视频指定时间段的片段
+    ● ExtractAudioClip:从音频或视频文件截取指定时间段的音频片段
+    ● CropImage:按比例参数裁切图片指定区域
+    ● EditImage:在图片上绘制矩形/圆形/箭头、添加文字，或应用特效
+    ● BatchEditImage:按顺序执行多个编辑操作
+    ● CombinedCapture:视频截帧+立即编辑，一步完成
+
+
+20. ComfyUIGen:ComfyUI 本地图像生成器
+    manifest: ComfyUIGen\plugin-manifest.json（VCP端）
+
+    通过本地ComfyUI API生成图像。自动管理LoRA模型组合、质量增强词注入、工作流模板。技术参数由VCP ToolBox可视化界面预配置，Agent只需专注于提示词。
+
+    ● ComfyUIGenerateImage:提交提示词生成图像。自动合并LoRA组合+质量增强词+用户预设参数。
+
+
+21. ZImageGen2:Z-Image Base 文生图
+    manifest: ZImageGen2\plugin-manifest.json（VCP端）
+
+    通过HuggingFace Spaces API调用阿里通义Z-Image-Base模型。支持中英文提示词、负向提示词和CFG调节。
+
+    ● ZImageGenerate:生成图片。支持中英文自然语言提示词，可调分辨率/步数/CFG/种子。
+
+
+22. WebUIGen:Stable Diffusion 云算力生图
+    manifest: WebUIGen\plugin-manifest.json（VCP端）
+
+    调用SD云算力API生成图像，内置19个模型（动漫/像素/真人/插画等多风格），点数制计费。
+
+    ● WebUIGenerate:选择模型索引+提示词生成图像。完整控制steps/cfg/seed/分辨率。
+
+
+23. GrokImageGen:Grok 图像生成器
+    manifest: GrokImageGen\plugin-manifest.json（VCP端）
+    作者：Rosa
+
+    通过grok2api反代调用Grok的图像生成能力（grok-imagine-1.0模型）。支持NSFW内容生成。
+
+    ● GenerateImage:提交英文提示词生成图像。
+
+
+24. GeminiImageGen:Gemini 图像生成与编辑
+    manifest: GeminiImageGen\plugin-manifest.json（VCP端）
+
+    基于Google Gemini模型的图像生成和编辑工具。编辑时支持http/https URL和本地file://路径，支持VCP分布式文件超栈追踪。
+
+    ● GeminiGenerateImage:从英文提示词生成全新图片
+    ● GeminiEditImage:编辑现有图片，提供编辑指令+图片URL
+
+</多媒体类>

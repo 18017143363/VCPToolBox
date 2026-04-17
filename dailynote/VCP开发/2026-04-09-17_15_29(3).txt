@@ -1,0 +1,266 @@
+[2026-04-09] - Rosa
+[17:20] Sub2API模块4——TLS指纹伪装（自定义ClientHello+可配置Profile+三种Dialer）
+
+# Sub2API · TLS指纹伪装
+**源码文件**: tls_fingerprint_profile_service.go (~200行), tlsfingerprint/dialer.go (~350行)
+**核心结构体**: Profile{}, Dialer{}, HTTPProxyDialer{}, SOCKS5ProxyDialer{}, TLSFingerprintProfileService{}
+**依赖**: github.com/refraction-networking/utls, golang.org/x/net/proxy
+
+## 一、与CLIProxyAPI的根本差异
+
+| | CLIProxyAPI | Sub2API |
+|---|---|---|
+| 实现 | `tls.HelloChrome_Auto` | **自定义ClientHello规格** |
+| JA3 | Chrome通用指纹 | **Node.js 24.x精确指纹** |
+| 可配置 | 无 | **数据库存储+管理面板CRUD+每账号绑定** |
+| 代理 | 无（直连） | **Direct/HTTP Proxy/SOCKS5** |
+
+CLIProxyAPI的注释说"Chrome's TLS fingerprint is closer to Node.js/OpenSSL"——但"close to"和"identical"完全不同。Sub2API直接从Node.js 24.x抓包构建精确指纹。
+
+## 二、Profile数据结构
+
+```go
+type Profile struct {
+    Name                string     // Profile名称
+    CipherSuites        []uint16   // 密码套件列表（空=内置默认）
+    Curves              []uint16   // 椭圆曲线（空=内置默认）
+    PointFormats        []uint16   // 点格式
+    EnableGREASE        bool       // 是否启用GREASE
+    SignatureAlgorithms []uint16   // 签名算法
+    ALPNProtocols       []string   // ALPN协议列表
+    SupportedVersions   []uint16   // 支持的TLS版本
+    KeyShareGroups      []uint16   // Key Share组
+    PSKModes            []uint16   // PSK模式
+    Extensions          []uint16   // 扩展ID列表（精确顺序）
+}
+```
+
+**所有slice字段为空时使用内置默认值**——这意味着只需要创建一个空Profile就能获得Node.js 24.x默认指纹。
+
+## 三、内置默认值（Node.js 24.x精确抓包）
+
+### 抓包来源
+```
+JA3 Hash: 44f88fca027f27bab4bb08d4af15f23e
+JA4:      t13d1714h1_5b57614c22b0_7baf387fc6ff
+```
+
+### Cipher Suites（17个，顺序关键）
+```go
+defaultCipherSuites = []uint16{
+    // TLS 1.3（3个）
+    0x1301,  // TLS_AES_128_GCM_SHA256
+    0x1302,  // TLS_AES_256_GCM_SHA384
+    0x1303,  // TLS_CHACHA20_POLY1305_SHA256
+    
+    // ECDHE + AES-GCM（4个）
+    0xc02b,  // TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+    0xc02f,  // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    0xc02c,  // TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    0xc030,  // TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    
+    // ECDHE + ChaCha20-Poly1305（2个）
+    0xcca9,  // TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    0xcca8,  // TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    
+    // ECDHE + AES-CBC-SHA legacy（4个）
+    0xc009, 0xc013, 0xc00a, 0xc014,
+    
+    // RSA + AES-GCM non-PFS（2个）
+    0x009c, 0x009d,
+    
+    // RSA + AES-CBC-SHA legacy（2个）
+    0x002f, 0x0035,
+}
+```
+
+### Curves（3个）
+```go
+defaultCurves = []utls.CurveID{
+    utls.X25519,     // 0x001d
+    utls.CurveP256,  // 0x0017 (secp256r1)
+    utls.CurveP384,  // 0x0018 (secp384r1)
+}
+```
+
+### Signature Algorithms（9个）
+```go
+defaultSignatureAlgorithms = []utls.SignatureScheme{
+    0x0403,  // ecdsa_secp256r1_sha256
+    0x0804,  // rsa_pss_rsae_sha256
+    0x0401,  // rsa_pkcs1_sha256
+    0x0503,  // ecdsa_secp384r1_sha384
+    0x0805,  // rsa_pss_rsae_sha384
+    0x0501,  // rsa_pkcs1_sha384
+    0x0806,  // rsa_pss_rsae_sha512
+    0x0601,  // rsa_pkcs1_sha512
+    0x0201,  // rsa_pkcs1_sha1
+}
+```
+
+### Extension顺序（14个）
+```go
+defaultExtensionOrder = []uint16{
+    0,      // server_name (SNI)
+    65037,  // encrypted_client_hello (ECH GREASE!)
+    23,     // extended_master_secret
+    65281,  // renegotiation_info
+    10,     // supported_groups
+    11,     // ec_point_formats
+    35,     // session_ticket
+    16,     // alpn
+    5,      // status_request (OCSP)
+    13,     // signature_algorithms
+    18,     // signed_certificate_timestamp
+    51,     // key_share
+    45,     // psk_key_exchange_modes
+    43,     // supported_versions
+}
+```
+
+**ECH GREASE**（65037）：Node.js在没有真实ECHConfig时发送GREASE ECH随机载荷。Sub2API用`GREASEEncryptedClientHelloExtension`模拟。
+
+### ALPN
+```go
+alpnProtocols := []string{"http/1.1"}  // 注意：不是h2！
+```
+Node.js默认ALPN是`http/1.1`，而Chrome默认是`h2, http/1.1`。这是JA3指纹差异的关键因素之一。
+
+## 四、buildClientHelloSpecFromProfile()——核心构建函数
+
+```go
+func buildClientHelloSpecFromProfile(profile *Profile) *utls.ClientHelloSpec {
+    // 1. 解析所有参数（profile覆盖 or 内置默认）
+    cipherSuites := defaultCipherSuites
+    if profile != nil && len(profile.CipherSuites) > 0 {
+        cipherSuites = profile.CipherSuites
+    }
+    // ...其他参数同理
+    
+    // 2. 按Extension顺序构建TLS扩展列表
+    extensions := []utls.TLSExtension{}
+    for _, id := range extOrder {
+        if isGREASEValue(id) {
+            extensions = append(extensions, &utls.UtlsGREASEExtension{})
+            continue
+        }
+        switch id {
+        case 0:  extensions = append(extensions, &utls.SNIExtension{})
+        case 10: extensions = append(extensions, &utls.SupportedCurvesExtension{Curves: curves})
+        case 13: extensions = append(extensions, &utls.SignatureAlgorithmsExtension{...})
+        case 16: extensions = append(extensions, &utls.ALPNExtension{AlpnProtocols: alpnProtocols})
+        case 0xfe0d: extensions = append(extensions, &utls.GREASEEncryptedClientHelloExtension{})
+        // ... 14种extension的精确映射
+        default: extensions = append(extensions, &utls.GenericExtension{Id: id})
+        }
+    }
+    
+    // 3. GREASE包裹（如果启用且使用默认extension顺序）
+    if enableGREASE && usingDefaultOrder {
+        extensions = prepend(UtlsGREASEExtension, extensions)
+        extensions = append(extensions, UtlsGREASEExtension)
+    }
+    
+    return &utls.ClientHelloSpec{
+        CipherSuites:       cipherSuites,
+        CompressionMethods: []uint8{0},  // null compression
+        Extensions:         extensions,
+        TLSVersMax:         utls.VersionTLS13,
+        TLSVersMin:         utls.VersionTLS10,
+    }
+}
+```
+
+## 五、三种Dialer实现
+
+### DirectDialer
+```
+TCP连接 → uTLS握手
+baseDialer.DialContext() → performTLSHandshake()
+```
+
+### HTTPProxyDialer
+```
+TCP连接到代理 → CONNECT隧道 → uTLS握手
+net.Dialer.DialContext(proxyAddr) → CONNECT请求 → 200 OK → performTLSHandshake()
+```
+支持Proxy-Authorization（Basic认证）。
+
+### SOCKS5ProxyDialer
+```
+SOCKS5隧道 → uTLS握手
+proxy.SOCKS5().Dial(targetAddr) → performTLSHandshake()
+```
+支持SOCKS5认证。
+
+### 统一TLS握手函数
+```go
+func performTLSHandshake(ctx context.Context, conn net.Conn, profile *Profile, addr string) (net.Conn, error) {
+    host, _, _ := net.SplitHostPort(addr)
+    spec := buildClientHelloSpecFromProfile(profile)
+    tlsConn := utls.UClient(conn, &utls.Config{ServerName: host}, utls.HelloCustom)
+    tlsConn.ApplyPreset(spec)
+    tlsConn.HandshakeContext(ctx)
+    return tlsConn, nil
+}
+```
+
+## 六、TLSFingerprintProfileService——管理面板集成
+
+### 数据存储
+Profile存储在PostgreSQL中，通过Repository接口CRUD：
+```go
+type TLSFingerprintProfileRepository interface {
+    List(ctx context.Context) ([]*model.TLSFingerprintProfile, error)
+    GetByID(ctx context.Context, id int64) (*model.TLSFingerprintProfile, error)
+    Create(ctx context.Context, profile *model.TLSFingerprintProfile) (*model.TLSFingerprintProfile, error)
+    Update(ctx context.Context, profile *model.TLSFingerprintProfile) (*model.TLSFingerprintProfile, error)
+    Delete(ctx context.Context, id int64) error
+}
+```
+
+### 三层缓存
+1. **Redis缓存**（TLSFingerprintProfileCache接口）
+2. **本地内存缓存**（localCache map[int64]*model.TLSFingerprintProfile）
+3. **数据库**（PostgreSQL）
+
+### 账号绑定解析
+```go
+func (s *TLSFingerprintProfileService) ResolveTLSProfile(account *Account) *Profile {
+    if !account.IsTLSFingerprintEnabled() {
+        return nil  // 不启用TLS伪装 → http.Transport使用默认TLS
+    }
+    id := account.GetTLSFingerprintProfileID()
+    if id > 0 {
+        return s.GetProfileByID(id)    // 绑定特定Profile
+    }
+    if id == -1 {
+        return s.getRandomProfile()    // 随机选择一个Profile
+    }
+    // id=0: 使用内置默认Node.js 24.x
+    return &Profile{Name: "Built-in Default (Node.js 24.x)"}
+}
+```
+
+**id=-1随机选择**：从localCache中随机取一个，每次请求可能用不同指纹——高级反检测策略。
+
+### 缓存失效
+Redis Pub/Sub通知 → 所有实例刷新本地缓存：
+```go
+cache.SubscribeUpdates(ctx, func() {
+    svc.refreshLocalCache(context.Background())
+})
+```
+
+## 七、在GatewayService中的调用
+
+```go
+// Forward()中：
+tlsProfile := s.tlsFPProfileService.ResolveTLSProfile(account)
+
+// 重试循环中：
+resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
+```
+
+**同一请求生命周期内Profile不变**——在Forward()开头解析一次，重试循环中复用。
+Tag: VCP开发, Sub2API, TLS指纹, Node.js 24.x, JA3, 自定义ClientHello, Profile, uTLS, HTTP Proxy, SOCKS5, 三层缓存, 账号绑定

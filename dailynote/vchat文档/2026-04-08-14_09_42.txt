@@ -1,0 +1,55 @@
+[2026-04-08] - Rosa
+[14:20] Pretext渲染引擎完整技术文档
+## 核心概念
+Pretext(chenglou/pretext)是纯算术文本测量与布局引擎，用Canvas.measureText()替代DOM测量，完全绕过浏览器reflow。
+## 解决的三个痛点
+1. visibilityOptimizer读offsetHeight触发同步重排（批量消息卡顿）
+2. streamManager每100ms读scrollHeight触发重排+上翻被强制拉回底部
+3. 无高度预计算机制→虚拟滚动无法实现
+## 三层架构
+### L1: pretext.bundle.js (2759行, 84.6KB IIFE)
+- window.Pretext
+- 三个核心API: prepare(text,font)→PreparedText | layout(prepared,width,lineHeight)→{height} | layoutWithLines()
+### L2: pretext-bridge.js (193行)
+- window.pretextBridge
+- 三层缓存: preparedCache(Map:id→PreparedText) / heightCache(Map:id→{height,maxWidth,lineHeight}) / textSnapshot(Map:id→string)
+- 8种消息类型(body/code/system/viewer/widget/memo/rag/note)各有独立字体/行高/padding配置
+- body/code/system: 聊天气泡模式占容器80%宽度
+- viewer/widget/memo/rag/note: 全宽模式
+- 缓存命中条件: maxWidth+lineHeight+text三要素全相同
+- setChatFonts(): 动态修改字体（主题切换），会clearAll()重算
+### L3: 消费方集成
+- messageRenderer.js: 渲染完成后调estimateHeight()填缓存(~0.2ms/条, try-catch包裹)
+- visibilityOptimizer.js: getCachedHeight()缓存命中→零重排，未命中→回退offsetHeight
+- streamManager.js: heightDelta滚动锚定(用户在底部→scrollToBottom, 已上翻→scrollTop+=delta保持视口)
+## 性能数据
+- prepare: ~0.2ms/条（首次，缓存）
+- layout: ~0.0002ms（纯算术）
+- recalculateAll(500条): ~0.1ms（窗口缩放）
+- getCachedHeight: O(1) Map查找
+## contentPipeline.js (238行) — 统一内容预处理管线
+### 设计目标
+1. 显式化顺序协议，避免预处理逻辑分散后顺序漂移
+2. 区分full-render(13步)与stream-fast(4步)两种模式
+3. "保护→结构修正→恢复"固定流程
+### Full-Render管线（13步）
+normalize-emoticon-urls → escape-start-end-markers → transform-mermaid-placeholders → protect-tool-results → protect-code-blocks → deindent-misinterpreted-code-blocks → deindent-html → deindent-tool-request-blocks → transform-desktop-push → restore-tool-results → transform-special-blocks → ensure-html-fenced → apply-common-content-processors → restore-code-blocks
+### Stream-Fast管线（4步轻量）
+normalize-emoticon-urls → deindent-misinterpreted-code-blocks → escape-start-end-markers → apply-common-content-processors
+### 保护机制原理
+代码块和工具结果先替换为__VCP_xxx_PLACEHOLDER__占位符→安全执行deindent等修正→最后恢复原始内容。防止deindent误修改代码块内缩进。
+### 依赖注入
+createContentPipeline(deps)通过参数注入所有处理器函数（escapeHtml/processStartEndMarkers/fixEmoticonUrlsInMarkdown等），pipeline不依赖具体实现。
+## 三轮优化演进链
+1. dda4801(newcode5662): Pretext引入+bridge+基础集成
+2. d87c3e4(lioensky): 为所有文本渲染启用Pretext
+3. 853f590: 统一AST管理→创建contentPipeline.js
+4. 51d4546: 流式渲染管线优化→stream-fast轻量路径
+5. 7dd71b4: 消除Pretext性能瓶颈
+## 兼容性
+完全向后兼容——所有Pretext代码路径都有回退逻辑。window.pretextBridge不可用或缓存未命中时行为与原始代码完全一致。
+Electron/Chromium: Intl.Segmenter和OffscreenCanvas均可用无需polyfill。
+字体: 使用具名字体(Segoe UI/Consolas)避免system-ui的Canvas/DOM精度差异。
+## 未来方向
+虚拟滚动——有了精确高度预计算，视口外消息可用高度占位符替代，DOM节点O(n)→O(视口)
+Tag: vchat文档, Pretext, 渲染引擎, contentPipeline, 流式滚动锚定, Canvas.measureText, 三层缓存, 保护-修正-恢复, 虚拟滚动, 性能优化

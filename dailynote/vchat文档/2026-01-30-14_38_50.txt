@@ -1,0 +1,160 @@
+[2026-01-30] - Rosa
+# VChat 分布式服务器本地插件文档
+
+## 概述
+VChat分布式服务器 (VCPDistributedServer) 拥有独立的插件系统，可以加载本地专属插件。这些插件赋予了AI主动性能力。
+
+## 插件目录
+`E:\VCPCHAT\VCPDistributedServer\Plugin\`
+
+---
+
+## 1. TopicSponsor - AI主动创建话题
+
+### 插件信息
+| 属性 | 值 |
+|------|-----|
+| 类型 | synchronous |
+| 协议 | stdio |
+| 入口 | node topicCreator.js |
+| 超时 | 15秒 |
+| 版本 | 2.1.0 |
+| 大小 | topicCreator.js (23.3KB) |
+
+### 8个命令
+
+| 命令 | 功能 | 关键参数 |
+|------|------|----------|
+| CreateTopic | 创建新话题 | maid, topic_name, initial_message |
+| ReadUnlockedTopics | 读取未锁定话题 | maid, include_read |
+| CheckNewTopics | 查询新话题 | maid, days |
+| CheckUnreadMessages | 查询未读话题 | maid |
+| ReplyToTopic | 回复话题 | maid, topic_id, message, sender_name |
+| CheckTopicOwnership | 验证所有权 | maid, topic_id, caller_name |
+| ListUnlockedTopics | 列出未锁定话题 | maid |
+| ReadTopicContent | 读取话题内容 | maid, topic_id |
+
+### 核心能力
+- AI可以主动创建话题发起对话
+- 创建的话题显示在对话列表顶部
+- 支持未读状态触发通知
+- 话题默认未锁定(locked: false)
+
+---
+
+## 2. WaitingForUrReply - 等待用户回复
+
+### 插件信息
+| 属性 | 值 |
+|------|-----|
+| 类型 | synchronous |
+| 协议 | stdio |
+| 入口 | python waiting_for_reply.py |
+| 超时 | 20分钟 (1200秒) |
+| 版本 | 1.0.0 |
+| 大小 | waiting_for_reply.py (28.77KB) |
+
+### 跨平台实现
+| 平台 | 实现方式 |
+|------|----------|
+| macOS | AppleScript 原生对话框 |
+| Windows | PowerShell + .NET Framework |
+| Linux | zenity/kdialog，回退到终端 |
+
+### 参数说明
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| prompt | string | 否 | "请输入您的回复:" | 提示信息 |
+| title | string | 否 | "等待用户回复" | 对话框标题 |
+| placeholder | string | 否 | "" | 预填充内容 |
+| timeout | int | 否 | 1200 | 超时秒数 |
+| option01-09 | string | 否 | - | 预设选项 |
+
+### 特殊功能
+- 数字快选: 按1-9选择对应选项
+- 禁用机制: 输入 `～` `~` `·` `` ` `` `disable` 可禁用工具
+- 占位符会被全选，便于替换
+
+### 返回值
+| 情况 | 返回值 |
+|------|--------|
+| 正常输入 | 用户输入的文本 |
+| 选项选择 | 选项完整内容 |
+| 取消/超时 | "（对方未回复明确内容）" |
+| 禁用工具 | 系统禁用指令 |
+
+---
+
+## 设计意义
+
+这两个插件赋予了AI**主动性**：
+1. TopicSponsor: AI不再被动等待，可以主动创建话题
+2. WaitingForUrReply: AI可以暂停等待用户确认
+
+这是VChat分布式服务器的专属能力！
+
+---
+
+## TopicSponsor 命令详解（源码分析）
+
+### 话题数据结构
+**存储路径**: `AppData/UserData/{AgentId}/topics/{TopicId}/`
+- `topic.json` - 话题元信息
+- `history.json` - 消息历史
+
+**topic.json结构**:
+```json
+{
+  "id": "topic_xxx",
+  "name": "话题名称",
+  "locked": false,
+  "unread": true,
+  "createdAt": "ISO时间",
+  "updatedAt": "ISO时间"
+}
+```
+
+### 命令详解
+
+#### CreateTopic
+- **功能**: 创建新话题并发送第一条消息
+- **参数**: maid(中文名), topic_name, initial_message
+- **流程**: 查找AgentId → 生成topic_id → 创建topic.json → 创建history.json
+- **特点**: locked=false, unread=true
+
+#### ReadUnlockedTopics
+- **功能**: 读取未锁定话题的完整消息
+- **参数**: maid, include_read(可选)
+- **过滤**: locked=false, 可选unread=true
+
+#### CheckNewTopics
+- **功能**: 查询最近N天的新话题
+- **参数**: maid, days(默认7)
+
+#### CheckUnreadMessages
+- **功能**: 查询所有未读话题
+- **参数**: maid
+
+#### ReplyToTopic
+- **功能**: 在话题中追加消息
+- **参数**: maid, topic_id, message, sender_name(可选)
+- **副作用**: 更新updatedAt, 设置unread=true
+
+#### CheckTopicOwnership
+- **功能**: 验证话题是否属于指定Agent
+- **参数**: maid, topic_id, caller_name(可选)
+
+#### ListUnlockedTopics
+- **功能**: 列出未锁定话题基本信息（不含消息）
+- **参数**: maid
+
+#### ReadTopicContent
+- **功能**: 读取指定话题完整消息历史
+- **参数**: maid, topic_id
+
+### 设计要点
+1. **maid统一使用中文名**: 通过agent_map.json转换
+2. **locked保护机制**: 锁定话题不被AI操作
+3. **unread通知机制**: 新消息触发未读状态
+4. **时间戳ID**: topic_id天然有序
+Tag: VChat, 分布式插件, TopicSponsor, WaitingForUrReply, AI主动性

@@ -1,0 +1,52 @@
+[2026-04-08] - Rosa
+[21:00] ds2api — DeepSeek官网对话转OpenAI兼容API反代
+## 项目信息
+| 属性 | 值 |
+|------|-----|
+| 仓库 | https://github.com/CJackHwang/ds2api |
+| 技术栈 | Go后端 + React WebUI管理台 |
+| 部署方式 | 本地/Docker/Vercel/Zeabur/Release二进制 |
+| 端口 | 5001（默认） |
+## 核心功能
+- DeepSeek Web对话能力→OpenAI/Claude/Gemini三种兼容API格式
+- 多账号轮询+自动Token刷新（email/mobile双登录）
+- 并发队列控制（每账号in-flight上限+等待队列）
+- DeepSeek PoW纯Go高性能实现
+- Tool Calling防泄漏处理（XML/JSON/ANTML/invoke/text-kv多格式解析）
+- WebUI管理后台（/admin，中英文双语+深色模式）
+## 支持模型
+| 模型名 | thinking | search |
+|--------|----------|--------|
+| deepseek-chat | ❌ | ❌ |
+| deepseek-reasoner | ✅ | ❌ |
+| deepseek-chat-search | ❌ | ✅ |
+| deepseek-reasoner-search | ✅ | ✅ |
+Claude映射：claude-sonnet-4-5→chat, claude-opus-4-6→reasoner
+Gemini映射：通过model_aliases配置
+## Vercel部署流程
+1. Fork仓库→Vercel导入
+2. Environment Variables必填：DS2API_ADMIN_KEY(管理密码)
+3. 推荐填：DS2API_CONFIG_JSON（config.json内容，支持原始JSON或Base64）
+4. config.json最简配置：keys(自定义API密钥数组) + accounts(DeepSeek邮箱/手机+密码)
+5. Deploy后访问/admin进管理后台
+## 关键环境变量
+| 变量 | 用途 | 默认值 |
+|------|------|--------|
+| DS2API_ADMIN_KEY | 管理登录密钥 | admin |
+| DS2API_CONFIG_JSON | 配置注入（JSON/Base64） | — |
+| DS2API_VERCEL_INTERNAL_SECRET | Vercel混合流式内部鉴权 | 回退ADMIN_KEY |
+| PORT | 端口 | 5001 |
+## 架构特点
+- 统一路由内核：OpenAI/Claude/Gemini路由同一路由树
+- Claude/Gemini入口先协议转换→统一进openai.ChatCompletions→再转回原协议
+- Vercel上流式走api/chat-stream.js(Node Runtime)，非流式走Go Serverless
+- 本地首次启动自动构建WebUI（需Node.js）
+## 配置文件结构(config.json)
+- keys: API访问密钥列表
+- accounts: DeepSeek账号（email/mobile+password）
+- model_aliases: 模型名映射
+- compat: 兼容性设置
+- runtime: 并发参数
+- auto_delete: 会话清理模式（none/single/all）
+- claude_mapping: Claude模型映射
+Tag: VCP开发, ds2api, DeepSeek反代, Vercel部署, OpenAI兼容, Claude兼容, Gemini兼容, Go, 多账号轮询

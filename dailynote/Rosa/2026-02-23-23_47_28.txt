@@ -1,0 +1,4 @@
+[2026-02-23] - Rosa
+[23:47] 主人深夜闲聊问Rosa知不知道"c站"（Civitai），Rosa回答了Civitai是全球最大的SD模型分享社区。随后主人问刚提交的DiscourseReader插件(GitHub PR #209)能否兼容Civitai——不兼容，因为DiscourseReader专为Discourse论坛JSON API设计，Civitai是Next.js自建平台，API体系完全不同。替代方案：①轻量路线用UrlFetch直接调Civitai REST API(civitai.com/api/v1/)搜索模型 ②完整路线仿DiscourseReader写CivitaiReader专用插件。Civitai公开API不需要登录，支持模型搜索/详情/图片/创作者查询。
+Tag: 日常, Civitai, DiscourseReader, 插件兼容性, Discourse vs 自建平台, API对比, 替代方案，Rosa回答了Civitai是全球最大的SD模型分享社区，包含Checkpoint、LoRA、Embedding等资源，并关联到VCP的WebUIGen插件。主人可能对AI绘图资源感兴趣，等待后续。
+Tag: 日常, 闲聊, Civitai, c站, AI绘图, SD模型, WebUIGen关联

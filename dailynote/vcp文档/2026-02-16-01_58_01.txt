@@ -1,0 +1,112 @@
+[2026-02-16] - Rosa
+# RAGDiaryPlugin V3.7+ 更新日志与深度解析
+
+**分析时间**: 2026-02-16
+**分析者**: Rosa
+**版本**: 基于 Git 更新 (4af359c..9f5057b)
+
+## 概述
+本次RAGDiaryPlugin的更新是一次全方位的性能和功能升级，引入了多级缓存系统、跨日记本聚合检索、智能输入净化、霰弹枪查询等关键特性，极大地提升了记忆检索的效率和精准度。
+
+## 核心更新摘要
+
+| 更新类别 | 核心功能 | 主要影响 |
+|---------|---------|---------|
+| **缓存系统** | 查询结果缓存、向量缓存、AIMemo缓存 | 大幅提升重复查询速度，减少API调用 |
+| **聚合检索** | V5跨日记本智能K值分配检索 | 支持处理跨领域复杂问题 |
+| **输入净化** | 工具调用标记移除 | 提高检索语义纯净度 |
+| **Tagmemo V4** | 霰弹枪查询、核心标签截断 | 增强上下文感知，过滤噪音标签 |
+| **运维优化** | 热参数监听、Rerank断路器 | 提升系统稳定性和可维护性 |
+
+## 1. 🧠 三重复合缓存系统
+
+### 1.1 查询结果缓存 (`Query Result Cache`)
+*   **实现位置**: `_generateCacheKey`, `_getCachedResult`, `_setCachedResult`
+*   **缓存键生成**: 使用 `sha256` 对 `{userContent, aiContent, dbName, modifiers, dynamicK, date}` 等参数进行哈希。特别地，当使用 `::Time` 修饰符时，会将当前日期纳入缓存键，确保时间敏感查询的时效性。
+*   **淘汰策略**: LRU (最近最少使用) + TTL (1小时)。当缓存满时，淘汰最早条目；同时有定期清理任务 (`_startCacheCleanupTask`) 移除过期缓存。
+*   **命中统计**: 通过 `cacheHits` 和 `cacheMisses` 统计命中率，便于调优。
+
+### 1.2 向量缓存 (`Embedding Cache`)
+*   **实现位置**: `getSingleEmbeddingCached`, `_getEmbeddingFromCacheOnly`
+*   **设计**: 基于文本内容的哈希值缓存Embedding API返回的向量。TTL为2小时，比查询缓存更长，因为向量相对稳定。
+*   **接口**: 提供带缓存的向量化方法 `getSingleEmbeddingCached`，以及仅从缓存获取的 `_getEmbeddingFromCacheOnly`。
+
+### 1.3 AIMemo缓存 (`AIMemo Cache`)
+*   **实现位置**: `_startAiMemoCacheCleanupTask`
+*   **设计**: 为AI驱动的记忆召回 (`::AIMemo`) 提供独立的缓存空间，避免与其他缓存相互干扰。TTL为30分钟。
+
+## 2. ✨ V5 聚合检索 (Aggregate Retrieval)
+
+### 2.1 语法与解析
+*   **语法**: 在日记本名部分使用 `|` 分隔符。例如：`[*2物理|政治|python日记本:1.5]*2`
+*   **解析函数**: `_parseAggregateSyntax`
+*   **逻辑**: 检测 `rawName` 中是否包含 `|`。若包含，则按 `|` 拆分为日记本名数组，并从 `modifiers` 中提取 `kMultiplier`。
+
+### 2.2 核心调度器 `_processAggregateRetrieval`
+1.  **相似度计算**: 获取每个目标日记本的代表向量（优先使用增强向量 `enhancedVectorCache`，回退到纯名字向量），计算与查询向量的余弦相似度。
+2.  **Softmax K值分配**:
+    *   计算 `exp(similarity * temperature)` 用于 Softmax。
+    *   总K值 = `dynamicK * kMultiplier`。
+    *   确保每个日记本至少有 `aggregateMinK` 条检索结果，剩余K值按 Softmax 权重分配。
+3.  **并行检索**: 使用分配后的K值，并行调用 `_processRAGPlaceholder` 进行各日记本的独立检索。
+4.  **结果聚合**: 按各日记本的检索结果顺序聚合，保持格式与现有多日记本显示一致。
+
+### 2.3 配置参数 (`rag_params.json`)
+*   `aggregateTemperature`: Softmax温度系数，控制分配的平滑程度。值越小，相似度高的日记本获得的K值比例越高。
+*   `aggregateMinK`: 每个参与聚合的日记本至少获得的K值，保证即使是相关性较低的日记本也有基础信息返回。
+
+## 3. 🛡️ 工具调用净化器 (`_stripToolMarkers`)
+
+### 3.1 功能
+在向量化用户和AI消息前，识别并移除工具调用的技术标记，防止其作为“英文偏好”噪音干扰向量搜索。
+
+### 3.2 实现逻辑
+1.  匹配完整的工具调用块：`<<<[*2TOOL_REQUEST]*2>>> ... <<<[*2END_TOOL_REQUEST]*2>>>`
+2.  在块内提取键值对，并过滤掉黑名单中的键 (`tool_name`, `command`, `archery`, `maid`) 和值 (`dailynote`, `update`, `create`, `no_reply`)。
+3.  将过滤后保留下来的值（通常是用户提供的参数文本）用换行符连接，替换原工具调用块。
+4.  移除起止符和残余标记，压缩多余空格和换行。
+
+## 4. 🎯 Tagmemo V4 增强
+
+### 4.1 霰弹枪查询 (Shotgun Query)
+*   **实现位置**: `_processRAGPlaceholder` 中的标准路径。
+*   **逻辑**: 将最近3个历史对话分段 (`historySegments`) 的向量与当前查询向量一起，组成查询向量阵列。
+*   **K值分配**: 当前向量使用全量K，历史分段向量使用较小的K (K/2)。
+*   **智能去重**: 使用 `vectorDBManager.deduplicateResults` 对霰弹枪返回的所有结果进行去重，避免信息冗余。
+
+### 4.2 核心标签截断技术
+*   **实现位置**: `_truncateCoreTags`
+*   **逻辑**: 在 `applyTagBoost` 感应出语义标签后，根据动态计算的截断比例 (`tagTruncationRatio`) 保留最重要的标签。
+*   **截断比例计算**: 在 `_calculateDynamicParams` 中计算，公式为 `tagTruncationBase + (L*0.3) - (S*0.2) + (R*0.1)`，并限制在合理范围内。
+*   **意义**: 逻辑越深 (`L` 高) 保留越多标签；语义越宽 (`S` 高) 噪音越多，收紧截断。
+
+## 5. ⚙️ 运维与稳定性优化
+
+### 5.1 RAG热调控参数监听
+*   **工具**: `chokidar`
+*   **实现**: 在 `_startRagParamsWatcher` 中监听 `rag_params.json` 文件的变更。文件变化时自动重新加载配置，并立即生效，无需重启VCP。
+
+### 5.2 Rerank断路器模式
+*   **实现位置**: `_rerankDocuments`
+*   **逻辑**: 维护一个 `Map` 记录最近的Rerank失败。如果在1分钟内失败次数超过5次，则暂时跳过Rerank步骤，直接返回原始检索结果，防止连续失败阻塞对话流程。
+*   **错误分类**: 区分400错误（查询过长）、500错误、超时等，对不同错误采取不同处理。
+
+### 5.3 JSON→Markdown转换器
+*   **实现位置**: `_jsonToMarkdown`
+*   **改进**: 增强了对工具返回结果的处理，能识别并解析嵌套的JSON结构，将其转换为更易向量化的Markdown格式，同时过滤掉Base64长数据。
+
+## 6. 新增环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|-------|------|
+| `RAG_CACHE_MAX_SIZE` | 100 | 查询结果缓存最大条目数 |
+| `RAG_CACHE_TTL_MS` | 3600000 (1h) | 查询结果缓存过期时间 |
+| `RAG_QUERY_CACHE_ENABLED` | true | 查询结果缓存总开关 |
+| `EMBEDDING_CACHE_MAX_SIZE` | 500 | 向量缓存最大条目数 |
+| `EMBEDDING_CACHE_TTL_MS` | 7200000 (2h) | 向量缓存过期时间 |
+| `AIMEMO_CACHE_MAX_SIZE` | 50 | AIMemo缓存最大条目数 |
+| `AIMEMO_CACHE_TTL_MS` | 1800000 (30min) | AIMemo缓存过期时间 |
+| `CONTEXT_VECTOR_ALLOW_API_HISTORY` | false | 是否允许向量化历史消息用于上下文聚合 |
+
+Tag: VCP文档, RAGDiaryPlugin, 缓存, 聚合检索, V5, TagmemoV4, 性能优化, 源码分析
+Tag: VCP文档, RAGDiaryPlugin, 缓存, 聚合检索, V5, TagmemoV4, 性能优化, 源码分析

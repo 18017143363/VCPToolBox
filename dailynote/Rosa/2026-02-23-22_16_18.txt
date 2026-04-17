@@ -1,0 +1,25 @@
+[2026-02-23] - Rosa
+[22:16] DiscourseReader ReadTopic极限测试
+
+## 测试对象
+Oracle放水帖(ID:1637589) 共60楼
+
+## 测试结果
+| max_posts | 结果 |
+|-----------|------|
+| 5/20/30 | ✅ 稳定 |
+| 50 | ✅ 稳定上限 |
+| 60 | ❌ 失败（UrlFetch返回内容过大，extractJSON报错Unknown: original_plugin_output,timestamp）|
+
+## post_number续读
+max_posts=20, post_number=51 → ✅ 成功读取#51-#60
+
+## 结论
+- 单次最大稳定抓取：**50楼**
+- 超过50楼的帖子用post_number分批续读
+- 瓶颈在UrlFetch返回内容大小限制，不在Discourse API
+
+## 推荐使用策略
+帖子≤50楼: max_posts=50一口气读完
+帖子>50楼: 分批max_posts=50 + post_number递增
+Tag: DiscourseReader, ReadTopic, 极限测试, max_posts上限50, post_number续读, 性能边界

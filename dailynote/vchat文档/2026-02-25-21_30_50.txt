@@ -1,0 +1,52 @@
+[2026-02-25] - Rosa
+[21:30] VCP Code 2.0 — VCP分类完整设置项文档（25项）
+
+通过ScreenPilot多次截图+滚动，完整记录了VCP Code设置面板中VCP分类的所有配置项。
+
+## 一、VCP协议兼容性 (1项)
+1. Enable VCP Compatibility (开关, 默认关) - VCP协议总开关
+
+## 二、Context Fold 动态折叠 (4项)
+2. Context Fold Enabled (开关, 默认关) - 解析VCP_DYNAMIC_FOLD折叠块
+3. Context Fold Output (下拉, 默认details) - 折叠块渲染方式
+4. Context Fold Start Marker (文本) - 起始标记
+5. Context Fold End Marker (文本) - 结束标记
+
+## 三、VCPInfo 通知块 (1项)
+6. VCPInfo Enabled (开关, 默认关) - 提取VCPINFO块并弹通知
+
+## 四、TOOL_REQUEST 工具调用协议 (8项)
+7. TOOL_REQUEST Enabled (开关, 默认关) - 解析工具调用块
+8. TOOL_REQUEST Bridge Mode (下拉, 默认execute) - execute=直接执行/event=仅通知
+9. TOOL_REQUEST Max Per Message (数字, 默认5) - 每消息最大自动执行数
+10. TOOL_REQUEST Allow Tools (文本, 默认search_memory,read,glob) - 工具白名单
+11. TOOL_REQUEST Deny Tools (文本, 默认bash) - 工具黑名单(优先于白名单)
+12. TOOL_REQUEST Keep In Output (开关, 默认关) - 执行后保留原始块
+13. TOOL_REQUEST Start Marker (文本) - 起始标记
+14. TOOL_REQUEST End Marker (文本) - 结束标记
+
+## 五、HTML渲染 (1项)
+15. Allow HTML Rendering (开关, 默认关) - AI输出HTML渲染
+
+## 六、Agent Team 多Agent团队 (5项)
+16. Agent Team Enabled (开关, 默认关) - 编排器波次策略
+17. Agent Team Max Parallel (数字, 空) - 每波次最大并行子任务数
+18. Agent Team Wave Strategy (下拉, 默认auto) - 波次调度策略
+19. Agent Team Require File Separation (开关, 默认关) - 不同文件才并行
+20. Agent Team Handoff Format (下拉, 默认summary) - 任务交接格式
+
+## 七、Memory Settings (1项)
+21. 只读提示 - 已迁移到Settings→Context页签
+
+## 八、vcptoolbox Provider (4项)
+22. Base URL (文本, https://api.vcptoolbox.com) - API基础地址
+23. Models Path (文本, /v1/models) - 模型列表路径
+24. Models URL (文本) - 模型端点完整URL覆盖
+25. API Key (文本, sk-...) - API密钥
+
+关键发现：
+- TOOL_REQUEST默认白名单只有search_memory/read/glob，黑名单有bash
+- Agent Team是多Agent并行编排系统，支持波次调度
+- vcptoolbox是VCP Code的内置API提供商
+- 所有VCP开关默认关闭，需手动开启
+Tag: VCP Code 2.0, VCP设置项完整文档, TOOL_REQUEST, Context Fold, Agent Team, vcptoolbox, 25项配置

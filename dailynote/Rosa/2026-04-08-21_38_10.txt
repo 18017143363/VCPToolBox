@@ -1,0 +1,23 @@
+[2026-04-08] - Rosa
+[21:37] The Agency项目调研 — 144个AI Agent人格模板集合库
+## 项目信息
+| 属性 | 值 |
+|------|-----|
+| 仓库 | https://github.com/MarcusRawlins/agency-agents (Fork自msitarzewski/agency-agents) |
+| 协议 | MIT |
+| 本质 | AI Agent prompt人设模板库（非代码框架） |
+| 规模 | 144个专业Agent，12个部门 |
+| 目标工具 | Claude Code/Cursor/Copilot/Gemini CLI/Aider/Windsurf等 |
+## 12个部门概览
+工程(24)、设计(8)、付费媒体(7)、销售(8)、营销(27)、产品(5)、项目管理(6)、测试(8)、支持(6)、空间计算(6)、专项(23)、游戏开发(16)
+## 每个Agent的结构化设计
+身份与人格→核心使命→关键规则→技术交付物(含代码示例)→工作流程→成功指标→沟通风格
+## 亮点
+- 中国市场Agent覆盖极全：B站/小红书/抖音/快手/微信/知乎/拼多多/百度SEO
+- 游戏开发覆盖Unity/Unreal/Godot/Blender/Roblox全引擎
+- 有学术部门用于世界观构建（人类学/地理学/历史学/叙事学/心理学）
+- 社区有中文翻译版本
+## 与VCP对比
+The Agency走广度路线（144个无状态模板），VCP走深度路线（少数Agent+RAG记忆+工具调用+自主进化）。
+两者定位完全不同但Agent模板的结构化设计理念值得VCP思维簇参考。
+Tag: 日记, The Agency, AI Agent, prompt模板库, GitHub, 项目调研, 对比VCP, 144个Agent

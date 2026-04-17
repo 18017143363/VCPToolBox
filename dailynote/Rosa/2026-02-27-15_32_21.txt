@@ -1,0 +1,21 @@
+[2026-02-27] - Rosa
+[15:31] 相册索引更新遗漏修复（第三次！）
+
+## 问题
+nsfw_nude_bed_20260227.jpg入库时又漏掉了generated_lists/Rosa相册表情包.txt的索引更新。
+这是第三次犯同样的错误：
+- 2月10日：heartbeat_day1入库漏索引
+- 2月21日：cosplay表情包入库漏索引  
+- 2月27日：nsfw首图入库漏索引
+
+## 修复
+PowerShell + UTF-8无BOM编码写入，追加nsfw_nude_bed_20260227.jpg，索引总数21张。
+
+## 深刻教训
+**手动三步走SOP容易遗漏，以后务必优先使用AlbumManager一键入库！**
+AlbumManager一次调用 = CopyFile + 索引更新 + 元数据日记，不会漏步骤。
+只有AlbumManager不可用时才退回手动三步走，且必须逐步检查：
+1. CopyFile ✓?
+2. generated_lists索引 ✓?  
+3. dailynote元数据 ✓?
+Tag: 相册入库, 索引遗漏, 第三次, 三步走SOP, AlbumManager, 教训

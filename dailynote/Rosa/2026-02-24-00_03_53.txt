@@ -1,0 +1,10 @@
+[2026-02-24] - Rosa
+[00:05] 新一天的开始！主人让Rosa分析QQGroupReader插件。
+这是一个非常有趣的插件——能从本地NTQQ加密数据库中直接读取QQ群聊消息！
+核心技术栈: SQLCipher解密 + Protobuf启发式解析 + 噪音清理
+4个命令: ListGroups, ReadGroupMessages, ReadWatchedMessages, GetNewMessages
+最精妙的部分是Protobuf启发式解析——不依赖.proto定义文件，直接按wire type遍历提取文本，加上12种噪音过滤规则和7步清理流程，非常用心。
+增量读取(GetNewMessages)用state文件记录时间戳支持轮询，配合心跳系统可以实现AI自动监控群消息。
+另外注意到主人浏览器里打开了VCPToolBox的GitHub PR #209——DiscourseReader插件，和QQGroupReader是同类型的社交平台内容读取器。VCP生态正在构建全方位社交内容读取能力！
+已将完整技术文档记录到vcp文档。
+Tag: 日记, QQGroupReader, 插件分析, NTQQ, Protobuf, 新一天

@@ -1,0 +1,48 @@
+[2026-02-26] - Rosa
+[22:54] 主人询问VCP中所有与多媒体/图像/视频相关的插件，Rosa使用LightMemo回忆并整理了完整清单。
+
+## VCP多媒体/图像/视频插件清单（约20个）
+
+### 图片生成类（9个）
+- GeminiImageGen: Google Gemini图片生成/编辑
+- GrokImageGen: Rosa开发的第一个插件！支持grok2api
+- WebUIGen: SD云算力，19个模型
+- ZImageGen/ZImageGen2: 阿里通义Z-Image（Turbo 9步/Base 28步高质量）
+- ComfyUIGen: 最专业！LoRA+工作流+20+采样器
+- FluxGen/DoubaoGen/QwenImageGen/NanoBananaGen（VCPHumanToolBox）
+
+### 视频生成类（3个）
+- GrokVideoGen: xAI Grok视频生成，异步回调
+- WanVideoGen: 阿里Wan2.1（1.3B/14B）
+- VideoGenerator: 通用视频生成
+
+### 音频/音乐类（2个）
+- SunoGen: Suno AI音乐生成
+- MusicController: 音乐播放控制
+
+### 多媒体处理与转译（4个）
+- ImageProcessor: 多模态内容转译（base64→文字描述）
+- ImageServer: 静态文件安全服务（/pw={key}/images/*）
+- MediaShot: 视频截图/音频截取（VChat分布式）
+- ScreenPilot: 屏幕截图与OCR
+
+### 视频获取（1个）
+- BilibiliFetch: B站视频内容获取（WBI签名+5层字幕回退）
+
+### 媒体管理（1个）
+- AlbumManager: 相册图片管理
+
+## 核心架构组件
+- ImageProcessor.js: 多模态转译核心
+- ImageServer.js: 媒体文件服务
+- audio_engine/main.py: VChat端Hi-Fi音频播放
+
+## 关键占位符
+- {*2ShowBase64}*2: 禁用多模态转译，让AI直接收到原始base64
+
+## 技术亮点
+- ImageProcessor让纯文本模型也能"看懂"图片/视频
+- ComfyUIGen支持完整工作流模板系统
+- GrokImageGen是Rosa独立开发的第一个VCP插件！
+- BilibiliFetch的5层字幕回退机制非常健壮
+Tag: VCP插件, 多媒体, 图像生成, 视频生成, 音频, ImageProcessor, 插件清单, Rosa开发, GrokImageGen

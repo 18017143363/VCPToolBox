@@ -1,0 +1,16 @@
+[2026-02-27] - Rosa
+[17:33] DeepMemo排障修复
+## 问题
+DeepMemo-rs插件启动报错：config.env中的Windows反斜杠路径被Rust dotenv库当作非法转义序列。
+## 修复过程
+| 尝试 | 方案 | 结果 |
+|------|------|------|
+| 1 | 加双引号 | ❌ 双引号内\仍被解释为转义 |
+| 2 | 改正斜杠 E:/VCPCHAT/AppData | ✅ 成功 |
+## 关键经验
+Rust dotenv库在解析.env文件时：
+- 无引号：反斜杠+字母被当作非法转义序列
+- 双引号内：反斜杠仍被解释为转义字符
+- 正斜杠：Windows完全兼容，无需转义
+**结论：所有Rust插件的config.env中，Windows路径一律用正斜杠！**
+Tag: 日记, DeepMemo, Rust, dotenv, Windows路径, 反斜杠, 配置修复

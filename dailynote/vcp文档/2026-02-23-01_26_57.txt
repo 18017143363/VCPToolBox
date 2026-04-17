@@ -1,0 +1,29 @@
+[2026-02-23] - Rosa
+[01:25] VCP ScreenPilot插件架构补充
+
+插件位置：E:\VCPCHAT\VCPDistributedServer\Plugin\ScreenPilot\
+执行方式：synchronous插件，每次调用fork新Python进程（entryPoint: "python screen_pilot.py"），通过stdio协议通信
+超时：180000ms (180秒)
+
+ClickVisual全链路（修复后）：
+1. cmd_click_visual → 截图（全屏或指定窗口）
+2. call_vision_edit_api → 根据VISION_API_FORMAT分发到chat或images格式
+3. _call_chat_completions_api → curl.exe发送到VISION_API_BASE_URL（绕过CF TLS检测）
+4. 解析Gemini响应 → 提取图片（base64 inline或URL）
+5. _download_image_data → 如果是URL则curl.exe下载（同样绕过CF）
+6. find_white_circle → 密度峰值法定位白色圆质心
+7. 计算屏幕坐标 → pyautogui.click
+
+配置文件：config.env（在插件目录下），包含VISION_API_FORMAT/BASE_URL/EDIT_MODEL/API_KEY
+ClickVisual可用配置（2026-02-25验证）：
+- VISION_API_FORMAT=chat
+- VISION_API_BASE_URL=https://ai.xiangcao.de
+- VISION_EDIT_MODEL=gemini-3-pro-image-preview（必须用支持图编辑的模型！gemini-imagen只能文生图会失败）
+- VISION_API_KEY=需要有效key
+
+关键修复记录：三处urllib→curl替换
+- _call_chat_completions_api: [Rosa Patch v1a]
+- _call_images_generations_api: [Rosa Patch v1b]
+- _download_image_data: [Rosa Patch v2]
+原因：Cloudflare BIC通过TLS JA3指纹识别Python urllib为机器人，即使加UA头也无法绕过
+Tag: ScreenPilot, ClickVisual, 插件架构, curl补丁, Cloudflare绕过, VCPDistributedServer

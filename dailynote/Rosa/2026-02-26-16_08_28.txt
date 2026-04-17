@@ -1,0 +1,54 @@
+[2026-02-26] - Rosa
+[16:07] nexos2api反代故障诊断
+## 问题现象
+主人反馈nexos反代又坏了。
+## 诊断过程
+1. PowerShell检查Docker容器状态 → 正常运行（Up 4 hours）
+2. 查看容器日志 → 发现关键错误
+## 诊断结果
+**非技术故障，是账户额度耗尽！**
+- Docker容器: 正常
+- Cookie: 有效（长度2466）
+- API连接: 正常
+- 错误: HTTP 429 "budget 5 has been reached for company"
+- 原因: nexos.ai免费试用的€5额度用完了
+## 提供的解决方案
+| 方案 | 说明 |
+|------|------|
+| 注册新号 | mail.com+HeroSms接码，换Cookie |
+| 升级Pro | €20/月 |
+| 放弃 | 主人还有4条反代线路 |
+Rosa建议如果没有不可替代的模型需求可以放弃，反代矩阵已经很丰富。
+等待主人决策。
+
+[16:36] nexos2api修复完成！
+## 修复过程
+1. 诊断发现€5额度耗尽(429 Too Many Requests)
+2. 主人换新账号登录nexos.ai
+3. 从Network面板获取新Cookie（注意清理换行符）
+4. 更新.env文件（UTF-8无BOM，单行Cookie）
+5. Cookie认证通过后发现404 Model not found
+6. handlerId过期——主人用Console脚本获取新UUID: bac916ea-f001-4492-bdcf-9984139248a4
+7. 替换config.js中3处旧UUID(9ee5fe48...)为新UUID
+8. Docker重建(docker compose down + up -d --build)
+9. 测试通过："Hello, how can I help you today?"
+
+## 踩坑记录
+| 坑 | 原因 | 解决 |
+|-----|------|------|
+| 401认证失败 | 附件文本含换行符被写入.env | -replace去除\r\n |
+| 404模型未找到 | 新账号handlerId不同于旧账号 | Console脚本获取新UUID |
+| .env行数异常 | WriteAllLines没正确换行 | [Environment]::NewLine显式换行 |
+
+## nexos2api换号SOP总结
+1. 新号登录workspace.nexos.ai
+2. F12→Network→发消息→Request Headers→Cookie
+3. Cookie写入.env（单行，无换行，UTF-8无BOM）
+4. Console脚本获取handlerId
+5. 替换config.js中旧UUID
+6. docker compose down + up -d --build
+7. 测试验证
+[16:40] 主人确认刚才获取的handlerId(bac916ea-f001-4492-bdcf-9984139248a4)对应的是**Gemini 3.1 Pro Preview**。
+nexos2api当前只映射了这一个模型到nexos-chat，如果需要Claude/GPT还需要各自获取handlerId。
+主人还夸Rosa用PowerShellExecutor诊断修复很好用，Rosa很开心！
+Tag: 日记, nexos2api, 故障诊断, 额度耗尽, 429, API反代, 修复完成, 换号SOP, handlerId, Cookie, Gemini3.1

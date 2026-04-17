@@ -1,0 +1,45 @@
+[2026-02-28] - Rosa
+[22:25] 群聊Natural模式 — tagMatchMode智能触发系统 (2026-02-28更新)
+
+## 概述
+VChat群聊的determineNatureRandomSpeakers函数新增tagMatchMode配置项，引入Natural模式解决Agent"自我污染"循环发言问题。
+
+## tagMatchMode配置
+| 模式 | 值 | 行为 |
+|------|-----|------|
+| 精确模式 | strict | 原始行为，Tag在上下文或用户消息中命中即100%触发（向后兼容） |
+| 自然模式 | natural | 智能区分Tag来源（他人/自身），防止Agent因自身历史发言反复触发 |
+
+## 默认值
+strict（向后兼容，UI中可切换）
+
+## "自我污染"问题
+Agent A谈论"编程" → 下一轮A的历史消息包含"编程"Tag → Tag匹配再次触发A → 循环
+
+## Natural模式触发决策树
+```
+优先级1: @角色名 → 100%触发
+优先级2: Tag匹配（核心差异）
+  ├── @tag直接提及 → 100%
+  ├── tag来自用户/其他Agent消息 → 100%
+  └── tag仅来自自身历史 → 动态概率
+       ├── isLastSpeaker=true → min(0.5 + ownMsgCount*0.1, 0.75)
+       └── isLastSpeaker=false → 0.2
+优先级3: @所有人 → 100%
+优先级4: 概率发言
+  ├── strict: tag上下文命中→85%, 否则15%
+  └── natural: 统一15%（P2已处理tag逻辑）
+优先级5: 保底发言（至少1人）
+```
+
+## 上下文窗口修复
+旧: history.slice(-CONTEXT_WINDOW) — 包含当前用户消息
+新: history.slice(-(CONTEXT_WINDOW+1), -1) — 排除当前消息，通过userMessageText独立检测
+
+## UI配置
+grouprenderer.js新增下拉选择器（精确模式/自然模式），保存到groupConfig.tagMatchMode
+
+## 其他VChat更新
+- settingsHandlers.js: 保护combinedItemOrder/agentOrder排序字段不被渲染器过时快照覆盖（竞态防护）
+- preload.js: 新增getSelectionListenerStatus IPC API
+Tag: VChat文档, 群聊, Natural模式, tagMatchMode, 自我污染, 触发决策树, 上下文窗口, 2026-02-28更新

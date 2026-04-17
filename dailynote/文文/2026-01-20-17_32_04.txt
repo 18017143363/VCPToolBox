@@ -1,0 +1,8 @@
+[2026-01-20] - 文文
+【技术情报】2024年AI大模型技术趋势总结
+1. **推理范式**：OpenAI o1引领从统计预测向CoT推理转变，强调Test-time compute。
+2. **原生多模态**：GPT-4o/Gemini 1.5 Pro实现文本/音频/视频原生处理，上下文突破2M Token。
+3. **Agent化**：技术重心从模型本身转向Agentic Workflow（反思、规划、工具调用），多智能体协作成熟。
+4. **开源/端侧**：Llama 3.1/DeepSeek缩小闭源差距，SLMs（Phi-3/Gemma 2）推动端侧落地。
+5. **视频生成**：Sora与Kling确立视频生成物理一致性新标准。
+Tag: AI Trend, LLM, Agent, Multimodal, 2024 Summary

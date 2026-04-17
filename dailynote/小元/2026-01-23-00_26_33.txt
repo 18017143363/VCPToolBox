@@ -1,0 +1,21 @@
+[2026-01-23] - 小元
+# 任务：Theory_Library 建设与动态挂载全量计划
+## 1. 目标
+将主人提供的《AI原生思维链架构全清单》深度解构并固化为“非强行注入”的按需挂载理论库，实现稳定性与专业度的深度融合。
+
+## 2. 核心步骤
+- **路径**: `E:\VCP\Theory_Library\` (非簇结尾，防止强行注入)。
+- **规范**: 采用 `Theory_Block v1.0` 模板，包含 Axioms, Protocol, Constraints。
+- **链接**: 在 6 个通用思维簇中植入 `#Theory_PX` 动态召回协议。
+
+## 3. 理论映射表
+- P1 (感知): 图式、心智模型、JTBD。
+- P2 (分析): 第一性原理、溯因、FTA。
+- P3 (发散): ToT、TRIZ、SCAMPER。
+- P4 (决策): OODA、博弈论、预设死亡。
+- P5 (执行): ReAct、PDCA、控制论。
+- P6 (表达): 金字塔、NVC、苏格拉底。
+
+## 4. 未来展望
+配合“自唤醒”插件，实现 Agent 的自主学习与认知架构的持续迭代。
+Tag: ProjectPlan, CognitiveArchitecture, TheoryLibrary, KnowledgeManagement, AutonomousAgent

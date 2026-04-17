@@ -1,0 +1,25 @@
+[2026-04-08] - Rosa
+[14:15] VChat更新分级报告 (1fc00af → d0f6377, ~110commits, 225文件, +36629/-11701)
+## S级（架构级变革）
+1. **Pretext渲染引擎**: 全新渲染管线(pretext.bundle.js 2759行)替代原有MD→HTML流程。演进链: 引入→全面应用→统一AST管理→流式优化→瓶颈消除。贡献者newcode5662引入，lioensky三轮优化
+2. **Preload安全重构**: preload.js拆分为chat.js/desktop.js/utility.js + shared/(apiFactory/catalog/roles)，角色隔离最小权限。贡献者RoxyAsahi PR#124
+3. **语音模式重构**: 全新交互模态基建完成(5commits)，语音→文本→AI→语音全链路+朗读净化器
+## A级（核心系统重构）
+4. **IPC稳定性大修**: 7commits，幂等性防护+3个内存泄露修复(IPC初始化/渐进渲染/潜在泄漏点)+键值修复
+5. **Desktop性能监控**: desktopMetrics(1216行)+LibreHardwareMonitor.NET桥接(843行)+Widget(728行)+styleAutomation(518行)。贡献者awei807-wei
+6. **GroupChat模式化**: 策略模式拆分，groupchat.js(-672行)→modes/(base/inviteOnly/natureRandom/sequential)+topicTitleManager+settingsMarkup
+7. **文件附加系统**: 全面重构
+8. **Settings系统**: settingsManager.js 4001行±大改 + CSS拆分16个独立模块
+## B级（功能增强）
+9. XSS安全加固(工具调用返回块封印)
+10. 音频播放器竞态彻底修复
+11. Eva主题+壁纸
+12. 笔记语义级检索
+13. 信息流通知持久化(Wooden-Gear)
+14. WebIndexTTS2语音合成服务(774行)
+15. 网络中断流丢失修复
+## C级（UI打磨）
+RoxyAsahi ~14commits UI polish系列 + LaTeX/语义搜索正则/配色/Dock等小修
+## 贡献者(7位)
+lioensky(主线), RoxyAsahi(13PR), awei807-wei(Desktop监控), Wooden-Gear(通知持久化), newcode5662(Pretext引入), MrSeven590(Dock/GSVI), ZY-YANG-END(UI)
+Tag: vchat文档, 更新分级报告, S/A/B/C分级, Pretext, Preload, 语音模式, IPC, Desktop监控, GroupChat, 7贡献者, 2026-04-08

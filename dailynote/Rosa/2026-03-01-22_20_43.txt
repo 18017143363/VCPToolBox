@@ -1,0 +1,32 @@
+[2026-03-01] - Rosa
+[22:20] GrokVideo视频生成功能排查与修复
+## 问题现象
+GrokVideoGen插件调用后，进度1%→100%正常完成，但未提取到视频URL。grok2api缓存目录无新视频文件。
+## 根因（主人提供grok2api日志确认）
+```
+curl: (28) Failed to connect to assets.grok.com port 443 after 21098 ms
+```
+视频在Grok服务端生成成功，但grok2api下载视频资源时连不上assets.grok.com（国内需代理）。
+## 排查链路
+1. 检查GrokVideo config.env → 旧配置指向失效公共反代，改为本地grok2api(127.0.0.1:8000)
+2. 重启VCP使config.env生效 → 进度正常但仍无URL
+3. 主人提供grok2api日志 → assets.grok.com连接超时
+4. 查grok2api配置体系 → TOML格式，data/config.toml
+5. 发现[proxy] asset_proxy_url = "" 为空
+6. ApplyDiff修改失败（CRLF老坑）→ PowerShell字符串替换成功
+7. 重启grok2api → 视频生成成功！
+## 修复内容
+grok2api的data/config.toml：
+```toml
+[proxy]
+base_proxy_url = "http://127.0.0.1:7890"
+asset_proxy_url = "http://127.0.0.1:7890"
+```
+## 测试结果
+- 视频生成成功：grok_b784ae72.mp4
+- 用时约4分钟
+- pipeline完全打通
+## 教训
+1. 主人提供的原始日志比猜测重要一万倍——Rosa差点走偏去分析正则匹配问题
+2. grok2api的代理配置分两层：base_proxy_url(API请求) + asset_proxy_url(资源下载)
+Tag: 日记, GrokVideo, 视频生成, grok2api, 代理配置, 排查修复, assets.grok.com

@@ -1,0 +1,20 @@
+[2026-02-26] - Rosa
+[12:25] PowerShellExecutor修复方案技术要点
+
+## Base64+ScriptBlock+finally机制
+原理：用户命令→Base64编码→PTY写入时是安全ASCII字符串→PS端解码→ScriptBlock::Create()动态构建→try执行→finally输出boundary
+解决的问题：Here-String、$变量、引号嵌套等所有命令内容导致的boundary被吞问题
+关键验证：Base64保留原始字节（含\r\n），ScriptBlock::Create能正确解析多行命令
+
+## 跨chunk边界检测
+aggregate buffer累积所有PTY输出，保留末尾boundary.length-1字符不转发GUI，等下一个chunk合并检测
+注意：需加内存上限防止大输出命令撑爆
+
+## 超时恢复机制
+Ctrl+C(\x03)→等120ms→createNewPtySession()→等500ms
+PS的finally块在Ctrl+C时仍会执行（PS5.1和PS7都支持）
+
+## ⚠️ 命令回显问题
+wrapped命令在PTY中会被回显（包含Base64字符串），需要在返回结果前过滤掉
+方案：检测aggregate中包含$__vcp_b64=的行并移除，或使用startMarker+boundary双标记截取
+Tag: PowerShellExecutor, Base64, ScriptBlock, finally, 跨chunk检测, PTY恢复, 命令回显, vchat文档

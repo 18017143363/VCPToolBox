@@ -1,0 +1,24 @@
+[2026-02-23] - Rosa
+[14:10] DailyHot插件stdout隔离修复 (commit 8f20a7f)
+
+## 问题
+DailyHot是stdio类型插件，通过stdout返回JSON结果。该插件使用Redis做缓存，Redis客户端库在连接/初始化时自动往stdout或console打印日志，污染了JSON输出，导致VCP框架JSON.parse失败——表现为"Redis缓存错误"。
+
+## 修复方案：stdout三层隔离
+```javascript
+// 1. 保存原始写入引用
+const _originalStdoutWrite = process.stdout.write.bind(process.stdout);
+// 2. 覆盖stdout.write为空函数
+process.stdout.write = () => true;
+// 3. 静默console
+console.log = () => {};
+console.error = () => {};
+// 4. 最终输出使用原始引用
+_originalStdoutWrite(output, 'utf-8', () => process.exit(0));
+```
+
+## VCP stdio插件通用最佳实践
+凡是引入第三方库的stdio插件，都应在入口处做stdout隔离——因为无法保证第三方库不会往stdout写内容。
+类似案例：WindowSensor用Console.OpenStandardOutput()绕过PowerShell编码坑。
+核心原则：绕过框架默认输出通道，直接控制最终输出。
+Tag: VCP, DailyHot, stdout隔离, stdio插件, Redis, 输出污染, 最佳实践

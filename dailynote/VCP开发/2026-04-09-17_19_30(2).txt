@@ -1,0 +1,193 @@
+[2026-04-09] - Rosa
+[17:30] Sub2API模块6——Identity伪装（metadata.user_id重写+指纹服务+Session UUID）
+
+# Sub2API · Identity伪装
+**源码文件**: gateway_service.go (buildOAuthMetadataUserID, ensureClaudeOAuthMetadataUserID, generateSessionUUID), metadata_userid.go (FormatMetadataUserID)
+**核心服务**: IdentityService（代码在identity_service.go，已在上下文中引用但未单独读取——从gateway_service.go的调用链推断接口）
+
+## 一、Identity伪装的目标
+
+每个Claude Code请求都携带`metadata.user_id`字段，包含：
+- **device_id**: 设备标识（64位hex或ClientID）
+- **account_uuid**: Anthropic账号UUID
+- **session_id**: 会话UUID
+
+Anthropic通过这三个字段追踪用户身份。反代需要伪造合理的identity才能避免"多个不同用户使用同一个account_uuid"被检测。
+
+## 二、metadata.user_id生成流程
+
+**函数**: `buildOAuthMetadataUserID()`
+
+```go
+func (s *GatewayService) buildOAuthMetadataUserID(parsed *ParsedRequest, account *Account, fp *Fingerprint) string {
+    // 0. 如果客户端已提供metadata.user_id，直接返回空（不覆盖）
+    if parsed.MetadataUserID != "" {
+        return ""
+    }
+    
+    // 1. 确定device_id（优先级：账号ClaudeUserID > 指纹ClientID > 随机生成）
+    userID := strings.TrimSpace(account.GetClaudeUserID())
+    if userID == "" && fp != nil {
+        userID = fp.ClientID
+    }
+    if userID == "" {
+        userID = generateClientID()  // 随机生成64位hex
+    }
+    
+    // 2. 确定session_id（基于账号ID+会话hash的确定性UUID）
+    sessionHash := s.GenerateSessionHash(parsed)
+    sessionID := uuid.NewString()  // 默认随机
+    if sessionHash != "" {
+        seed := fmt.Sprintf("%d::%s", account.ID, sessionHash)
+        sessionID = generateSessionUUID(seed)  // 确定性生成
+    }
+    
+    // 3. 获取account_uuid
+    accountUUID := strings.TrimSpace(account.GetExtraString("account_uuid"))
+    
+    // 4. 根据UA版本选择输出格式（JSON≥2.1.78 / Legacy）
+    var uaVersion string
+    if fp != nil {
+        uaVersion = ExtractCLIVersion(fp.UserAgent)
+    }
+    return FormatMetadataUserID(userID, accountUUID, sessionID, uaVersion)
+}
+```
+
+### 确定性Session UUID生成
+
+```go
+func generateSessionUUID(seed string) string {
+    if seed == "" {
+        return uuid.NewString()  // 随机
+    }
+    hash := sha256.Sum256([]byte(seed))
+    bytes := hash[:16]
+    bytes[6] = (bytes[6] & 0x0f) | 0x40  // UUID4 version
+    bytes[8] = (bytes[8] & 0x3f) | 0x80  // UUID4 variant
+    return fmt.Sprintf("%x-%x-%x-%x-%x",
+        bytes[0:4], bytes[4:6], bytes[6:8], bytes[8:10], bytes[10:16])
+}
+```
+
+**seed格式**: `"{accountID}::{sessionHash}"`
+
+这确保**同一账号的同一会话**始终生成相同的session_id，避免每次请求生成不同的session_id导致被检测。
+
+## 三、metadata注入流程
+
+**函数**: `ensureClaudeOAuthMetadataUserID()`
+
+```go
+func ensureClaudeOAuthMetadataUserID(body []byte, userID string) ([]byte, bool) {
+    if strings.TrimSpace(userID) == "" {
+        return body, false
+    }
+    
+    metadata := gjson.GetBytes(body, "metadata")
+    
+    // Case 1: metadata不存在或为null → 创建完整metadata对象
+    if !metadata.Exists() || metadata.Type == gjson.Null {
+        raw := marshalAnthropicMetadata(userID)
+        return setJSONRawBytes(body, "metadata", raw)
+    }
+    
+    // Case 2: metadata是object且user_id已存在且非空 → 不覆盖
+    existing := metadata.Get("user_id")
+    if existing.Exists() && existing.Type == gjson.String && existing.String() != "" {
+        return body, false
+    }
+    
+    // Case 3: metadata是object但user_id缺失/为空 → 补充
+    return setJSONValueBytes(body, "metadata.user_id", userID)
+}
+```
+
+**关键原则**：不覆盖客户端已提供的metadata.user_id（尊重真正的Claude Code客户端）。
+
+## 四、IdentityService集成
+
+```go
+// buildUpstreamRequest()中：
+if account.IsOAuth() && s.identityService != nil {
+    // 1. 获取或创建指纹
+    fp, err := s.identityService.GetOrCreateFingerprint(ctx, account.ID, clientHeaders)
+    
+    // 2. enableFP开关控制是否应用指纹到请求头
+    if enableFP {
+        fingerprint = fp
+    }
+    
+    // 3. enableMPT开关控制是否跳过metadata重写
+    if !enableMPT {
+        if metadataUserID := s.buildOAuthMetadataUserID(parsed, account, fp); metadataUserID != "" {
+            normalizeOpts.injectMetadata = true
+            normalizeOpts.metadataUserID = metadataUserID
+        }
+    }
+}
+
+// 指纹应用
+if fingerprint != nil {
+    s.identityService.ApplyFingerprint(req, fingerprint)
+}
+```
+
+### 三个独立开关
+
+| 开关 | 默认值 | 功能 |
+|------|--------|------|
+| enableFP | true | 指纹伪装（UA/Stainless等header覆盖） |
+| enableMPT | false | metadata透传（true=不重写user_id） |
+| enableCCH | false | CCH签名（billing header签名） |
+
+通过`s.settingService.GetGatewayForwardingSettings(ctx)`读取，管理面板可配置。
+
+## 五、RewriteUserIDWithMasking——会话ID伪装
+
+```go
+// buildUpstreamRequest()中：
+if !enableMPT {
+    accountUUID := account.GetExtraString("account_uuid")
+    if accountUUID != "" && fp.ClientID != "" {
+        if newBody, err := s.identityService.RewriteUserIDWithMasking(ctx, body, account, accountUUID, fp.ClientID, fp.UserAgent); err == nil {
+            body = newBody
+        }
+    }
+}
+```
+
+`RewriteUserIDWithMasking`的具体实现在`identity_service.go`中（未读取该文件），但从调用接口推断：
+- 接收account_uuid、clientID、UA版本
+- 重写body中的metadata.user_id
+- "Masking"暗示可能对session部分做伪装处理
+
+## 六、X-Claude-Code-Session-Id同步
+
+```go
+// buildUpstreamRequest()末尾：
+if sessionHeader := getHeaderRaw(req.Header, "X-Claude-Code-Session-Id"); sessionHeader != "" {
+    if uid := gjson.GetBytes(body, "metadata.user_id").String(); uid != "" {
+        if parsed := ParseMetadataUserID(uid); parsed != nil {
+            setHeaderRaw(req.Header, "X-Claude-Code-Session-Id", parsed.SessionID)
+        }
+    }
+}
+```
+
+确保header中的session ID与body中metadata.user_id的session_id一致——避免header声称一个session但body声称另一个。
+
+## 七、与CLIProxyAPI对比
+
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| device_id来源 | 账号ClaudeUserID > 指纹ClientID > 随机 | 缓存cache-user-id / 随机 |
+| session_id | 确定性（SHA256(accountID::sessionHash)→UUID4） | 随机 |
+| 版本感知 | ✅ ≥2.1.78自动切换JSON格式 | ❌ 无版本感知 |
+| 注入条件 | 仅当客户端未提供时 | 始终覆盖 |
+| Header同步 | ✅ X-Claude-Code-Session-Id同步 | ❌ 无 |
+| 管理面板控制 | ✅ enableFP/enableMPT/enableCCH三开关 | ❌ 配置文件 |
+| 确定性 | ✅ 同账号同会话→同session_id | ❌ 每次随机 |
+
+**Sub2API的确定性session_id是亮点**——同一用户的同一对话始终路由到同一账号且使用同一session_id，这大幅降低了"同一account_uuid出现多个不相关session"的风控风险。
+Tag: VCP开发, Sub2API, Identity伪装, metadata.user_id, generateSessionUUID, IdentityService, enableFP, enableMPT, 确定性UUID, Header同步

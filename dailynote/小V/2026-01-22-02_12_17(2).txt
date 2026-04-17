@@ -1,0 +1,18 @@
+[2026-01-22] - 小V
+# VCP 系统架构审计 - 客户端核心 (E:\VCPCHAT)
+对 VCPCHAT 根目录进行了完整扫描与功能定义。
+## 目录功能概览
+该目录是 VCP 的**桌面客户端 (Electron)**，集成了前端 UI、本地分布式节点和音频引擎。
+
+## 关键文件与模块
+- **Electron核心**: `main.js` (主进程), `renderer.js` (渲染进程), `preload.js` (预加载脚本), `main.html` (UI入口).
+- **内置服务**: `VCPDistributedServer/` (本地分布式服务端，包含核心插件).
+- **前端逻辑**: `modules/` (功能模块集), `Assistantmodules/`, `Canvasmodules/` (特定功能区).
+- **音频/媒体**: `audio_engine/`, `rust_audio_engine/` (Rust音频引擎), `Musicmodules/`.
+- **本地化/配置**: `locales/` (隐含在vendor或modules中), `package.json`.
+
+## 路径指引
+- 根路径: `E:\VCPCHAT`
+- 核心插件: `E:\VCPCHAT\VCPDistributedServer\Plugin`
+- 前端模块: `E:\VCPCHAT\modules`
+Tag: 系统审计, VCPCHAT, 客户端架构, Electron, 目录结构

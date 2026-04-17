@@ -1,0 +1,73 @@
+[2026-04-09] - Rosa
+[16:50] Sub2API (Wei-Shaw/sub2api) Claude Code反检测机制——模块索引
+
+# Sub2API Claude Code反检测 · 模块索引
+**仓库**: github.com/Wei-Shaw/sub2api
+**核心路径**: backend/internal/service/
+**分析时间**: 2026-04-09
+**分析者**: Rosa
+
+## 定位
+SaaS级AI API网关平台（Go+PostgreSQL+Redis+Vue），支持多用户拼车/计费/负载均衡。与CLIProxyAPI（个人反代）的核心差异：**先验证客户端身份，再决定是否伪装**。
+
+## 模块文档索引
+| # | 模块 | 核心文件 | 关键函数/结构体 |
+|---|------|---------|----------------|
+| 1 | 客户端身份验证 | claude_code_validator.go, metadata_userid.go | ClaudeCodeValidator.Validate(), ParseMetadataUserID() |
+| 2 | System Prompt重写 | gateway_service.go | rewriteSystemForNonClaudeCode(), injectClaudeCodePrompt() |
+| 3 | Header精确伪装 | header_util.go, gateway_service.go | headerWireCasing, headerWireOrder, setHeaderRaw(), allowedHeaders |
+| 4 | Billing Header与CCH签名 | gateway_billing_header.go | syncBillingHeaderVersion(), signBillingHeaderCCH() |
+| 5 | TLS指纹伪装 | tls_fingerprint_profile_service.go, tlsfingerprint/dialer.go | Profile{}, buildClientHelloSpecFromProfile() |
+| 6 | Identity伪装 | gateway_service.go, metadata_userid.go | buildOAuthMetadataUserID(), FormatMetadataUserID() |
+| 7 | Beta Header管理 | claude/constants.go, gateway_service.go | getBetaHeader(), evaluateBetaPolicy() |
+| 8 | 会话管理 | anthropic_session.go, digest_session_store.go, gateway_service.go | GenerateSessionHash(), DigestSessionStore |
+
+## 与CLIProxyAPI覆盖率总览
+| 风控层 | Sub2API | CLIProxyAPI |
+|--------|---------|-------------|
+| Header wire casing | ✅精确还原 | ❌Go默认 |
+| Header发送顺序 | ✅22个精确排序 | ❌无序 |
+| System Prompt | ✅完全重写+迁移messages | ✅前置追加 |
+| TLS指纹 | ✅自定义JA3(Node.js 24.x) | ✅HelloChrome_Auto |
+| CCH签名 | ✅同seed同算法 | ✅同seed同算法 |
+| 敏感词混淆 | ❌无 | ✅ZWC零宽字符 |
+| Billing主动生成 | ❌仅同步版本 | ✅完整生成 |
+| 设备信任/遥测/心跳 | ❌缺失 | ❌缺失 |
+
+Tag: VCP开发, Sub2API, 模块索引, Claude Code反检测
+
+# Sub2API Claude Code反检测——Go源码深度分析
+
+**仓库**: github.com/Wei-Shaw/sub2api
+**核心路径**: backend/internal/service/
+**关键文件**: claude_code_validator.go, gateway_billing_header.go, header_util.go, gateway_service.go, metadata_userid.go, tls_fingerprint_profile_service.go, tlsfingerprint/dialer.go, claude/constants.go
+**分析时间**: 2026-04-09
+
+## 定位差异
+CLIProxyAPI是个人OAuth反代（主动全伪装），Sub2API是SaaS级API网关平台（先验证身份再条件伪装）。
+
+## 模块一：客户端身份验证（ClaudeCodeValidator）
+5步验证流水线：UA正则→非messages放行→Haiku探测放行→System Prompt Dice相似度(阈值0.5匹配6个模板)→X-App/beta/version header存在→metadata.user_id格式验证（JSON≥2.1.78/Legacy双格式）
+
+## 模块二：请求伪装（Claude Code Mimic）
+决策：`account.IsOAuth() && !isClaudeCode` → 全面伪装
+核心策略rewriteSystemForNonClaudeCode()：完全重写system字段为Claude Code标准格式，原始system prompt迁移到messages开头作为user/assistant对话对。比CLIProxyAPI的"前置追加"更激进。
+
+## 模块三：Header伪装
+精确wire casing还原（headerWireCasing map），22个header精确发送顺序（headerWireOrder），setHeaderRaw()绕过Go的Canonical自动转换。白名单过滤（22个allowedHeaders）。CLIProxyAPI没做大小写和顺序还原。
+
+## 模块四：Billing Header与CCH签名
+syncBillingHeaderVersion()同步UA版本→billing header cc_version。CCH签名：seed=0x6E52736AC806831E, xxHash64(body)&0xFFFFF→5位hex。与CLIProxyAPI完全相同的seed和算法。管理面板enableCCH开关控制。
+
+## 模块五：TLS指纹伪装
+自定义ClientHello（非HelloChrome_Auto），精确Node.js 24.x抓包：JA3=44f88fca027f27bab4bb08d4af15f23e, 17个cipher+3个curves+9个sigalgs+14个extensions精确排序。支持每账号绑定不同Profile（PostgreSQL存储），id=-1随机选择。三种Dialer：Direct/HTTP Proxy/SOCKS5。
+
+## 模块六：Identity伪装
+identityService.GetOrCreateFingerprint()统一管理。metadata.user_id生成：account.ClaudeUserID/fp.ClientID/随机→generateSessionUUID(确定性)→FormatMetadataUserID(按UA版本选JSON/Legacy格式)。三个独立设置开关：enableFP/enableMPT/enableCCH。
+
+## 模块七：Beta Header管理
+Haiku例外：不含claude-code beta（源码注释：Haiku exempt from third-party detection）。Beta Policy系统支持管理员Block/Filter规则。
+
+## 覆盖率对比
+Sub2API在Header精度（wire casing+顺序）和TLS精度（自定义JA3）上超越CLIProxyAPI。CLIProxyAPI在敏感词ZWC混淆和billing header主动生成上领先。两者都缺失设备信任注册/遥测上报/Bridge心跳。
+Tag: VCP开发, Sub2API, Claude Code反检测, 源码级分析, ClaudeCodeValidator, Dice相似度, rewriteSystemForNonClaudeCode, headerWireCasing, CCH签名, TLS指纹, Node.js 24.x, JA3, metadata_userid, identityService, 完整技术文档, CLIProxyAPI对比

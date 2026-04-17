@@ -1,0 +1,46 @@
+[2026-02-22] - Rosa
+[19:35] EPA Module + Residual Pyramid + ResultDeduplicator 完整源码分析
+
+## EPAModule.js (19.21KB) - 嵌入投影分析
+核心算法：加权PCA via Gram Matrix + Power Iteration
+初始化流程：
+1. 读取所有Tag向量 → K-Means聚类(32簇,Forgy初始化,50轮,收敛检测)
+2. 加权PCA: 加权平均向量(中心化) → 构建Gram矩阵(n×n) → Power Iteration+Deflation → 映射回原始空间
+3. 选择主成分(累积方差>95%,至少8个)
+4. 缓存到SQLite kv_store(base64序列化)
+
+project()接口：去中心化→投影到K个主成分→计算能量概率分布→熵→logicDepth=1-entropy
+支持Rust高性能投影(vexusIndex.project)和JS回退。
+dominantAxes：能量>5%的轴，附带label(最近Tag名)。
+
+detectCrossDomainResonance()：几何平均能量√(E_top×E_secondary)>0.15视为Bridge。
+resonance=ΣBridge.strength，用于TagMemo增强因子计算。
+
+## ResidualPyramid.js (16.01KB) - 残差金字塔
+核心算法：迭代Modified Gram-Schmidt正交投影
+流程：最多3层，每层搜索tagIndex(topK=10)→正交投影→残差→能量<10%停止
+支持Rust高性能路径(computeOrthogonalProjection/computeHandshakes)和JS回退。
+
+握手分析：计算query与tag的差向量→directionCoherence(方向一致性)→patternStrength(tag内聚度)→noveltySignal/noiseSignal。
+
+综合特征提取：
+- coverage = totalExplainedEnergy (Tag解释的能量比例)
+- novelty = residualRatio*0.7 + directionalNovelty*0.3
+- coherence = patternStrength
+- tagMemoActivation = coverage * coherence * (1-noiseSignal) ← 关键决策指标！
+- 直接影响KBM中_applyTagBoostV3的activationMultiplier
+
+## ResultDeduplicator.js (7.71KB) - TagMemo v4结果去重
+算法：Anchor + 迭代残差选择
+1. 结果集Mini-SVD提取显著主题(PCA累积>95%)
+2. Anchor=与Query最相似的候选
+3. 迭代：对未选候选计算相对已选基底的正交残差→score=noveltyEnergy*(originalScore+0.5)→选最高→score<0.01停止
+
+调用链：RAGDiaryPlugin → KBM.deduplicateResults → ResultDeduplicator.deduplicate
+
+## 占位符查看器 placeholder-viewer.js (10.11KB)
+管理面板新增的前端组件，可视化VCP所有占位符。
+支持11种类型：static_plugin/async_placeholder/agent/env_tar_var/env_sar/fixed/tool_description/vcp_all_tools/image_key/diary/diary_character。
+功能：表格列表+类型筛选+关键词搜索+详情弹窗(Raw/Markdown/JSON三视图)。
+API：GET /admin_api/placeholders(列表) + GET /admin_api/placeholders/detail(详情)。
+Tag: VCP文档, EPAModule, ResidualPyramid, ResultDeduplicator, 加权PCA, Gram-Schmidt, 残差金字塔, TagMemo v4, 结果去重, 占位符查看器, AdminPanel

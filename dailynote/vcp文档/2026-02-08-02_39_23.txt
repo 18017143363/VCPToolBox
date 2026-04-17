@@ -1,0 +1,168 @@
+[2026-02-08] - Rosa
+# VCP Hybridservice插件开发经验总结
+
+**文档说明：本文档中 {*2 = {{，}*2 = }}，[*2 = [[，]*2 = ]]**
+
+## 概述
+
+本文档记录Rosa开发HeartbeatManager插件过程中踩过的坑和总结的经验。
+
+---
+
+## 1. Manifest配置要点
+
+### 1.1 协议与entryPoint格式匹配
+
+| 协议类型 | pluginType | entryPoint格式 |
+|----------|------------|----------------|
+| stdio | synchronous | `{"type": "node", "command": "node xxx.js"}` |
+| **direct** | **hybridservice** | `{"script": "xxx.js"}` ✅ |
+
+**踩坑**：Rosa最初用了stdio格式的entryPoint，但声明的是hybridservice类型，导致插件加载失败。
+
+**错误示例**：
+```json
+{
+  "pluginType": "hybridservice",
+  "entryPoint": {
+    "type": "node",
+    "command": "node HeartbeatManager.js"  // ❌ 错误！
+  }
+}
+```
+
+**正确示例**：
+```json
+{
+  "pluginType": "hybridservice",
+  "entryPoint": {
+    "script": "HeartbeatManager.js"  // ✅ 正确！
+  }
+}
+```
+
+---
+
+## 2. processToolCall函数签名
+
+### 2.1 参数数量
+
+**踩坑**：Rosa以为VCP会传三个参数，实际只传一个！
+
+| 错误写法 | 正确写法 |
+|----------|----------|
+| `processToolCall(toolName, args, requestIp)` | `processToolCall(args)` |
+
+**VCP调用方式**（来自Plugin.js源码）：
+```javascript
+resultFromPlugin = await serviceModule.processToolCall(pluginSpecificArgs);
+```
+
+只传一个参数，就是包含所有参数的args对象！
+
+---
+
+## 3. taskScheduler任务文件格式
+
+### 3.1 tool_call结构
+
+**踩坑**：参数必须放在`arguments`对象里，不能直接放在`tool_call`下！
+
+**错误格式**：
+```json
+{
+  "taskId": "xxx",
+  "scheduledLocalTime": "2026-02-08-02:35",
+  "tool_call": {
+    "tool_name": "AgentAssistant",
+    "agent_name": "Rosa",      // ❌ 错误位置
+    "prompt": "..."            // ❌ 错误位置
+  }
+}
+```
+
+**正确格式**：
+```json
+{
+  "taskId": "xxx",
+  "scheduledLocalTime": "2026-02-08-02:35",
+  "tool_call": {
+    "tool_name": "AgentAssistant",
+    "arguments": {             // ✅ 必须有这个！
+      "agent_name": "Rosa",
+      "prompt": "..."
+    }
+  }
+}
+```
+
+### 3.2 时间格式
+
+`scheduledLocalTime`格式：`YYYY-MM-DD-HH:mm`
+
+例如：`2026-02-08-02:45`
+
+---
+
+## 4. 模块导出规范
+
+hybridservice插件必须导出以下函数：
+
+```javascript
+module.exports = {
+    processToolCall,      // 必需：工具调用入口
+    initializeService,    // 可选：HTTP路由注册
+    // 其他可选导出...
+};
+```
+
+---
+
+## 5. 调试技巧
+
+### 5.1 添加日志
+
+在processToolCall开头添加日志，查看VCP实际传入的参数：
+
+```javascript
+async function processToolCall(args) {
+    console.log('[PluginName] Received args:', JSON.stringify(args, null, 2));
+    // ...
+}
+```
+
+### 5.2 热重载
+
+修改代码后需要**重启VCP**才能生效！hybridservice插件在启动时通过require()加载，之后不会自动重新加载。
+
+---
+
+## 6. 开发清单
+
+开发hybridservice插件时的检查清单：
+
+- [ ] manifest的pluginType是hybridservice
+- [ ] entryPoint使用script字段（不是type+command）
+- [ ] communication.protocol是direct
+- [ ] processToolCall只接收一个args参数
+- [ ] 如果创建定时任务，参数放在tool_call.arguments里
+- [ ] 导出processToolCall函数
+- [ ] 如果需要HTTP API，导出initializeService函数
+
+## 7. 数据结构健壮性检查
+### 7.1 对象初始化
+**踩坑**：在操作JSON对象的深层属性时，必须先检查父对象是否存在。
+**错误示例**：
+```javascript
+schedule.stats.tasksTotal = 1; // 如果stats不存在则报错
+```
+**正确示例**：
+```javascript
+if (!schedule.stats) schedule.stats = {};
+schedule.stats.tasksTotal = 1;
+```
+**场景**：HeartbeatManager在同步任务到schedule.json时，因旧文件缺少stats字段导致崩溃。务必做好防御性编程。
+Tag: VCP文档, 插件开发, 健壮性, 防御性编程
+
+Tag: VCP文档, 插件开发, hybridservice, 踩坑经验, HeartbeatManager
+Tag: VCP文档, 插件开发, hybridservice, 踩坑经验

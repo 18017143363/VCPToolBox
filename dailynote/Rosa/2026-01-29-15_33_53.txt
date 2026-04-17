@@ -1,0 +1,197 @@
+[2026-01-29] - Rosa
+# 2026年1月29日 - GrokVideoGen插件探索
+
+## 下午 (15:30左右)
+
+### 主人的任务
+主人让Rosa探索一个新插件：`E:\VCP\Plugin\GrokVideo`
+
+### 探索过程
+1. 用FileOperator查看目录结构 → 4个文件
+2. 读取plugin-manifest.json → 了解插件配置
+3. 读取video_handler.py → 分析核心逻辑
+
+### 插件发现
+**GrokVideoGen** - 基于xAI Grok的视频生成插件！
+
+**核心功能**：
+- 文生视频：只需prompt
+- 图生视频：prompt + image_url
+
+**技术亮点**：
+- Python实现，stdio协议
+- 5分钟超时（视频生成需要时间）
+- 自动下载视频到本地 file/video/ 目录
+- 生成本地可访问URL
+- WebSocket实时推送状态
+
+**特殊机制**：
+LocalFileNotFoundError - 超栈追踪机制，当本地文件不存在时触发VCP主服务获取远程文件
+
+### Rosa的收获
+这是Rosa分析的第4个图像/视频生成插件了！
+- GeminiImageGen - 图片生成/编辑
+- WebUIGen - SD图片生成
+- GrokVideoGen - 视频生成 ← 新的！
+
+VCP的多媒体生成能力越来越强大了！
+
+### 今日文档更新
+- 创建了GrokVideoGen技术文档
+
+### 图生视频测试 (15:35)
+主人让Rosa用昨天的汉服满分图生成视频！
+
+**测试过程**：
+1. 查找geminiimagegen目录 → 5张图片
+2. 根据时间戳定位到 c918c07a（01-28 14:48）
+3. 调用GrokVideoGen图生视频
+
+**遇到问题**：
+```
+GROK_API_KEY not found in config.env
+```
+插件没有配置xAI的API密钥！
+
+**解决方案**：
+需要主人提供xAI API密钥，配置到插件的config.env中
+
+等待主人配置后再次测试~
+
+### xAI Grok免费政策搜索 (15:38)
+主人让Rosa搜索Grok免费账户政策，VSearch返回了详细信息：
+
+**免费额度获取方式**：
+| 方式 | 额度 | 条件 |
+|------|------|------|
+| 新用户注册 | $25一次性 | 有有效期 |
+| 数据共享计划 | $150/月 | 需先充$5，欧盟不可用 |
+
+**定价信息**：
+- Grok-4-fast: $0.20/1M输入，$0.50/1M输出（超便宜！）
+- Grok-2-image: $0.07/张
+- Grok Imagine (视频): 2026-01-28刚发布
+
+**Rosa的建议**：
+主人可以先充$5开启数据共享，每月$150免费额度足够用了！
+
+### 发现Grok镜像站 (15:45)
+主人在linux.do找到了一个Grok镜像站帖子(1049116)！
+
+**ChromeBridge超时**：
+直接打开页面超时了，Rosa改用VSearch搜索帖子内容
+
+**搜索结果发现**：
+- 基于 dairoot/Grok-Mirror 开源项目
+- 提供OpenAI兼容的 /v1/chat/completions 接口
+- 支持 Grok-3, Grok-4, Grok-4-Thinking 等模型
+- 有公共镜像站如 grok.dairoot.cn
+- 通过SSO Token轮询实现免费访问
+
+**配置方法**：
+```env
+GROK_API_KEY=镜像站Token
+GROK_API_BASE=https://镜像站地址
+GrokVideoModelName=grok-4
+```
+
+等待主人登录linux.do获取具体的API地址和Key~
+
+### 镜像站探索 (15:50)
+主人发来一个镜像站地址：`https://grok.868986.xyz/`
+
+**ChromeBridge查看结果**：
+- 页面标题：Grok
+- 可交互元素：只有"换号"按钮
+- 判断：这是一个 **Web UI 镜像**，不是API镜像
+
+**主人问：镜像站能直接反代吗？**
+
+Rosa解释了两种镜像站的区别：
+| 类型 | 特点 | 能否用于插件 |
+|------|------|-------------|
+| Web UI 镜像 | 网页聊天界面 | ❌ 不能 |
+| API 镜像 | 提供/v1/chat/completions端点 | ✅ 可以 |
+
+这个站点是Web UI镜像，不能直接作为GROK_API_BASE使用。
+需要找提供API端点的镜像站才行~
+
+### 教主人判断镜像站类型 (15:55)
+主人问Rosa怎么判断一个网站是Web UI还是API镜像，Rosa进行了详细教学：
+
+**核心概念**：
+- Web UI镜像 = 餐厅大堂（给人用）
+- API镜像 = 后厨窗口（给程序用）
+
+**四种判断方法**：
+1. 视觉判断法：看页面有没有聊天界面
+2. URL特征法：看地址是否包含/v1/等API特征
+3. 开发者工具法：F12看网络请求发到哪里
+4. 直接测试法：访问/v1/models看返回JSON还是404
+
+**最准确的测试**：
+访问 `https://镜像站/v1/models`，返回JSON就是API镜像！
+
+主人表示学会了~
+
+### Grok镜像站测试 (16:00)
+
+**配置过程**：
+1. 用PowerShell写入config.env（遇到编码问题，改用.NET方法）
+2. 配置内容：
+```env
+GROK_API_KEY=free
+GROK_API_BASE=https://grok.dairoot.cn
+GrokVideoModelName=grok-4
+```
+
+**测试图生视频**：
+1. 第一次：file:// 路径失败（触发超栈追踪，无分布式服务器）
+2. 第二次：/image/ 路径错误（401认证失败）
+3. 第三次：/images/ 路径正确，API调用成功！
+
+**最终结果**：
+- API返回的是**图片**而不是视频！
+- 镜像站只有 grok-3/4/4-thinking，没有 grok-imagine
+- 结论：**镜像站不支持视频生成，只支持图片生成**
+
+**生成的图片**：
+- https://grok.dairoot.cn/api/image?fileid=09316486f1ab3398f711b6b310857b86
+- https://grok.dairoot.cn/api/image?fileid=c1460c7125169c346d636808e6d6b96f
+
+**经验总结**：
+- Web UI镜像站通常只能反代网页版功能
+- 视频生成需要官方API支持
+- 判断镜像站能力要看 /v1/models 返回的模型列表
+
+### 搜索视频生成反代 (16:03)
+主人让Rosa搜索能生成视频的Grok反代，VSearch返回了丰富的结果！
+
+**核心发现**：
+1. Grok Imagine API 于 2026-01-28 正式发布
+2. 官方新用户有$25免费额度
+3. 存在多个第三方镜像站
+
+**推荐的免费方案**：
+
+| 平台 | 特点 | 网址 |
+|------|------|------|
+| **Kie.ai** | 注册送Credits，有API | kie.ai/grok-imagine-api |
+| **EaseMate AI** | 每日免费额度 | easemate.ai/grok-imagine |
+| **GrokVideo.AI** | 新用户2次免费 | - |
+
+**开源反代项目**：
+- CNFlyCat/GrokProxy - Cookie反代
+- realasfngl/Grok-Api - 免Key访问
+- mem0ai/grok3-api - Python包装器
+
+**视频规格**：
+- 时长：5-15秒
+- 分辨率：720p/1080p/4K
+- 特色：Spicy Mode（限制更少）
+
+**Rosa的建议**：
+推荐主人先试试Kie.ai，注册就送免费额度！
+
+Tag: 日记, 插件探索, GrokVideoGen, 视频生成
+Tag: 日记, 插件探索, GrokVideoGen, 视频生成

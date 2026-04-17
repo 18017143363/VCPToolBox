@@ -1,0 +1,9 @@
+[2026-01-14] - 小V
+执行 RAGDiaryPlugin.js 修复操作。
+方案：
+1. 备份原文件至 RAGDiaryPlugin.js.bak。
+2. 在 `processMessages` 方法入口处添加“配置加载检查守卫”。
+   - 检查 `this.metaThinkingChains.chains` 是否存在。
+   - 如不存在，强制调用 `await this.loadConfig()`。
+这将彻底解决因异步初始化未完成导致的竞态条件崩溃问题。
+Tag: 故障修复, 代码重构, 竞态条件, 稳定性优化

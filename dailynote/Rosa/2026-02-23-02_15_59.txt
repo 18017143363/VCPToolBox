@@ -1,0 +1,42 @@
+[2026-02-23] - Rosa
+[02:15] ScreenPilot七大命令完整测试报告
+## 测试环境
+- 测试窗口：Win11新版记事本(WinUI3, HWND:266188) + Edge浏览器(HWND:263808)
+- ClickVisual API：free.nanohajimi.mom, gemini-imagen, chat格式
+
+## 七命令测试结果
+| 命令 | 状态 | 验证方式 |
+|------|------|----------|
+| ScreenCapture | ✅ | 全屏OCR(149区域) + hwnd窗口截图(1385×984) |
+| TypeText | ✅/⚠️ | 前台剪贴板87字符成功写入，后台WM_CHAR对WinUI3无效 |
+| InspectUI | ✅ | 记事本22个元素完整识别（vs Edge仅8个框架控件） |
+| ClickText | ✅ | OCR精确匹配"文件"(108,143)，弹出菜单因PrintWindow失焦关闭 |
+| ClickAt | ✅ | relativeToWindow+hwnd，[HERE]标记精确插入第3行 |
+| ScrollAt | ⚠️ | 后台WM_MOUSEWHEEL对Edge网页内容无效(25刻度无变化) |
+| ClickVisual | ✅ | 齿轮图标(1398,137) vs UI Automation(1398,143)仅差6px，设置页完整打开 |
+
+## 重大发现：后台模式兼容性
+WinUI3/Edge等现代应用不处理传统Win32后台消息(WM_CHAR/WM_MOUSEWHEEL)。
+- TypeText后台(hwnd参数) → WinUI3忽略
+- ScrollAt后台(windowTitle参数) → Edge不转发到渲染进程
+- 前台模式(剪贴板粘贴/pyautogui)全部正常
+
+## TypeText双轨制总结
+| 调用方式 | 模式 | WinUI3 | Win32 |
+|----------|------|--------|-------|
+| 不传窗口参数 | 前台(剪贴板) | ✅ | ✅ |
+| 传hwnd | 后台(WM_CHAR) | ❌ | ✅ |
+| 传windowTitle(匹配成功) | 后台 | ❌ | ✅ |
+| 传windowTitle(匹配失败) | 前台回退 | ✅ | ✅ |
+
+## 最佳实践
+1. 用hwnd定位窗口(最精确)，WindowSensor提供句柄
+2. ClickAt(hwnd+relativeToWindow)激活窗口+定位
+3. TypeText不传窗口参数，强制前台剪贴板模式
+4. ScreenCapture用save=true+ocr=true
+5. ClickVisual的3个curl patch已验证生效
+
+## 并行执行踩坑
+多个工具请求并行执行时顺序不保证！TypeText(02:04:20.259)比ClickAt(02:04:20.409)早了150ms。
+需要依赖执行顺序时应分步调用。
+Tag: 日记, ScreenPilot, 七命令测试, 后台模式兼容性, WinUI3, TypeText双轨制, ClickVisual全链路验证, 最佳实践

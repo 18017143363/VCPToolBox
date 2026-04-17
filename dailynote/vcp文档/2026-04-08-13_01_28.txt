@@ -1,0 +1,70 @@
+[2026-04-08] - Rosa
+[13:10] VCP后端更新记录 6df5fdf→f0cb8fe（54 commits, 160文件, +31997/-3463行）
+
+## 核心更新
+
+### 1. 浪潮引擎7.1（RAG核心）
+- 模块化重构（5467b66 模块化浪潮引擎）
+- 新增潮汐引力和虫洞路由（4c9a987）
+- 文档更新（5ca63d7, 1db8a48）
+- 影响：RAG系统核心升级，记忆召回机制变更
+
+### 2. 梦V2系统（cfed18e）
+- 从V1升级到V2，"神经元级做梦"
+- DreamWaveEngine.js新增
+- AgentDream插件更新
+- 影响：Agent睡眠状态记忆联想能力升级
+
+### 3. PaperReader JS→Rust完全重写（PR #277 Andyduck-ops）
+- 14个Rust crate工作区架构
+- 编译产物paperreader-cli.exe通过stdio协议对接VCP
+- 六层架构：domain/application/ingestion/orchestrator/retrieval/workspace
+- 新增bin/paperreader-cli.exe、scripts/build脚本
+- ce04976清理了内部PRD文档
+
+### 4. 向量数据库大幅优化（2c6863b）
+- 精度/速度/性能安全性全面提升
+- rust-vexus-lite二进制更新（.node文件变更，win32从2201088→2215424字节）
+- 旧target/release/vexus_lite.dll被移除
+
+### 5. 插件事件广播机制（e360cad miaotouy）
+- 实现异步任务状态推送
+- 插件间可广播事件
+
+### 6. 论坛巡航插件全面重构（f0cb8fe 最新commit）
+- 修复丢失的inject-tool引用链
+- VCPForumAssistant完全重写
+- 新增plugin-manifest.json、routes/admin/forumAssistant.js
+- AdminPanel新增forum-assistant-config.js
+
+## 新插件/新功能
+- SnowBridge（2c62c10 ShiroEirin）— Snow CLI对接
+- VCPToolBridge（1163115）— 向外部系统导出VCP工具
+- NewAPI监控（090be52+9433a93+bd7b8d4 silk2onion PR#267）— 监控仪表板+只读API白名单
+- 语义引力场bridgeIPC（d935d6b）— 所有插件可调用语义引力场
+
+## DoubaoGen升级（PR#274+#275 TaoCultivator）
+- 支持最新模型
+- 模型失败自动降级
+- 根据提示词智能选择模型
+- 修复众多BUG
+
+## ToolBox更新
+- 块级展开新语法（824e7e6 Wooden-Gear PR#276）
+
+## 其他优化
+- AA插件管理面板修复（7604e19）
+- Docker去掉Node18只保留Node20（27729be）
+- Win实例锁原子性优化（454468a）
+- 关闭默认OCR功能（cf51543）
+- VCPInfo推送阻塞修复（f55442a）
+- Linux依赖对齐（f90f53b）
+- 分布式服务器连接确认消息文档（e0dc6d1 miaotouy PR#258）
+- VChat端系统提示词支持获取agent名字语法（7a6f999）
+- CodeSearcher-linux-x64-musl（ca7dc0e）
+- 移除旧无用env（585792c）
+- 官网url引入（d42abe9）
+
+## 贡献者
+TaoCultivator（DoubaoGen）、Andyduck-ops（PaperReader-Rust）、Wooden-Gear（ToolBox）、ShiroEirin（SnowBridge）、silk2onion（NewAPI监控）、miaotouy（事件广播+文档）、MrSeven590、lioensky
+Tag: vcp文档, VCP后端更新, 6df5fdf到f0cb8fe, 浪潮引擎7.1, 潮汐引力, 虫洞路由, 梦V2, PaperReader-Rust, 向量数据库优化, 插件事件广播, 论坛巡航重构, SnowBridge, VCPToolBridge, NewAPI监控, DoubaoGen, 2026-04-08

@@ -1,0 +1,117 @@
+[2026-01-29] - Rosa
+# WebUIGen 插件技术文档
+
+## 概述
+WebUIGen是VCP的Stable Diffusion云算力图像生成插件，调用外部SD API生成高质量图像。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\WebUIGen\`
+- 类型: synchronous
+- 协议: stdio
+- 超时: 120秒 (manifest) / 180秒 (代码内)
+- 作者: Kilo Code
+- API端点: `https://sd.exacg.cc/api/v1/generate_image`
+
+## 文件结构
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| plugin-manifest.json | 2.17 KB | 插件清单 |
+| WebUIGen.mjs | 6.74 KB | ES模块主文件 |
+| config.env | 97 B | API Key配置 |
+
+## 配置项
+| 配置 | 说明 |
+|------|------|
+| WEBUI_API_KEY | 云算力API密钥 |
+
+## 支持的模型 (19个) - 2026-01-30更新
+| 索引 | 模型名称 | 风格/特点 |
+|------|----------|-----------|
+| 0 | Miaomiao Harem vPred Dogma 1.1 | 动漫 |
+| 1 | MiaoMiao Pixel 像素 1.0 | 像素风 |
+| 2 | NoobAIXL V1.1 | 新增 |
+| 3 | NoobAIXL V1.0 | 新增 |
+| 4 | illustrious_pencil 融合 | 新增 |
+| **5** | **Z-Image** | **自然语言，步数=8** ⭐ |
+| 6 | MiaoMiao RealSkin EPS 1.3 | 真人 |
+| 7 | Newbie exp 0.1 (服务器1) | 实验性 |
+| 8 | Newbie exp 0.1 (服务器2) | 实验性 |
+| 9 | MiaoMiao RealSkin vPred 1.1 | 真人 |
+| 10 | MiaoMiao RealSkin vPred 1.0 | 真人 |
+| 11 | Wainsfw illustrious v16 | 插画 |
+| 12 | Wainsfw illustrious v15 | 插画 |
+| 13 | MiaoMiao Harem 1.75 | 动漫 |
+| 14 | MiaoMiao Harem 1.6G | 动漫 |
+| 15 | Wainsfw Illustrious v13 (服务器1) | 插画 |
+| 16 | Wainsfw Illustrious v13 (服务器2) | 插画 |
+| 17 | Wainsfw Illustrious v11 | 插画 |
+| 18 | 真人模型 Nsfw-Real | 真人 |
+
+### Z-Image 特殊说明
+- 基于阿里通义Z-Image-Turbo
+- **必须设置steps=8**（不是默认的20）
+- 支持**中文自然语言**提示词
+- 适合不熟悉英文tag的用户
+
+## 命令参数
+
+### WebUIGenerate
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| prompt | string | 是 | - | 图像生成提示词 |
+| negative_prompt | string | 否 | "" | 负面提示词 |
+| resolution | string | 否 | 512x512 | 分辨率 |
+| steps | int | 否 | 20 | 生成步数 (1-50) |
+| cfg | float | 否 | 7.0 | CFG引导强度 (1-10) |
+| model_index | int | 否 | 0 | 模型索引 |
+| seed | int | 否 | -1 | 随机种子 (-1为随机) |
+| showbase64 | bool | 否 | false | 是否返回base64数据 |
+
+## 分辨率预设
+| 预设名 | 尺寸 |
+|--------|------|
+| square | 512x512 |
+| landscape | 768x512 |
+| portrait | 512x768 |
+| 1024 | 1024x1024 |
+| WxH格式 | 自定义 |
+
+## 核心函数
+
+### parseResolution(resolution)
+解析分辨率字符串，支持预设名和WxH格式。
+
+### callWebUIAPI(args)
+调用云算力API，返回生成结果。
+
+### saveImage(imageUrl)
+下载并保存图片到 `image/webuigen/` 目录，返回可访问URL。
+
+## 工作流程
+1. stdin接收JSON参数
+2. 验证API Key
+3. 解析分辨率
+4. 调用sd.exacg.cc API
+5. 下载生成的图片
+6. 保存到本地并生成URL
+7. 返回结果
+
+## 返回格式
+返回包含text和可选image_url的content数组，以及details对象。
+
+## 与GeminiImageGen对比
+| 特性 | WebUIGen | GeminiImageGen |
+|------|----------|----------------|
+| 后端 | Stable Diffusion | Gemini AI |
+| 模型选择 | 8个模型 | 单一模型 |
+| 负面提示词 | 支持 | 不支持 |
+| 参数可控性 | steps/cfg/seed | 有限 |
+| 图片编辑 | 不支持 | 支持 |
+| 计费方式 | 点数制 | API调用 |
+
+## 使用场景
+- 需要特定风格（像素、真人、动漫）的图片
+- 需要负面提示词排除不想要的元素
+- 需要精细控制生成参数（步数、CFG、种子）
+- 需要可复现的生成结果（固定seed）
+Tag: VCP文档, WebUIGen, 插件, Stable Diffusion, 图像生成

@@ -1,0 +1,29 @@
+[2026-01-27] - Rosa
+# VCP Archery机制详解
+
+## 概述
+
+Archery（射箭）是VCP工具调用系统中的"静默执行"机制，实现"射后不管"(Fire-and-Forget)模式。
+
+## 设计哲学
+
+| 类型 | 含义 | 结果处理 |
+|------|------|----------|
+| normal | 普通调用 | 等待结果，反馈给AI |
+| archery | 静默调用 | 执行但不反馈（除非出错） |
+
+## 代码实现
+
+### 1. toolCallParser.js - 解析层
+解析archery参数，提供separate()方法分离normal和archery调用
+
+### 2. streamHandler.js / nonStreamHandler.js - 执行层
+使用Promise.all并行执行archery调用，只收集错误结果
+
+### 3. toolExecutor.js - 执行器
+不区分archery，只负责执行。archery的"静默"逻辑由上层Handler负责。
+
+## 使用方式
+
+在工具调用中添加 archery:「始」no_reply
+Tag: VCP文档, archery, 工具调用, 静默执行

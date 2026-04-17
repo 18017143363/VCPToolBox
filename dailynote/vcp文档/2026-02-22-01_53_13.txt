@@ -1,0 +1,230 @@
+[2026-02-22] - Rosa
+[02:05] nexos2api 完整部署与运维文档
+
+# nexos2api 技术文档 v1.0
+
+## 一、项目概述
+
+| 属性 | 值 |
+|------|-----|
+| 项目名 | nexos2api |
+| GitHub | https://github.com/lulistart/nexos2api |
+| 技术栈 | Node.js (Express) |
+| 功能 | 将nexos.ai平台封装为标准OpenAI兼容API |
+| 本地路径 | E:\nexos2api |
+| 端口 | 3001（默认3000被占用已改） |
+| Docker容器 | nexos2api-nexos2api-1 |
+
+### 支持的模型列表（config.js定义）
+Claude系列: claude-haiku-4-5, claude-opus-4-5, claude-opus-4-6, claude-sonnet-4-5, claude-sonnet-4-6
+GPT系列: gpt-5, gpt-5-1, gpt-5-2
+Gemini系列: gemini-2-5-flash, gemini-2-5-pro, gemini-3-flash-preview, gemini-3-pro-preview, gemini-3-1-pro-preview
+Grok系列: grok-4-fast, grok-4-fast-reasoning, grok-4-1-fast, grok-4-1-fast-reasoning, grok-code-fast-1
+其他: mistral-large-3, nexos-chat
+
+**注意**: 模型名是config.js里的映射名，实际对话能力取决于handlerId指向的nexos.ai模型。
+
+## 二、核心架构
+
+### 请求流程
+```
+客户端(ChatBox/VCP) 
+  → POST /v1/chat/completions (OpenAI格式)
+  → nexos2api将model名映射为handlerId(UUID)
+  → 转换为FormData格式发送到nexos.ai
+  → nexos.ai返回SSE流
+  → nexos2api解析为OpenAI格式返回
+```
+
+### 模型路由机制
+```
+model名(如"nexos-chat") 
+  → 查modelMapping表获取handlerId(UUID)
+  → 找不到则使用默认handlerId
+  → handlerId发送到nexos.ai的chat API
+```
+
+### nexos.ai API格式特殊性
+- 请求格式：**multipart/form-data**（不是JSON！）
+  - action字段: "chat_completion"
+  - data字段: JSON字符串（包含handler.id, messages, parent_id等）
+- 响应格式：**SSE (Server-Sent Events)**
+  - 需解析data:行提取content.text
+- 消息链机制：每条消息有parent_id指向上一条
+- 对话隔离：不同chat有独立的消息链
+
+## 三、本地Docker部署流程
+
+### 前提条件
+- Docker Desktop 已安装
+- Git 已安装
+- 已有nexos.ai账号并登录
+
+### Step 1: Clone代码
+```bash
+cd E:\
+git clone https://github.com/lulistart/nexos2api.git nexos2api
+cd nexos2api
+```
+
+### Step 2: 创建Dockerfile
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+### Step 3: 创建docker-compose.yml
+```yaml
+services:
+  nexos2api:
+    build: .
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    restart: unless-stopped
+```
+
+### Step 4: 获取Cookie
+1. 打开 https://workspace.nexos.ai
+2. F12 → Network 标签
+3. 在聊天框发一条消息
+4. 找到chat相关的POST请求 → Headers → Cookie行
+5. 复制完整Cookie字符串
+
+### Step 5: 创建.env
+```env
+NEXOS_COOKIES=你的完整Cookie字符串
+PORT=3001
+DISABLE_HISTORY=true
+```
+
+### Step 6: 获取handlerId（关键步骤！）
+config.js中的handlerId是硬编码的，**极大概率已过期**！必须手动获取。
+
+在nexos.ai网页的F12 Console中粘贴以下脚本：
+```javascript
+const _f=window.fetch;window.fetch=async(...a)=>{const r=await _f(...a);try{if(a[1]&&a[1].body){let t;if(a[1].body instanceof FormData){t=a[1].body.get('data')}else if(typeof a[1].body==='string'){t=a[1].body}if(t&&t.includes('handler')){const m=t.match(/"id"\s*:\s*"([0-9a-f-]{36})"/);if(m)prompt('复制这个handlerId:',m[1])}}}catch(e){}return r};alert('OK! 现在发一条消息给AI')
+```
+然后发一条消息，会弹出对话框显示handlerId。
+
+### Step 7: 更新config.js中的handlerId
+```powershell
+$file = "E:\nexos2api\config.js"
+$content = Get-Content $file -Raw
+$content = $content.Replace("旧的UUID", "新获取的UUID")
+Set-Content $file -Value $content -Encoding UTF8
+```
+
+### Step 8: 构建并启动
+```bash
+cd E:\nexos2api
+docker compose up -d --build
+```
+
+### Step 9: 创建对话
+```powershell
+irm -Method Post -Uri "http://localhost:3001/v1/chat/create"
+```
+
+### Step 10: 验证
+```powershell
+$body = '{"model":"nexos-chat","messages":[{"role":"user","content":"hi"}],"stream":false}'
+Invoke-RestMethod -Method Post -Uri "http://localhost:3001/v1/chat/completions" -ContentType "application/json" -Body $body
+```
+
+## 四、parent_id冲突补丁
+
+### 问题描述
+nexos.ai使用消息链机制，每条新消息必须指向上一条的parent_id。nexos2api对同一个chat发第二次请求时parent_id对不上，导致400错误。表现为：第一次对话成功，第二次开始全部失败。
+
+### 补丁方案
+修改index.js中chatCompletions handler的逻辑：
+- 原逻辑：使用固定chatId，导致parent_id冲突
+- 补丁逻辑：每次请求前通过chat.data自动获取/创建新chat
+
+### 补丁位置
+index.js中 POST /v1/chat/completions 的handler，chatId获取逻辑部分。
+当没有通过header或body指定chatId时，自动创建新chat避免冲突。
+
+## 五、完整踩坑记录
+
+| # | 坑 | 现象 | 原因 | 解决 |
+|---|-----|------|------|------|
+| 1 | Zeabur变量名不合法 | 添加NEXOS_COOKIES报错 | 粘贴带不可见字符 | 手动键入变量名 |
+| 2 | NEXOS_COOKIES not configured | create返回错误 | 环境变量未设置 | Zeabur Variables面板添加 |
+| 3 | Model not found 404 | 所有模型返回404 | config.js中handlerId全面过期 | Console脚本获取新UUID |
+| 4 | Chat not found 404 | create后仍报错 | 容器内chatId是硬编码默认值 | NEXOS_CHAT_ID环境变量 |
+| 5 | parent_id冲突 400 | 第二次请求失败 | 同一chat消息链冲突 | 补丁：自动创建新chat |
+| 6 | FileOperator权限 | 无法读写文件 | E:\nexos2api不在白名单 | 改用PowerShellExecutor |
+| 7 | PowerShell format被拦 | docker ps报错 | 安全策略禁止format关键字 | 去掉--format参数 |
+| 8 | PayloadTooLargeError | VCPTavern注入后请求体超100KB | Express body-parser默认limit=100KB | express.json({ limit: '50mb' }) |
+| 9 | Dockerfile有BOM | docker build报FROM语法错误 | 文件首行有UTF-8 BOM（EF BB BF） | PowerShell字节操作移除BOM |
+| 10 | Docker镜像源全挂 | pull node:20-alpine时EOF | ustc/163/daocloud三源全挂 | Docker Desktop Engine清空mirrors走代理直连 |
+| 11 | docker compose up不加--build | 改了本地文件但容器内还是旧的 | up不加--build复用旧镜像 | 必须docker compose up -d --build |
+| 12 | docker compose restart不重载.env | Cookie更新后仍401 | restart不重新读取环境变量 | 必须docker compose down + up |
+
+## 六、接入配置
+
+### ChatBox / VCP
+| 配置项 | 值 |
+|--------|-----|
+| API地址 | http://localhost:3001/v1 |
+| API Key | dummy-key（随便填） |
+| 模型名 | nexos-chat |
+
+### 重要注意
+1. Cookie会过期，需定期从浏览器重新获取并更新.env
+2. 更新Cookie后需要重启Docker: `docker compose restart`
+3. handlerId可能因nexos.ai更新而失效，需重新获取
+4. nexos-chat模型实际对应的是nexos.ai上handlerId指向的模型
+5. DISABLE_HISTORY=true可防止API消息同步到nexos.ai网页
+
+## 七、常用运维命令
+
+| 操作 | 命令 |
+|------|------|
+| 查看状态 | `docker ps --filter "name=nexos2api"` |
+| 查看日志 | `docker logs nexos2api-nexos2api-1 --tail 50` |
+| 重启 | `cd E:\nexos2api && docker compose restart` |
+| 重建 | `cd E:\nexos2api && docker compose up -d --build` |
+| 停止 | `cd E:\nexos2api && docker compose down` |
+| 创建对话 | `irm -Method Post -Uri "http://localhost:3001/v1/chat/create"` |
+| 测试模型列表 | `irm "http://localhost:3001/v1/models"` |
+Tag: VCP文档, nexos2api, Docker部署, 完整文档, handlerId, parent_id补丁, Cookie认证, 踩坑记录, 运维手册
+
+## 八、换号续命SOP（2026-02-26新增）
+### 触发条件
+- HTTP 429 "budget X has been reached for company" — 免费额度耗尽
+### 换号步骤
+1. 新账号登录 https://workspace.nexos.ai
+2. F12 → Network → 发消息 → Request Headers → Cookie行完整复制
+3. Cookie写入.env：`NEXOS_COOKIES=单行cookie`（注意清理换行符，UTF-8无BOM）
+4. 获取新handlerId：Console粘贴fetch拦截脚本 → 发消息 → 弹窗显示UUID
+5. 替换config.js中旧UUID为新UUID
+6. `docker compose down && docker compose up -d --build`
+7. 测试：`curl http://localhost:3001/v1/chat/completions -d '{"model":"nexos-chat","messages":[{"role":"user","content":"hi"}]}'`
+### 注意事项
+- Cookie必须单行，附件/网页复制可能含换行符
+- handlerId每个账号不同，必须重新获取
+- 不同模型有不同handlerId，切换模型需各自获取
+### parent_id冲突补丁演进（2026-03-07更新）
+| 版本 | 方案 | 状态 |
+|------|------|------|
+| v1 | 每次通过chat.data创建新chat | ❌失效（nexos.ai改RSC格式） |
+| v2 | forceNewChat条件判断 | ⚠️保留但不再需要 |
+| v3 | 始终获取lastMessageId | ✅当前方案 |
+v3核心修改：index.js中 `if (!disableHistory)` → `if (true)`，始终从history API获取最新消息ID作为parent_id。
+nexos.ai的chat.data端点已从302重定向改为200+RSC（text/x-script React Server Component）格式，不再适合用于自动创建chat。
+### 已验证handlerId映射（新号 2026-03-07）
+| 模型 | handlerId | 状态 |
+|------|-----------|------|
+| gemini-3-1-pro-preview | 49e76f42-6966-418c-b253-3a5a98247ea1 | ✅ |
+| claude系列 | 待获取 | ❌ |
+| gpt系列 | 待获取 | ❌ |
+Tag: VCP文档, nexos2api, Docker部署, 完整文档, handlerId, parent_id补丁, Cookie认证, 踩坑记录, 运维手册, 换号SOP

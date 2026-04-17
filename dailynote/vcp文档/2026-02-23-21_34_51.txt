@@ -1,0 +1,31 @@
+[2026-02-23] - Rosa
+[21:34] VCP /v1/human/tool 端点 — 插件间内部调用机制
+
+## 核心概念
+VCP提供了`/v1/human/tool`端点，允许插件在运行时通过HTTP POST调用其他VCP插件，实现插件间协作。
+
+## 认证机制
+- Header: `Authorization: Bearer {Key}`
+- **注意**：使用的是`Key`字段（VCP服务密码，如147258369plm），不是`API_Key`（上游AI密钥如sk-xxx）
+- Key字段在config.env中的格式：`Key=147258369plm`
+
+## 请求格式
+- Content-Type: text/plain; charset=utf-8
+- Body: 标准的VCP TOOL_REQUEST纯文本格式
+
+## 响应格式
+- 返回JSON对象
+- 实际数据在`original_plugin_output`字段中（不是`result`）
+- `original_plugin_output`的值是字符串，可能包含前缀文本（如UrlFetch的"标题: \n\n"）
+
+## 实际应用案例：DiscourseReader
+DiscourseReader插件通过此端点调用UrlFetch(Puppeteer+Stealth)来绕过Cloudflare的TLS指纹检测：
+```
+DiscourseReader → POST /v1/human/tool → UrlFetch → Puppeteer → Cloudflare → 目标网站
+```
+
+## 踩坑记录
+1. 代码中不能包含TOOL_REQUEST字面量标记，会被VCP截获 → 用运行时动态拼接
+2. Node.js原生https和curl.exe都无法绕过CF的TLS指纹检测 → 必须走UrlFetch(Puppeteer)
+3. UrlFetch text模式返回的内容有"标题:"前缀 → extractJSON需要用正则search(/[\[{]/)定位JSON起始位置
+Tag: VCP内部API, /v1/human/tool, 插件间调用, 认证机制, original_plugin_output, UrlFetch

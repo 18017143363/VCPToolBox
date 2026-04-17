@@ -1,0 +1,124 @@
+{
+  "manifestVersion": "1.0.0",
+  "name": "HeartbeatSystem",
+  "displayName": "统一心跳系统",
+  "version": "1.0.0",
+  "description": "整合心跳调度器 + 日程管理 + HTTP API 的统一心跳系统（融合1/2/3.txt最佳实践）",
+  "author": "Rosa",
+  "pluginType": "hybridservice",
+  "entryPoint": {
+    "script": "HeartbeatSystem.js"
+  },
+  "communication": {
+    "protocol": "direct"
+  },
+  "capabilities": {
+    "invocationCommands": [
+      {
+        "command": "GetSchedule",
+        "description": "获取指定Agent的当前日程",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" }
+        }
+      },
+      {
+        "command": "AddTask",
+        "description": "添加固定任务到日程",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "name": { "type": "string", "required": true, "description": "任务名称" },
+          "time": { "type": "string", "required": true, "description": "执行时间 HH:mm" },
+          "description": { "type": "string", "required": false, "description": "任务描述" }
+        }
+      },
+      {
+        "command": "UpdateTaskStatus",
+        "description": "更新任务状态",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "taskId": { "type": "string", "required": true, "description": "任务ID" },
+          "status": { "type": "string", "required": true, "description": "状态: pending/running/completed/skipped" },
+          "result": { "type": "string", "required": false, "description": "执行结果" }
+        }
+      },
+      {
+        "command": "RemoveTask",
+        "description": "删除任务",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "taskId": { "type": "string", "required": true, "description": "任务ID" }
+        }
+      },
+      {
+        "command": "GetTodayTasks",
+        "description": "获取今日任务列表",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" }
+        }
+      },
+      {
+        "command": "RecordHeartbeat",
+        "description": "记录心跳",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "action": { "type": "string", "required": true, "description": "执行的动作" },
+          "note": { "type": "string", "required": false, "description": "备注" }
+        }
+      },
+      {
+        "command": "SetSettings",
+        "description": "设置心跳参数",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "settings": { "type": "object", "required": true, "description": "设置对象" }
+        }
+      },
+      {
+        "command": "CreateScheduledTask",
+        "description": "创建定时任务文件到VCPTimedContacts，并同步到schedule.json",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "time": { "type": "string", "required": true, "description": "执行时间 YYYY-MM-DD-HH:mm" },
+          "prompt": { "type": "string", "required": true, "description": "唤醒提示词" }
+        }
+      },
+      {
+        "command": "GetPlannedSlots",
+        "description": "获取今日已规划/未规划的时段列表",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" }
+        }
+      },
+      {
+        "command": "MarkSlotPlanned",
+        "description": "标记某时段已规划",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" },
+          "slotName": { "type": "string", "required": true, "description": "时段名：凌晨/上午/下午/晚上" }
+        }
+      },
+      {
+        "command": "TriggerHeartbeat",
+        "description": "立即触发一次心跳（使用调度器逻辑：四时段规划判定 + 生成timed-contact任务 + 重新调度下一次）",
+        "parameters": {
+          "agentName": { "type": "string", "required": true, "description": "Agent名称" }
+        }
+      },
+      {
+        "command": "SchedulerStatus",
+        "description": "查看调度器状态（当前正在调度的Agent列表与配置）",
+        "parameters": {}
+      },
+      {
+        "command": "StartScheduler",
+        "description": "启动调度器（幂等）",
+        "parameters": {}
+      },
+      {
+        "command": "StopScheduler",
+        "description": "停止调度器（取消所有已计划心跳job）",
+        "parameters": {}
+      }
+    ]
+  }
+}

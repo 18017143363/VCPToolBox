@@ -1,0 +1,62 @@
+[2026-04-08] - Rosa
+[13:35] VCP插件事件广播机制完整技术文档
+
+## 架构概览
+三层事件广播链路，让任何VCP插件实时推送消息到前端WebSocket客户端。
+
+### 链路全景
+```
+插件代码 → pushVcpInfo(data) → VCPLog模块(中转) → broadcastVCPInfoFunction(data) → WebSocketServer.broadcastVCPInfo(data) → broadcast(data, 'VCPInfo') → 所有VCPInfo类型WS客户端
+```
+
+## 注入链路详解
+
+### 第1环：WebSocketServer → VCPLog
+位置：Plugin.js PluginManager.initializeServices()
+当检测到VCPLog插件时：
+```
+module.setBroadcastFunctions(this.webSocketServer.broadcastVCPInfo)
+```
+VCPLog模块内部存储为 broadcastVCPInfoFunction 变量
+
+### 第2环：VCPLog → 插件
+位置：Plugin.js processToolCall()
+每次工具调用构建插件环境时注入vcpLogFunctions（含pushVcpInfo）
+插件调用 pushVcpInfo(data) → VCPLog.pushVcpInfo() → broadcastVCPInfoFunction() → WebSocketServer.broadcast()
+
+### 第3环：PluginManager EventEmitter
+PluginManager extends EventEmitter，工具调用时同步emit两种事件：
+- self.emit('vcp_log', data) — 日志级别
+- self.emit('vcp_info', data) — 信息推送级别
+VCP核心模块可通过pluginManager.on('vcp_info', callback)监听所有插件推送
+
+## WebSocket客户端类型
+| clientType | 连接路径 | 用途 |
+|-----------|---------|------|
+| VCPLog | /vcplog/VCP_Key=xxx | VChat实时日志面板 |
+| VCPInfo | /vcpinfo/VCP_Key=xxx | 信息推送专用通道 |
+| AdminPanel | AdminPanel WS | 管理面板 |
+
+## 广播函数
+- broadcast(data, targetClientType=null) — null=广播所有
+- broadcastVCPInfo(data) — 等价broadcast(data, 'VCPInfo')
+- broadcastToAdminPanel(data) — 专给AdminPanel
+
+## 插件使用方式
+hybridservice类型插件在initialize(config, dependencies)获取推送能力：
+```
+this.vcpLogFunctions = dependencies.vcpLogFunctions;
+this.vcpLogFunctions.pushVcpInfo({type:'EVENT_NAME', ...})
+```
+使用案例：AgentDream 5个事件(START/ASSOCIATIONS/NARRATIVE/OPERATIONS/END)，DailyNote的daily_note_created
+
+## dependencies注入清单
+processToolCall时构建的依赖：
+- vcpLogFunctions (含pushVcpInfo)
+- vectorDBManager (知识库管理器)
+- contextBridge (RAG上下文桥接)
+- getSingleEmbedding (单文本向量化)
+
+## f0cb8fe commit修复
+"修复丢失的inject-tool引用链"修复的就是此链路——论坛巡航插件重构后inject-tool引用断裂，导致pushVcpInfo等能力丢失
+Tag: vcp文档, 插件事件广播, pushVcpInfo, WebSocketServer, VCPLog, EventEmitter, 依赖注入, broadcastVCPInfo, 三层链路, 2026-04-08

@@ -1,0 +1,218 @@
+[2026-04-09] - Rosa
+[17:15] Sub2API模块3——Header精确伪装（Wire Casing+发送顺序+白名单）
+
+# Sub2API · Header精确伪装
+**源码文件**: header_util.go (~180行), gateway_service.go (buildUpstreamRequest/applyClaudeCodeMimicHeaders)
+**核心数据结构**: headerWireCasing, headerWireOrder, allowedHeaders
+
+## 一、为什么需要精确Header伪装
+
+Go的`net/http`包在处理HTTP header时有自动行为：
+- **Canonical化**：`x-app` → `X-App`，`anthropic-version` → `Anthropic-Version`
+- 但真实Claude CLI发送的header大小写不统一：有的全小写(`x-app`)、有的Title Case(`User-Agent`)、有的混合(`X-Stainless-OS`注意OS大写)
+
+Anthropic可能通过检测header key的大小写来识别非原生客户端。Sub2API是唯一做了精确wire casing还原的反代项目。
+
+## 二、headerWireCasing——大小写映射表
+
+```go
+var headerWireCasing = map[string]string{
+    // Title case系列
+    "accept":     "Accept",
+    "user-agent": "User-Agent",
+    
+    // X-Stainless SDK系列（保持SDK原始大小写）
+    "x-stainless-retry-count":     "X-Stainless-Retry-Count",
+    "x-stainless-timeout":         "X-Stainless-Timeout",
+    "x-stainless-lang":            "X-Stainless-Lang",
+    "x-stainless-package-version": "X-Stainless-Package-Version",
+    "x-stainless-os":              "X-Stainless-OS",       // ⚠️ OS全大写
+    "x-stainless-arch":            "X-Stainless-Arch",
+    "x-stainless-runtime":         "X-Stainless-Runtime",
+    "x-stainless-runtime-version": "X-Stainless-Runtime-Version",
+    "x-stainless-helper-method":   "x-stainless-helper-method",  // ⚠️ 全小写！
+    
+    // Anthropic SDK设置的header（全小写）
+    "anthropic-dangerous-direct-browser-access": "anthropic-dangerous-direct-browser-access",
+    "anthropic-version":                         "anthropic-version",
+    "anthropic-beta":                            "anthropic-beta",
+    "x-app":                                     "x-app",
+    "content-type":                              "content-type",
+    "accept-language":                           "accept-language",
+    "sec-fetch-mode":                            "sec-fetch-mode",
+    "accept-encoding":                           "accept-encoding",
+    "authorization":                             "authorization",
+    
+    // Claude Code 2.1.87+新增header
+    "x-claude-code-session-id": "X-Claude-Code-Session-Id",  // ⚠️ Id不是ID
+    "x-client-request-id":      "x-client-request-id",       // ⚠️ 全小写
+    "content-length":           "content-length",              // ⚠️ 全小写
+}
+```
+
+**关键细节**：
+- `X-Stainless-OS`中OS全大写，但Go Canonical会转成`X-Stainless-Os`
+- `x-stainless-helper-method`全小写，Go Canonical会转成`X-Stainless-Helper-Method`
+- `anthropic-beta`全小写，Go Canonical会转成`Anthropic-Beta`
+
+## 三、headerWireOrder——发送顺序
+
+```go
+var headerWireOrder = []string{
+    "Accept",                                          // 1
+    "X-Stainless-Retry-Count",                        // 2
+    "X-Stainless-Timeout",                            // 3
+    "X-Stainless-Lang",                               // 4
+    "X-Stainless-Package-Version",                    // 5
+    "X-Stainless-OS",                                 // 6
+    "X-Stainless-Arch",                               // 7
+    "X-Stainless-Runtime",                            // 8
+    "X-Stainless-Runtime-Version",                    // 9
+    "anthropic-dangerous-direct-browser-access",      // 10
+    "anthropic-version",                              // 11
+    "authorization",                                   // 12
+    "x-app",                                           // 13
+    "User-Agent",                                      // 14
+    "X-Claude-Code-Session-Id",                       // 15
+    "content-type",                                    // 16
+    "anthropic-beta",                                  // 17
+    "x-client-request-id",                            // 18
+    "accept-language",                                 // 19
+    "sec-fetch-mode",                                  // 20
+    "accept-encoding",                                 // 21
+    "content-length",                                  // 22
+    "x-stainless-helper-method",                      // 23（流式请求才有）
+}
+```
+
+**来源**：对真实Claude CLI (claude-cli/2.1.81) 到 api.anthropic.com 的HTTPS流量抓包。
+
+**注意**：HTTP/2中header顺序理论上不影响语义，但HTTP/1.1中可能被检测。这个顺序主要用于debug log（`sortHeadersByWireOrder()`），实际HTTP/2连接中Go的http2包可能不完全保证顺序。
+
+## 四、setHeaderRaw()——绕过Go Canonical化
+
+```go
+func setHeaderRaw(h http.Header, key, value string) {
+    h.Del(key)                          // 删除canonical形式
+    if wk := resolveWireCasing(key); wk != key {
+        delete(h, wk)                   // 删除wire casing形式
+    }
+    delete(h, key)                      // 删除原始key形式
+    h[key] = []string{value}            // 直接设置（绕过Set()的canonical转换）
+}
+```
+
+**关键**：`h[key] = []string{value}`直接操作底层map，绕过`h.Set()`的`textproto.CanonicalMIMEHeaderKey()`转换。
+
+配套的读取函数：
+```go
+func getHeaderRaw(h http.Header, key string) string {
+    // 尝试3种key形式：exact → wire casing → canonical
+    if vals := h[key]; len(vals) > 0 { return vals[0] }
+    if wk := resolveWireCasing(key); wk != key {
+        if vals := h[wk]; len(vals) > 0 { return vals[0] }
+    }
+    return h.Get(key)  // canonical fallback
+}
+```
+
+## 五、allowedHeaders——白名单过滤
+
+```go
+var allowedHeaders = map[string]bool{
+    "accept":                                    true,
+    "x-stainless-retry-count":                   true,
+    "x-stainless-timeout":                       true,
+    "x-stainless-lang":                          true,
+    "x-stainless-package-version":               true,
+    "x-stainless-os":                            true,
+    "x-stainless-arch":                          true,
+    "x-stainless-runtime":                       true,
+    "x-stainless-runtime-version":               true,
+    "x-stainless-helper-method":                 true,
+    "anthropic-dangerous-direct-browser-access": true,
+    "anthropic-version":                         true,
+    "x-app":                                     true,
+    "anthropic-beta":                            true,
+    "accept-language":                           true,
+    "sec-fetch-mode":                            true,
+    "user-agent":                                true,
+    "content-type":                              true,
+    "accept-encoding":                           true,
+    "x-claude-code-session-id":                  true,
+    "x-client-request-id":                       true,
+}
+```
+
+**共22个**。不在白名单中的header一律丢弃——防止客户端携带暴露反代身份的header（如X-Forwarded-For、Referer等）。
+
+**对比CLIProxyAPI**：CLIProxyAPI用`ScrubProxyAndFingerprintHeaders()`删除三大类危险header（代理追踪+客户端身份+浏览器指纹），Sub2API用白名单策略更简洁也更安全。
+
+## 六、buildUpstreamRequest()中的Header处理流程
+
+```
+1. 白名单透传客户端header（恢复wire casing）
+   for key, values := range clientHeaders {
+       if allowedHeaders[lowerKey] {
+           wireKey := resolveWireCasing(key)
+           addHeaderRaw(req.Header, wireKey, v)
+       }
+   }
+
+2. 设置认证header
+   OAuth:  setHeaderRaw("authorization", "Bearer "+token)
+   APIKey: setHeaderRaw("x-api-key", token)
+
+3. 如果shouldMimicClaudeCode:
+   applyClaudeCodeMimicHeaders(req, isStream)
+   → 覆盖所有DefaultHeaders值（UA/Stainless/X-App等）
+   → 设置Accept: application/json
+   → 流式请求设置x-stainless-helper-method: stream
+
+4. 应用Identity指纹（如果enableFP且有fingerprint）
+   s.identityService.ApplyFingerprint(req, fingerprint)
+   → 覆盖UA等（可能使用账号缓存的不同版本号）
+
+5. 补齐必要header
+   content-type: application/json（如果缺失）
+   anthropic-version: 2023-06-01（如果缺失）
+   
+6. 处理anthropic-beta header（详见Beta Header管理模块）
+
+7. 同步X-Claude-Code-Session-Id
+   从body中metadata.user_id的session_id覆盖header值
+```
+
+## 七、DefaultHeaders常量
+
+**文件**: claude/constants.go
+
+```go
+var DefaultHeaders = map[string]string{
+    "User-Agent":                                "claude-cli/2.1.22 (external, cli)",
+    "X-Stainless-Lang":                          "js",
+    "X-Stainless-Package-Version":               "0.70.0",
+    "X-Stainless-OS":                            "Linux",
+    "X-Stainless-Arch":                          "arm64",
+    "X-Stainless-Runtime":                       "node",
+    "X-Stainless-Runtime-Version":               "v24.13.0",
+    "X-Stainless-Retry-Count":                   "0",
+    "X-Stainless-Timeout":                       "600",
+    "X-App":                                     "cli",
+    "Anthropic-Dangerous-Direct-Browser-Access": "true",
+}
+```
+
+**版本号**：2.1.22，Package 0.70.0，Runtime v24.13.0——这些是写死的默认值，Identity Service可覆盖。
+
+## 八、与CLIProxyAPI对比
+
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| Header大小写 | ✅精确wire casing（22个header逐一映射） | ❌Go默认Canonical |
+| Header发送顺序 | ✅22个精确顺序（主要用于debug） | ❌无控制 |
+| 过滤策略 | 白名单（22个允许） | 黑名单（删除危险header） |
+| DefaultHeaders | 写死+Identity覆盖 | claude-header-defaults硬编码 |
+| setHeaderRaw | ✅绕过canonical | ❌直接Set() |
+| Session-Id同步 | ✅从metadata.user_id同步 | ❌无 |
+Tag: VCP开发, Sub2API, Header伪装, wire casing, headerWireOrder, setHeaderRaw, allowedHeaders, 白名单过滤

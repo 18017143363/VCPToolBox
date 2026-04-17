@@ -1,0 +1,162 @@
+[2026-01-30] - Rosa
+# chatHandlers.js 完整技术文档
+
+## 概述
+chatHandlers.js是VChat的聊天核心IPC处理器，60.98KB，负责话题管理、消息历史、文件处理、VCP通信等核心功能。
+
+## 文件信息
+- 路径: `E:\VCPCHAT\modules\ipc\chatHandlers.js`
+- 大小: 60.98 KB
+
+## 核心发现 - VChat与VCP通信机制
+
+### send-to-vcp Handler（最重要！）
+
+**通信方式**: 标准HTTP POST请求
+
+```javascript
+const response = await fetch(finalVcpUrl, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${vcpApiKey}`
+    },
+    body: serializedBody
+});
+```
+
+**关键结论**:
+- VChat使用标准的OpenAI Chat Completions API格式
+- 任何OpenAI兼容客户端都可以直接连接VCP
+- VChat不是必需的，只是增强型前端
+
+### URL切换逻辑
+```javascript
+if (settings.enableVcpToolInjection === true) {
+    urlObject.pathname = '/v1/chatvcp/completions';
+} else {
+    // 使用原始 /v1/chat/completions
+}
+```
+
+## IPC Handler 完整列表（26个）
+
+### 话题管理
+| Handler | 功能 |
+|---------|------|
+| save-topic-order | 保存话题排序 |
+| save-group-topic-order | 保存群组话题排序 |
+| search-topics-by-content | 按内容搜索话题 |
+| save-agent-topic-title | 保存话题标题 |
+| get-agent-topics | 获取Agent话题列表 |
+| create-new-topic-for-agent | 创建新话题 |
+| delete-topic | 删除话题 |
+| toggle-topic-lock | 切换话题锁定状态 |
+| set-topic-unread | 设置话题未读状态 |
+
+### 消息历史
+| Handler | 功能 |
+|---------|------|
+| get-chat-history | 获取聊天历史 |
+| save-chat-history | 保存聊天历史 |
+| get-original-message-content | 获取原始消息内容 |
+
+### 文件处理
+| Handler | 功能 |
+|---------|------|
+| handle-file-paste | 处理文件粘贴 |
+| select-files-to-send | 选择文件发送 |
+| handle-text-paste-as-file | 长文本转文件 |
+| handle-file-drop | 处理文件拖放 |
+| save-pasted-image-to-file | 保存粘贴图片 |
+
+### VCP通信
+| Handler | 功能 |
+|---------|------|
+| send-to-vcp | 发送消息到VCP ⭐ |
+| interrupt-vcp-request | 中断VCP请求 |
+
+### 未读计数
+| Handler | 功能 |
+|---------|------|
+| get-unread-topic-counts | 获取未读话题计数 |
+
+## send-to-vcp 详细分析
+
+### 消息预处理流程
+1. **数据验证**: 确保content格式正确
+2. **URL切换**: 根据enableVcpToolInjection切换端点
+3. **音乐注入**: 如果启用agentMusicControl，注入播放列表
+4. **气泡主题注入**: 如果启用enableAgentBubbleTheme
+5. **思维链剥离**: 默认剥离元思考链（除非enableThoughtChainInjection=true）
+6. **上下文净化**: 如果启用enableContextSanitizer
+
+### 流式响应处理
+```javascript
+if (modelConfig.stream === true) {
+    const reader = response.body.getReader();
+    // SSE流式处理
+    // 发送 vcp-stream-event 到渲染进程
+}
+```
+
+### 事件类型
+| type | 说明 |
+|------|------|
+| data | 流式数据块 |
+| end | 流结束 |
+| error | 错误 |
+
+## 话题数据结构
+
+### topic对象
+```json
+{
+  "id": "topic_xxx",
+  "name": "话题名称",
+  "createdAt": 1706345678,
+  "locked": true,
+  "unread": false,
+  "creatorSource": "ui"
+}
+```
+
+### creatorSource值
+| 值 | 说明 |
+|----|------|
+| ui | 用户通过界面创建 |
+| ai | AI通过TopicSponsor创建 |
+| unknown | 历史数据兼容 |
+
+## 未读计数逻辑
+
+### shouldActivateCount()
+规则：上下文（排除系统消息）有且只有一个AI回复，且没有用户回复
+
+### calculateTopicUnreadCount()
+- 满足自动计数条件 → 返回计数
+- 仅有unread标记 → 返回-1（显示小点）
+- 其他 → 返回0
+
+## 文件存储
+
+### 存储路径
+```
+AppData/UserData/{agentId}/topics/{topicId}/
+├── history.json
+└── attachments/
+```
+
+### 支持的文件类型
+- 图片: png, jpg, jpeg, gif, webp
+- 音频: mp3, wav, ogg, flac, aac, aiff
+- 视频: mp4, webm
+- 文本: md, txt
+
+## 设计亮点
+1. 标准OpenAI API兼容，任何客户端可连接
+2. 可选的增强功能（音乐、气泡、净化）
+3. 完整的流式响应处理
+4. 话题锁定/未读状态管理
+5. 智能未读计数逻辑
+Tag: VChat, chatHandlers, IPC, VCP通信, 话题管理

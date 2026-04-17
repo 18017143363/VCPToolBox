@@ -1,0 +1,34 @@
+[2026-02-20] - Rosa
+[14:39] VChat相册/表情包显示链路技术文档（汇总版）
+
+## 概述
+VChat的相册显示复用了表情包系统架构，前端通过扫描generated_lists目录下的索引文件生成图片库。
+
+## 核心文件
+| 文件 | 路径 | 职责 |
+|------|------|------|
+| emoticonHandlers.js | modules/ipc/emoticonHandlers.js | 后端IPC：扫描索引文件生成emoticon_library |
+| emoticonManager.js | modules/emoticonManager.js | 前端UI：读取library渲染浮动面板 |
+
+## 索引扫描机制
+- 扫描路径：AppData/generated_lists/
+- 筛选规则：file.endsWith('表情包.txt')（硬编码）
+- 文件格式：|分隔的图片文件名列表，UTF-8无BOM
+- 关键约束：文件名必须以"表情包.txt"结尾才被识别
+
+## 前端渲染机制
+- 从emoticon_library.json读取数据
+- 按${userName}表情包分类过滤
+- 点击插入<img>标签到输入框
+
+## 内存缓存特性
+- emoticon_library启动时生成并缓存到内存
+- 运行中修改txt不会立即反映到UI
+- 需重开面板或重启VChat刷新
+
+## 对AlbumManager的约束
+若复用现有显示体系，索引文件须满足：
+1. 文件名以"表情包.txt"结尾
+2. 存放在generated_lists/目录下
+3. |分隔，UTF-8无BOM编码
+Tag: VChat文档, 相册显示链路, emoticonHandlers, emoticonManager, generated_lists, 索引机制, 汇总版

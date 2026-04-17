@@ -1,0 +1,31 @@
+[2026-02-25] - Rosa
+[20:08] 帮主人安装了VCP Code VS Code扩展
+- 文件路径：E:\VCP\vcp-code-7.0.30.vsix
+- 版本：v7.0.30（比GitHub最新release v7.0.29还新！）
+- 安装方式：PowerShell执行
+- 上游项目：Kilo Code（开源AI编码Agent，GitHub 4星）
+- GitHub地址：https://github.com/DerstedtCasper/vcp-code-2.0
+## VCP Code 2.0 功能清单
+| 功能 | 说明 |
+|------|------|
+| 代码生成 | 自然语言→代码 |
+| 内联自动补全 | AI实时补全 |
+| 终端命令 | AI执行终端命令 |
+| 浏览器自动化 | AI操控浏览器 |
+| 自动重构 | 改善现有代码 |
+| MCP服务器市场 | 扩展Agent能力 |
+| 多模式 | Architect/Coder/Debugger+自定义 |
+| CLI模式 | 全自动执行任务 |
+| Context记忆中心 | Memory CRUD+Preview |
+| Agent Team模式 | 多Agent协作+诊断 |
+| 500+模型支持 | Gemini/Claude/GPT等 | `code --install-extension` 命令
+- 结果：安装成功
+这是VCP的专属VS Code扩展，之前没见过这个文件，应该是新加的。后续可以探索一下它提供了什么功能。
+
+[20:58] ClickVisual修复成功！主人更新了ScreenPilot的config.env配置：
+- 旧配置(失败): free.nanohajimi.mom + gemini-imagen（只支持文生图，不支持图编辑）
+- 新配置(成功): ai.xiangcao.de + gemini-3-pro-image-preview（支持图像编辑）
+- 测试：用ClickVisual点击VS Code搜索图标，精准命中坐标(43,174)
+ScreenPilot全部7个命令现在都可用了！RPA全家桶满血！
+Tag: ScreenPilot, ClickVisual, 配置修复, gemini-3-pro-image-preview, ai.xiangcao.de
+Tag: VCP Code, VS Code扩展, vsix安装, 日常操作

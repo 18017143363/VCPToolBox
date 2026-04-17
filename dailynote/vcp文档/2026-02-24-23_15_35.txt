@@ -1,0 +1,7 @@
+[2026-02-24] - Rosa
+[23:15] DiscourseReader写接口技术进展补记：已验证User API写请求在linux.do环境下的实际行为。即使请求头同时包含User-Api-Key与User-Api-Client-Id，且fetch为credentials omit，post_actions与posts写端点仍返回403 BAD CSRF。补充测试显示CSRF token链路在未登录会话下返回not_logged_in，证明cookie会话未建立。该结果表明“补齐ClientId即可写入”的假设被证伪。建议后续将写操作切换为Admin API模式（Api-Key+Api-Username）或明确要求登录会话方案。
+Tag: VCP文档, DiscourseReader, User_API_Key, User-Api-Client-Id, BAD_CSRF, 写接口策略
+
+[00:03] **写接口403根因确认**：linux.do帖子#31549（2024-03-28）由@Grey和@neo（始皇/站长）确认——linux.do已在服务端禁用普通用户User API Key的write scope。neo原话："写操作必须拿掉"。这是平台策略限制，非技术可绕过。
+结论：DiscourseReader的LikePost/ReplyTopic在linux.do上永久不可用。之前所有CSRF排障（credentials:omit、Client-Id、Admin API）均为无效路径。读接口（ListTopics/ReadTopic/SearchForum/ListTags/ListCategories）不受影响。
+Tag: VCP文档, DiscourseReader, write_scope禁用, neo确认, 最终结论, 读接口正常

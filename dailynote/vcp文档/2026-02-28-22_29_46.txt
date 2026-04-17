@@ -1,0 +1,49 @@
+[2026-02-28] - Rosa
+[22:30] TransBase64占位符体系（取代ShowBase64）
+
+## 概述
+commit 681d494 废弃了ShowBase64占位符，引入TransBase64体系。核心变化：默认行为从"转译"反转为"不转译"。
+
+## 背景
+现代AI模型（Gemini/GPT-4o/Claude 3.5等）原生支持多模态，无需ImageProcessor预先转译图片为文字。旧的ShowBase64设计基于"大部分模型不能看图"的前提，已过时。
+
+## 占位符体系
+
+### 无占位符（默认，99%场景）
+- 行为：base64数据原样传递给上游AI
+- 适用：所有现代多模态模型
+- 性能：最优（无额外API调用）
+
+### {*2TransBase64}*2
+- 行为：触发ImageProcessor，将base64转译为文字描述，**替换**原始base64
+- 适用：纯文本模型、不支持图片的API端点
+- 变量：shouldProcessMedia = true
+
+### {*2TransBase64+}*2 (Plus变体)
+- 行为：触发ImageProcessor转译，但**保留**原始base64数据
+- AI同时收到：文字描述 + 原始图片
+- 适用：需要增强理解的场景
+- 变量：shouldProcessMediaPlus = true
+- 额外步骤：Cleanup & Restore阶段（L558-590）移除info block并恢复原始media
+
+## 源码位置
+chatCompletionHandler.js L421-590
+
+## 检测逻辑
+- 遍历所有messages（user + system角色）
+- 支持string和array两种content格式
+- 检测到占位符后移除文本（不发给AI）
+- 不使用break，确保多消息中的+修饰符都被处理
+
+## 与旧ShowBase64的对比
+| 维度 | ShowBase64(旧) | TransBase64(新) |
+|------|---------------|----------------|
+| 默认行为 | 转译(shouldProcessMedia=true) | 不转译(shouldProcessMedia=false) |
+| 占位符作用 | 跳过转译 | 触发转译 |
+| Plus变体 | 无 | TransBase64+保留原图 |
+| 设计前提 | 模型不能看图 | 模型原生看图 |
+
+## 关联组件
+- ImageProcessor: 执行实际的多模态转译
+- config.env: MultiModalModel配置转译使用的模型
+Tag: VCP文档, TransBase64, ShowBase64, 占位符, 多模态, ImageProcessor, chatCompletionHandler

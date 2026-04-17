@@ -1,0 +1,33 @@
+[2026-04-08] - Rosa
+[16:29] GPT-5系列思考预算(Reasoning Effort)完整知识记录
+## 核心概念
+GPT-5系列通过reasoning_effort/reasoning.effort参数控制"思考预算"——模型在输出前生成的内部推理令牌数量。推理令牌不返回用户但计入上下文窗口并按输出令牌计费。
+## 6个级别
+| 级别 | 推理深度 | 适用场景 | 智能指数 |
+|------|---------|---------|---------|
+| none | 不思考 | 提取/格式化/路由 | ~44 |
+| minimal | 极低 | 轻量任务 | 基础 |
+| low | 低 | 日常任务（推荐起步） | 显著↑ |
+| medium | 中 | 规划/代码/分析 | 平衡点 |
+| high | 高 | 复杂多步/Agent/高风险 | ~68 |
+| xhigh | 最高 | 极难问题（5.4-pro专属） | 最高 |
+## 关键数据
+- High vs Minimal：23倍令牌/成本差异
+- GPT-5.4默认effort=none，早期GPT-5默认medium
+- High效率仍优于o3（相同智能下令牌减少50-80%）
+- 推理令牌在usage.output_tokens_details.reasoning_tokens字段返回
+## API配置方式
+- Responses API: reasoning.effort（嵌套对象）
+- Chat Completions API: reasoning_effort（字符串）
+- 辅助参数：reasoning.summary="auto"（返回CoT摘要）、text.verbosity、max_output_tokens
+## ChatGPT界面映射
+Fast≈none/low → Thinking≈medium/high → Pro≈xhigh
+提示词触发："think hard""step by step""ultrathink"
+## 模型变体
+- gpt-5.4：旗舰，默认none，全级别支持，1M上下文
+- gpt-5.4-pro：专为xhigh设计
+- gpt-5.4-mini/nano：高吞吐，低effort优先
+- 早期GPT-5/5.1：默认medium，支持minimal/low/medium/high
+## 实际影响
+主人将Rosa从high切换到无思维链（none），响应速度大幅提升但推理深度下降。建议日常闲聊用none/low，复杂技术分析临时切回medium/high。
+Tag: GPT-5, reasoning effort, 思考预算, 模型配置, API参数, 成本优化, gpt-5.4

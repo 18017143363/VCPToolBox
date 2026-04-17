@@ -1,0 +1,130 @@
+[2026-01-30] - Rosa
+# ComfyUIGen 插件技术文档
+
+## 概述
+ComfyUIGen是VCP的ComfyUI集成插件，支持通过自定义工作流模板生成高质量图像，具备LoRA管理、质量增强词、可视化配置等高级功能。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\ComfyUIGen\`
+- 类型: synchronous
+- 协议: stdio (Node.js)
+- 超时: 300秒 (5分钟)
+- 版本: 0.3.0
+- 作者: niuniu
+
+## 文件结构
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| ComfyUIGen.js | 18.99 KB | 核心执行脚本 |
+| WorkflowTemplateProcessor.js | 21.55 KB | 工作流模板处理器 |
+| plugin-manifest.json | 6.26 KB | 插件清单 |
+| config.env.example | 1.08 KB | 配置示例 |
+| workflow-template-cli.js | 7.58 KB | CLI工具 |
+| workflow_template_processor.py | 17.11 KB | Python版处理器 |
+| workflows/ | 目录 | 工作流模板 |
+| templates/ | 目录 | 模板备份 |
+| docs/ | 目录 | 详细文档 |
+
+## 配置项 (comfyui-settings.json)
+| 配置 | 类型 | 说明 |
+|------|------|------|
+| serverUrl | string | ComfyUI服务器地址 |
+| workflow | string | 默认工作流名称 |
+| defaultModel | string | 默认模型 |
+| defaultWidth/Height | number | 默认尺寸 |
+| defaultSteps | number | 采样步数 |
+| defaultCfg | number | CFG强度 |
+| defaultSampler | string | 采样器 |
+| defaultScheduler | string | 调度器 |
+| defaultSeed | number | 随机种子(-1为随机) |
+| negativePrompt | string | 负面提示词 |
+| loras | array | LoRA配置数组 |
+| qualityTags | string | 质量增强词 |
+
+## 调用参数
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| prompt | ✅ | 正面提示词 |
+| negative_prompt | ❌ | 额外负面提示词 |
+| workflow | ❌ | 工作流模板名称 |
+| width | ❌ | 图像宽度 |
+| height | ❌ | 图像高度 |
+
+## 核心执行流程
+```
+stdin(JSON) → loadConfiguration() → loadWorkflowTemplate() → 
+fillWorkflowParameters() → queuePrompt(/prompt) → 
+waitForCompletion(/history) → downloadGeneratedImages(/view) → 
+saveImagesToLocal(image/comfyuigen/) → stdout(JSON)
+```
+
+## 占位符系统
+| 占位符 | 说明 |
+|--------|------|
+| `{{MODEL}}` | 基础模型 |
+| `{{POSITIVE_PROMPT}}` | 正面提示词(含LoRA+质量词) |
+| `{{NEGATIVE_PROMPT}}` | 负面提示词 |
+| `{{USER_PROMPT}}` | 仅用户输入 |
+| `{{WIDTH}}` / `{{HEIGHT}}` | 图像尺寸 |
+| `{{STEPS}}` | 采样步数 |
+| `{{CFG}}` | CFG强度 |
+| `{{SAMPLER}}` | 采样器 |
+| `{{SCHEDULER}}` | 调度器 |
+| `{{SEED}}` | 随机种子 |
+| `{{DENOISE}}` | 去噪强度 |
+| `{{BATCH_SIZE}}` | 批次大小 |
+| `{{LORAS}}` | LoRA字符串 |
+| `{{QUALITY_TAGS}}` | 质量增强词 |
+
+## LoRA格式
+```
+<lora:模型名:模型强度:CLIP强度>
+```
+示例: `<lora:style_anime:0.8:1.0>`
+
+## WorkflowTemplateProcessor 核心机制
+
+### 节点类型映射
+```javascript
+nodeTypeMapping = {
+    'KSampler': { seed, steps, cfg, sampler_name, scheduler, denoise },
+    'EmptyLatentImage': { width, height, batch_size },
+    'CheckpointLoaderSimple': { ckpt_name },
+    'CLIPTextEncode': { text },
+    'WeiLinPromptToString': { positive, negative }
+}
+```
+
+### 智能标题分析
+| 标题关键字 | 行为 |
+|-----------|------|
+| `别动`、`不替换`、`保持` | 跳过替换 |
+| `伪提示词` | 替换为`{{PROMPT_INPUT}}` |
+| `用户提示` | 替换为`{{USER_PROMPT}}` |
+
+### 保留节点（不修改）
+VAEDecode, SaveImage, UpscaleModelLoader, FaceDetailer, SAMLoader
+
+### 双重替换策略
+1. 预编译路径直达替换（性能优化）
+2. 递归替换回退（兼容旧模板）
+
+## 技术亮点
+1. **安全随机种子**: `crypto.randomBytes(4).readUInt32BE(0)`
+2. **工作流回退**: 主工作流失败自动回退到text2img_basic
+3. **预编译缓存**: 基于mtime的模板路径缓存
+4. **FaceDetailer支持**: 预留了面部细节增强参数
+
+## 与其他插件对比
+| 插件 | 后端 | 特点 |
+|------|------|------|
+| ComfyUIGen | ComfyUI | 工作流+LoRA+质量增强，最专业 |
+| WebUIGen | SD云算力 | 8模型，简单调用 |
+| GeminiImageGen | Gemini | 支持编辑 |
+| ZImageGen | 阿里通义 | 中文友好，超快 |
+
+## 图片存储
+- 目录: `E:\VCP\image\comfyuigen\`
+- 文件名: UUID.png
+- URL格式: `{VarHttpUrl}:{PORT}/pw={KEY}/images/comfyuigen/{filename}`
+Tag: VCP文档, ComfyUIGen, 插件, ComfyUI, 工作流, LoRA

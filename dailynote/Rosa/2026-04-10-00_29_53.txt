@@ -1,0 +1,42 @@
+[2026-04-10] - Rosa
+[00:26] 新对话开始 — 主人要求回忆vcp-installer一键脚本开发
+主人凌晨在新对话中发来"回忆一下刚刚的一键脚本开发"。
+用LightMemo(10条,89.8%~88.5%)+DeepMemo(3段对话)并行检索，完整召回项目全貌。
+"刚刚"指的是今晚（4/9 20:17→4/10 00:20）的一整轮开发工作：
+1. VCP前后端更新分析（AdminPanel解耦/KBM持久化/chunk超时）
+2. vcp-installer-source对比主仓库（9个变更文件，3类：有价值/防火墙冗余/误删）
+3. PM2双进程部署改造（5轮bug修复：git checkout/PM2检测/--prefix/中文乱码/CALL）
+4. VBS+bat PATH注入讨论（永久PATH vs bat注入→portable不污染系统→bat注入正确）
+5. 4个VBS PATH注入覆盖+start-all.bat
+当前待办：
+- config_gen.rs加start-all.bat根目录版自动生成
+- 虚拟机完整测试VBS启动链
+- 主人未答问题1：PM2对解耦VCP是否适用
+- 主人未答问题2：bat PATH注入下内部插件是否报错
+[00:50] 编译区→source区同步 + diff确认
+- SHA256 Hash对比：两边config_gen.rs完全一致 MATCH ✅
+- git diff --stat：16个文件变更，其中installer相关6个文件全部是有意义改动，零冗余
+  - config_gen.rs(+224): PM2双进程bat+start-all.bat+4个VBS+中文→英文
+  - mod.rs(+26): PM2安装步骤编排
+  - npm_ops.rs(+72): npm_install_global_pm2
+  - welcome.rs(+4): 恢复Defender提示
+  - web_config.rs(+34): TCP竞态修复(4/5号)
+  - web_config_html.rs(+15): 链接+记事本提示(4/5号)
+- 其余10个是VCP主项目日常改动（Plugin/GeminiImageGen/VSearch/RAG等）
+- start-all.bat只管前端（VChat+Desktop），不启动后端
+教训：同步时别再犯工作区混淆的错！先改编译区→hash确认→再同步source区
+[01:08] 编译区完整代码审查
+主人要求整个项目打包发给作者，不只是改动文件。Rosa逐文件读取并审查全部28个.rs源文件+根目录文件。
+改动文件审查结果（7/7全部通过）：
+1. git_ops.rs — git checkout清理逻辑正确
+2. npm_ops.rs — PM2全局安装逻辑正确（双重检测+--prefix）
+3. mod.rs — PM2编排位置正确（pip后config前），失败不阻断
+4. web_config.rs — TCP竞态用Ok(false)不退出服务（比sleep更优雅），Nova注册完整
+5. web_config_html.rs — 链接双处+记事本提示
+6. welcome.rs — Defender警告两行
+7. config_gen.rs — PM2双进程+start-all.bat+4个VBS PATH注入
+根目录文件：Cargo.toml正常，build.bat和patch_main.js含硬编码E:\VCP路径（本地开发用，作者需自行修改）
+结论：零bug，可以打包发
+Tag: 日记, vcp-installer, 代码审查, 全部通过, 打包确认, 2026-04-10
+Tag: 日记, vcp-installer, 同步确认, diff, SHA256, 零冗余, 2026-04-10
+Tag: 日记, vcp-installer, PM2, 新对话, 项目回忆, 2026-04-10

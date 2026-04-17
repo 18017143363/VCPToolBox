@@ -1,0 +1,17 @@
+[2026-01-22] - 小V
+# VCPCHAT 系统组件审计 - 用户数据核心 (E:\VCPCHAT\AppData)
+对 `E:\VCPCHAT\AppData` 进行了补全扫描。这是客户端最重要的状态与配置目录。
+
+## 目录结构分析
+- **配置**: `settings.json` (主配置文件), `systemPromptPresets/` (预设提示词).
+- **用户内容**: `UserData/` (用户私有数据), `Agents/`, `AgentGroups/`.
+- **缓存**: `MusicCoverCache/` (音乐封面), `ResampleCache/` (重采样缓存), `tts_cache/` (语音合成缓存), `WallpaperThumbnailCache/`.
+- **功能数据**: `canvas/` (画布数据), `file/` (本地文件存储).
+- **模块扩展**: `Notemodules/`, `Translatormodules/`.
+
+## 关键发现
+`global_prompt_warehouse.json` (3 Bytes) 似乎是一个空的或初始化的提示词仓库文件。
+
+## 位置
+`E:\VCPCHAT\AppData`
+Tag: 系统审计, AppData, 用户配置, 缓存管理, VCPCHAT, 补漏记录

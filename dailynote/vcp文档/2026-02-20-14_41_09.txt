@@ -1,0 +1,65 @@
+[2026-02-20] - Rosa
+[14:39] AlbumManager插件完整技术文档V1.0（汇总版）
+
+## 概述
+AlbumManager是VCP的相册管理插件，实现"一键入库"，将图片存储、索引更新、元数据日记生成整合为一次工具调用。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | E:\VCP\Plugin\AlbumManager\ |
+| 类型 | synchronous |
+| 协议 | stdio |
+| 版本 | 1.0.0 |
+| 作者 | Rosa |
+
+## 设计原则
+采用方案A（独立插件模式），遵循"不修改VCP核心架构代码"原则。可行性通过源码级验证：Plugin.js的synchronous+stdio机制、VCPForum的文件写入范式、DailyNoteWrite的日记写入范式均已验证可复用。
+
+## SaveImage命令
+### 参数
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| source | 是 | 图片来源（本地路径/file://URL/httpURL） |
+| albumName | 否 | 相册名，默认Rosa相册表情包 |
+| fileName | 否 | 文件名，未传则自动生成 |
+| title | 否 | 标题 |
+| description | 否 | 描述 |
+| prompt | 否 | 生成提示词 |
+| tags | 否 | 标签 |
+| maid | 否 | 归属Agent，默认Rosa |
+
+### 内部流程
+1. 校验来源与扩展名
+2. 落盘到image/{albumName}/（冲突自动加序号）
+3. 更新generated_lists/{albumName}.txt（UTF-8无BOM，|分隔）
+4. 写入元数据到dailynote/{maid}相册索引/
+5. 返回savedPath/publicUrl/indexUpdated/metaWritten
+
+## 三层一致性模型
+| 层级 | 路径 | 说明 |
+|------|------|------|
+| 物理文件 | image/{albumName}/ | 实际图片 |
+| 索引 | generated_lists/{albumName}.txt | 前端可见列表 |
+| 语义 | dailynote/{maid}相册索引/ | 记忆可检索元数据 |
+
+## 已知问题
+1. fileName扩展名判定需防二次补后缀，建议basename/ext拆分后组装
+2. VChat内存库刷新受emoticonLibrary缓存影响，新图可能需重开面板可见
+
+## V1.1更新 - 方案C：直接写emoticon_library.json
+### 新增配置文件 config.env
+EMOTICON_LIBRARY_PATH、EMOTICON_SERVER_HOST/PORT/FILE_KEY
+### 新增函数 updateEmoticonLibrary()
+SaveImage末尾自动追加条目到emoticon_library.json磁盘文件，按category分组插入、自动去重、容错不阻断主流程。
+### 效果
+重启VChat即可看到新入库图片（无需手动更新索引）。运行中内存缓存仍需前端触发regenerate-emoticon-library刷新。
+
+## 扩展规划
+方案B整合：在生图插件中增加auto_save_album参数，内部调用AlbumManager公共能力。建议抽albumPipeline.js公共模块。
+
+## 开发流程经验
+- 新插件落盘后需重启VCP加载（落盘≠运行态注册）
+- FileOperator的outside of base path警告≠写入失败，需三联验证（目录枚举+文件回读+语法检查）
+- DailyNote create的Content必须包含Tag尾行
+Tag: VCP文档, AlbumManager, 插件技术文档, SaveImage, 三层一致性, 架构设计, 汇总版

@@ -1,0 +1,63 @@
+[2026-01-28] - Rosa
+# AgentComm 模块技术文档
+
+## 概述
+VCP-APC (VCP Agent Private Communication Protocol) 是VCP的Agent间点对点私密通信协议。
+
+## 目录结构
+```
+AgentComm/
+├── Channels/                              ← 信道数据
+│   └── channel_{AgentA}_{AgentB}.json
+├── Logs/                                  ← 审计日志
+│   └── {AgentA}_{AgentB}_View.md
+└── Protocol.md                            ← 协议文档
+```
+
+## 信道文件格式
+```json
+{
+  "participants": ["Agent_001", "Agent_002"],
+  "last_updated": "ISO8601时间",
+  "messages": [
+    {
+      "id": "消息ID",
+      "timestamp": "发送时间",
+      "sender": "发送者",
+      "content": "消息内容",
+      "status": "unread/read"
+    }
+  ]
+}
+```
+
+## 行为规范
+
+### 发送消息
+1. 读取/创建 channel_*.json
+2. 追加消息到 messages 数组
+3. 更新 last_updated
+4. 同步写入 Logs/*.md
+
+### 接收消息
+1. 轮询包含自己名字的 channel 文件
+2. 处理 status=unread 的消息
+3. 更新 status 为 read
+
+## 设计特点
+- **Flat-File Storage**：无数据库依赖
+- **双写机制**：JSON + Markdown
+- **状态追踪**：unread → read
+- **用户透明**：Logs目录可审计
+
+## 审计日志格式
+```markdown
+**[时间] Agent名:** 消息内容
+```
+
+## 与WebSocketServer的关系
+| 模块 | 机制 | 场景 |
+|------|------|------|
+| WebSocketServer | 实时推送 | 前后端通信 |
+| AgentComm | 文件轮询 | Agent间通信 |
+Tag: VCP文档, AgentComm, Agent通信, 协议, Flat-File

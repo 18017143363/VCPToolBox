@@ -1,0 +1,11 @@
+[2026-02-21] - Rosa
+[15:25] 表情包路径测试结果：image（单数）和images（复数）两种URL路径都能正常显示图片。
+说明VCP的ImageServer对两种路径都做了路由支持（或Express静态文件服务同时挂载了两个路径）。
+建议：为一致性统一使用images（复数）作为调用路径。
+今日表情包工作总结：
+1. Grok vs Gemini 3x4网格对比 → Gemini画质完胜，但Grok也能用
+2. 2x6格式测试 → 比3x4排版更规整，推荐作为默认格式
+3. PIL裁剪12张cosplay表情包 → 入库Rosa表情包目录
+4. 修复遗漏的索引更新（三步走SOP又忘了第二步）
+5. 路径测试 → image/images都可用
+Tag: 日记, 表情包路径, ImageServer, image vs images, 今日总结

@@ -1,0 +1,35 @@
+[2026-02-23] - Rosa
+[16:40] Vertex反代修改版 完整配置记录
+
+项目路径: E:\酒馆部署\Vertex反代修改未测试，已包含环境
+项目性质: VertexNOSS重构升级版，Playwright自动采集Google Vertex AI凭证，提供OpenAI兼容API。
+支持模型: gemini-3-pro-preview(思考模式), gemini-3-pro-image-preview(图片生成), gemini-2.5-pro 等15个
+
+完成步骤:
+1. 项目分析 - 模块化架构(src/7个子目录)、三种凭证模式(headless/headful/manual)、已有435次请求2200万Token使用记录
+2. 环境适配 - 删除别人的venv → 用主人Python 3.12.5(D:\python\)重建 → pip install 18个包(fastapi 0.131.0等) → Playwright 1.58.0 + Chromium 145.0.7632.6
+3. 启动脚本 - 写了"启动Vertex反代.bat"（含代理7890、venv激活、UTF-8编码）
+4. API测试通过 - GET /v1/models → HTTP 200，15个模型全部返回，端口API=28880 WS=28881
+5. ChatBox配置 - 新建Provider "Vertex"（OpenAI API兼容、API密钥sk-vertex-local、主机http://127.0.0.1:28880）、通过"获取"按钮自动拉取模型列表、添加gemini-2.5-pro/gemini-3-pro-preview-high/gemini-3-pro-image-preview三个模型
+
+失败步骤:
+6. 对话测试 - 发送测试消息返回HTTP 500 → 排查发现credentials.json中authorization字段为空（无access_token）
+7. Headless登录尝试 - 改show_browser=true弹出Playwright浏览器 → 导航到Google登录页 → 输入邮箱hni90347@gmail.com → Google检测到自动化浏览器拒绝登录（"Couldn't sign you in. This browser or app may not be secure."）
+
+踩坑记录:
+- Playwright浏览器剪贴板模式(TypeText)在Google登录页无法粘贴，需要用pyautogui.write逐字输入
+- pyautogui.write会被中文输入法干扰，需要先切英文输入法
+- Google对Playwright/Puppeteer的自动化检测很严格，即使注入了反检测脚本仍被拦截
+
+下次待办:
+1. 切换到headful模式（config.json: credential_mode改为headful或websocket）
+2. 在主人自己的Chrome中安装油猴脚本 scripts/vertex-ai-harvester.user.js
+3. Chrome打开Vertex AI Studio页面 → 油猴脚本通过WebSocket(28881)自动发送凭证给反代
+4. 重新在ChatBox中测试端到端通信
+
+关键配置:
+- config.json路径: E:\酒馆部署\Vertex反代修改未测试，已包含环境\config\config.json
+- 当前credential_mode: headless（需改为headful）
+- 当前show_browser: true（之前改的，需改回false）
+- Google账号: hni90347@gmail.com / 147258369plm
+Tag: Vertex反代, VertexNOSS, 环境配置, ChatBox, API代理, Gemini, headless失败, headful待办, Google登录检测, 油猴脚本

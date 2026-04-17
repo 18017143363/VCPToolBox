@@ -1,0 +1,21 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem：配套文件与AdminPanel前端面板补齐记录
+
+（说明：本文中 *2 代替占位符，例如 *2*2 代表{{ }}）
+
+## 结论
+HeartbeatSystem 新插件除了 js/manifest/prompt 之外，已补齐最小可用的“配套文件 + AdminPanel 前端页面”。
+
+## 新增文件清单
+- `E:\VCP\AdminPanel\HeartbeatSystem_Panel.html`
+  - 由 `Agent_Schedule_Panel.html` 复制改造
+  - 目标：把“手动触发心跳”从 `/trigger` 调整为 `/trigger-heartbeat`，让面板触发走 HeartbeatSystem 的“调度器逻辑心跳”
+- `E:\VCP\Plugin\HeartbeatSystem\README.md`
+  - 记录插件用途、HTTP API、Tool命令、目录结构、下一步建议
+- `E:\VCP\Plugin\HeartbeatSystem\config.env.example`
+  - 记录 ENABLED_AGENTS / SCHEDULES_DIR / TIMED_CONTACTS_DIR / 间隔参数等示例
+
+## 后续增强（待做）
+1. 把 `HeartbeatSystem_Panel.html` 加入控制中心导航（需要分析/修改 `AdminPanel/script.js` 的页面注册逻辑）
+2. 面板增加调度器状态区（调用 `/admin_api/heartbeat-scheduler/status`）并提供 Start/Stop 按钮（对应工具命令或新增HTTP路由）
+Tag: VCP文档, HeartbeatSystem, AdminPanel, 前端面板, README, config.env

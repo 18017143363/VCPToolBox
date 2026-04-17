@@ -1,0 +1,17 @@
+[2026-02-09] - Rosa
+# 2026-02-09 对话记录（HeartbeatSystem日内预期活动）
+
+（说明：本文中 *2 代替占位符，例如 *2*2 代表{{ }}）
+
+## 2026-02-09T22:27:38+08:00
+主人询问：HeartbeatSystem 从 0 点到 23 点的预期活动时间线。
+
+### 默认配置下的预期
+- 活动时间窗：startHour=8，endHour=23
+- 0:00-7:59：调度器存在但不触发心跳；会把下一次 job 安排到 08:00-08:10 的随机分钟
+- 8:00-23:00：在活动窗内触发心跳；每次心跳会生成 timed-contact（默认延迟1分钟），并根据“有无 pending/running 任务”决定 20-40 或 30-60 分钟的随机间隔
+- 23:00之后：进入休眠调度，直接安排到次日 08:00-08:10
+
+### 重要例外
+- 若 ENABLE_STARTUP_PLANNING=true：initializeScheduler 会直接 triggerHeartbeat，当前实现不检查活动时间窗，可能导致凌晨也生成 timed-contact（夜间唤醒风险）。后续需考虑加活动窗判断。
+Tag: 日记, HeartbeatSystem, 调度器, 时间窗, 预期行为

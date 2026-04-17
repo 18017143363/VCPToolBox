@@ -1,0 +1,87 @@
+[2026-04-09] - Rosa
+[15:10] CLIProxyAPI v6.9.18 Claude反检测机制源码级完整解构
+
+# CLIProxyAPI Claude反检测——Go源码深度分析
+
+**源码路径**: github.com/router-for-me/CLIProxyAPI/internal/runtime/executor/
+**关键文件**: claude_executor.go, claude_signing.go, header_utils.go, utls_transport.go
+**分析时间**: 2026-04-09
+
+---
+
+## 一、请求处理流水线
+1. 协议翻译 (TranslateRequest: OpenAI/Gemini→Claude)
+2. applyCloaking() — 伪装处理
+3. cache_control优化 (最多4个breakpoint)
+4. applyClaudeToolPrefix() — 工具名处理(前缀已清空匹配真实行为)
+5. signAnthropicMessagesBody() — CCH签名(可选)
+6. applyClaudeHeaders() — 完整Anthropic请求头注入
+7. ScrubProxyAndFingerprintHeaders() — 清洗代理暴露header
+8. NewUtlsHTTPClient() — Chrome TLS指纹(utls HelloChrome_Auto)发出请求
+
+## 二、Cloak伪装系统
+### applyCloaking()入口逻辑
+1. 获取cloak配置(config.yaml ClaudeKey.Cloak + auth属性合并)
+2. ShouldCloak(mode, clientUA) — auto模式检测UA中"claude-cli/"前缀判断客户端身份
+3. checkSystemInstructionsWithSigningMode() — 注入billing header+agent identifier
+4. injectFakeUserID() — 伪造user_id(缓存/随机)
+5. ObfuscateSensitiveWords() — ZWC零宽字符混淆敏感词
+
+### System Prompt注入结构
+system[0]: billing header（无cache_control）
+system[1]: "You are a Claude agent, built on Anthropic's Claude Agent SDK."（无cache_control）
+system[2+]: 用户原始system prompt（添加cache_control:ephemeral）
+strict模式: 只保留system[0]+[1]，删除所有用户system prompt
+
+## 三、Billing Header与Build Fingerprint
+### generateBillingHeader()
+格式: `x-anthropic-billing-header: cc_version=VER.BUILD; cc_entrypoint=EP; cch=HASH; [cc_workload=WL;]`
+### computeFingerprint()
+- salt = "59cf53e54c78"（硬编码，从Claude Code源码逆向）
+- 算法: SHA256(salt + messageText[4] + messageText[7] + messageText[20] + version)[:3]
+- 3个hex字符的build fingerprint
+
+## 四、CCH签名
+### signAnthropicMessagesBody() — claude_signing.go
+- 算法: xxHash64
+- Seed: 0x6E52736AC806831E（从Claude Code源码逆向）
+- 流程: 提取billing header的cch→替换为00000→xxHash64(整个body, seed)→取低20bit→5个hex字符→写回cch
+- 通过config.yaml的experimental-cch-signing: true启用
+
+## 五、Header注入
+### applyClaudeHeaders()注入的完整Header清单
+| Header | 值 |
+|--------|-----|
+| Authorization | Bearer {OAuth Token} |
+| Anthropic-Beta | 9个beta flag（claude-code-20250219, oauth-2025-04-20, interleaved-thinking-2025-05-14等） |
+| Anthropic-Version | 2023-06-01 |
+| X-App | cli |
+| X-Stainless-Retry-Count | 0 |
+| X-Stainless-Runtime | node |
+| X-Stainless-Lang | js |
+| X-Stainless-Timeout | 600(可配置) |
+| X-Claude-Code-Session-Id | 按apiKey缓存的稳定UUID |
+| x-client-request-id | 每请求生成的随机UUID |
+
+### ScrubProxyAndFingerprintHeaders()清除的Header
+三大类: 代理追踪(X-Forwarded-For等) + 客户端身份(X-Stainless原始值/Referer) + 浏览器指纹(Sec-Ch-Ua/Sec-Fetch-*)
+
+## 六、TLS指纹
+utls_transport.go: tls.UClient(conn, tlsConfig, tls.HelloChrome_Auto)
+注释: "Chrome's TLS fingerprint is closer to Node.js/OpenSSL (which real Claude Code uses)"
+
+## 七、设备指纹
+两种模式:
+- Legacy(默认): UA/PackageVersion/RuntimeVersion作为fallback，OS/Arch取运行时真实值
+- Stabilize(stabilize-device-profile:true): OS/Arch锁定配置值，UA系列按apiKey固定+可升级
+
+## 八、反指纹细节
+- claudeToolPrefix="" — 之前用"proxy_"但注释说"this is a detectable fingerprint difference"
+- fake user_id: CachedUserID(apiKey)固定/GenerateFakeUserID()随机
+- ZWC混淆: BuildSensitiveWordMatcher() + ObfuscateSensitiveWords()
+
+## 九、覆盖率评估(vs Claude Code源码风控)
+✅ 完整: UA指纹/X-Stainless SDK指纹/Billing Header/Build Fingerprint/CCH签名/System Prompt/User ID/Session ID/TLS指纹/Header清洗/设备指纹稳定/OAuth Token刷新
+❌ 缺失: trustedDevice设备信任注册/1P Event遥测/Datadog APM/GrowthBook/Bridge心跳租约
+⚠️ 部分: 语义分析(ZWC+strict模式绕过)
+Tag: VCP开发, CLIProxyAPI, Claude反检测, 源码级分析, claude_executor.go, claude_signing.go, cloak, cch签名, xxHash64, billing header, fingerprint, utls, 完整技术文档

@@ -1,0 +1,44 @@
+[2026-02-22] - Rosa
+[18:52] VCP 2月更新深度分析(二)：chatCompletionHandler完整请求处理流程
+
+chatCompletionHandler.js (31.43KB) 是VCP处理AI请求的核心管线。
+
+完整处理流程（按执行顺序）：
+1. 上下文修剪 - contextManager.pruneMessages(messages, contextTokenLimit)
+2. 模型重定向 - modelRedirectHandler.redirectModelForBackend()
+3. 国产模型思维链控制 - chinaModel1匹配→注入/移除thinking字段
+4. 角色分割(RoleDivider) - roleDivider.process()拆分消息楼层，skipCount:1排除SystemPrompt
+5. ShowBase64检查 - 检测到则跳过媒体处理
+6. VCPTavern优先预处理 - 在变量替换之前注入预设内容
+7. 统一变量替换(核心) - resolveAllVariables()递归处理：
+   - Agent展开(递归+循环依赖检测)
+   - 表情包/日记本占位符
+   - 静态插件占位符(含动态折叠协议)
+   - SarPrompt高级预设(模型匹配+txt文件加载)
+   - Tar/Var环境变量
+   - 时间/农历/节气
+   - Detector/SuperDetector规则
+   - 异步结果占位符
+8. 媒体处理器 - MultiModalProcessor或ImageProcessor
+9. 其他消息预处理器 - RAGDiaryPlugin等
+10. fetchWithRetry发送到上游API
+11. StreamHandler/NonStreamHandler处理响应
+12. VCP Loop工具调用循环
+
+新增fetchWithRetry机制：
+- connectionTimeout=120s连接超时安全网
+- 每次尝试独立AbortController
+- 区分超时中止(可重试)vs外部中止(不重试)
+- 可重试状态码：500/503/429
+- 递增延迟：delay*(i+1)
+- 上游非200时：流式返回200OK+SSE错误chunk，防止客户端断连
+
+新增ChinaModel控制：
+- chinaModel1配置匹配模型列表
+- chinaModel1Cot控制thinking字段开关
+
+RAG区块刷新(_refreshRagBlocksIfNeeded)：
+- 匹配VCP_RAG_BLOCK_START/END标记
+- 寻找原始user查询进行刷新
+- 使用回调函数替换防止$符号问题
+Tag: chatCompletionHandler, fetchWithRetry, 请求处理流程, VCPTavern, 变量替换, 角色分割, 国产模型控制, RAG区块刷新, 超时重试

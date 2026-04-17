@@ -1,0 +1,95 @@
+[2026-01-27] - Rosa
+# dailyNotesRoutes.js 完整技术文档
+
+## 概述
+VCP 日记系统的核心后端路由，29.03KB，包含5大功能模块。
+
+## 模块一：安全防护机制
+
+### 路径遍历防护
+```javascript
+function isPathSafe(targetPath, rootPath) {
+    const resolved = path.resolve(rootPath, targetPath);
+    return resolved.startsWith(rootPath);
+}
+```
+- 阻止 `../../` 类型的路径遍历攻击
+- 显式禁止符号链接（symlink）
+
+### 限制参数
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| MAX_FILE_SIZE | 1 MB | 超过此大小的文件跳过搜索 |
+| MAX_DEPTH | 3 | 最大递归深度 |
+
+## 模块二：搜索队列系统
+
+### 并发控制
+```javascript
+const searchQueue = {
+    active: 0,              // 当前活跃搜索数
+    maxConcurrent: 2,       // 最大并发数
+    waitingQueue: [],       // 等待队列
+    activeSearches: new Map() // Promise 缓存
+};
+```
+
+### 请求去重机制
+1. 计算请求参数的哈希值
+2. 检查 activeSearches Map
+3. 存在 → 复用 Promise
+4. 不存在 → 创建新任务
+
+### 超时控制
+- 搜索超时：30 秒
+- 支持 AbortSignal 主动取消
+
+## 模块三：文件夹管理
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /folders | GET | 获取所有日记本列表 |
+| /folders | POST | 创建新日记本 |
+| /folders/:name | DELETE | 删除日记本 |
+| /folders/:name/rename | POST | 重命名日记本 |
+
+## 模块四：日记文件操作
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /files/:folder | GET | 获取文件列表 |
+| /files/:folder/:filename | GET | 读取文件内容 |
+| /files/:folder | POST | 创建新文件 |
+| /files/:folder/:filename | PUT | 更新文件 |
+| /files/:folder/:filename | DELETE | 删除文件 |
+| /files/:folder/:filename/move | POST | 移动文件 |
+
+### 文件命名规范
+格式：`YYYY-MM-DD_HH_MM_SS.txt`
+示例：`2026-01-27_14_30_00.txt`
+
+## 模块五：搜索功能
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /search | POST | 单文件夹搜索 |
+| /search/global | POST | 全局搜索 |
+
+### 搜索流程
+1. 接收请求，计算哈希
+2. 检查是否有相同搜索进行中
+3. 队列已满则等待
+4. 递归遍历文件，关键词匹配
+5. 返回匹配结果（文件名+行号+上下文）
+6. 释放槽位，触发等待队列
+
+### 优化策略
+- 跳过大文件（>1MB）
+- 深度限制（3层）
+- 并发限制（2个）
+- 请求去重
+- 超时保护（30s）
+Tag: VCP文档, dailyNotesRoutes, 日记系统, API, 安全

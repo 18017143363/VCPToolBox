@@ -1,0 +1,201 @@
+[2026-01-27] - Rosa
+# VCP modules目录技术文档
+
+## 概述
+modules/ 是VCP请求处理的核心流水线，包含消息预处理、角色分割、上下文管理等关键模块。
+
+## messageProcessor.js 完整占位符处理机制
+
+### 处理流程（三层递归）
+
+```
+resolveAllVariables() ← 主入口
+    │
+    ├── 1. Agent占位符处理
+    │   └── {*2AgentName}*2 / {*2agent:AgentName}*2
+    │   └── 递归解析Agent文件中的嵌套占位符
+    │   └── 循环依赖检测（防止A引用B，B引用A）
+    │
+    ├── 2. replacePriorityVariables() ← 优先处理
+    │   ├── 表情包: {*2xxx表情包}*2
+    │   └── 日记本: {*2xxx日记本}*2 (全文注入模式)
+    │
+    └── 3. replaceOtherVariables() ← 其他变量
+        ├── SarPrompt预设注入
+        ├── Tar/Var环境变量
+        ├── 时间变量 (Date/Time/Today/Festival)
+        ├── 静态插件占位符
+        ├── 插件描述占位符
+        ├── VCPAllTools
+        ├── Port/Image_Key
+        ├── Detectors规则替换
+        └── 异步结果占位符
+```
+
+### 完整占位符列表
+
+| 占位符 | 处理函数 | 说明 |
+|--------|----------|------|
+| `{*2AgentName}*2` | resolveAllVariables | Agent提示词注入 |
+| `{*2xxx表情包}*2` | replacePriorityVariables | 表情包文件列表 |
+| `{*2xxx日记本}*2` | replacePriorityVariables | 日记本内容（全文注入） |
+| `{*2Date}*2` | replaceOtherVariables | 当前日期 |
+| `{*2Time}*2` | replaceOtherVariables | 当前时间 |
+| `{*2Today}*2` | replaceOtherVariables | 星期几 |
+| `{*2Festival}*2` | replaceOtherVariables | 农历+节气 |
+| `{*2TarXxx}*2` | replaceOtherVariables | 环境变量/文件内容 |
+| `{*2VarXxx}*2` | replaceOtherVariables | 环境变量/文件内容 |
+| `{*2SarPromptN}*2` | replaceOtherVariables | 模型特定预设 |
+| `{*2Port}*2` | replaceOtherVariables | 服务器端口 |
+| `{*2Image_Key}*2` | replaceOtherVariables | 图片访问密钥 |
+| `{*2VCPAllTools}*2` | replaceOtherVariables | 所有工具描述 |
+| `{*2VCP_ASYNC_RESULT::plugin::id}*2` | replaceOtherVariables | 异步任务结果 |
+
+### 与VCPTavern的执行顺序
+
+```
+请求到达VCP
+    ↓
+VCPTavern.process() ← messagePreprocessor，最先执行
+    └── 检测{*2VCPTavern::xxx}*2，注入预设
+    ↓
+messageProcessor.resolveAllVariables() ← 解析所有占位符
+    ↓
+其他预处理器
+    ↓
+转发到上游AI
+```
+
+### 关键设计
+
+1. **循环依赖检测**：使用processingStack防止Agent互相引用
+2. **优先级分离**：表情包和日记本优先处理
+3. **递归解析**：Agent文件中的占位符也会被解析
+4. **异步结果**：支持从文件读取异步任务结果，包含消息预处理、角色分割、上下文管理等关键模块。
+
+## 目录结构
+
+```
+modules/
+├── handlers/
+│   ├── streamHandler.js (15.49 KB)
+│   └── nonStreamHandler.js (10.52 KB)
+├── vcpLoop/
+│   ├── toolCallParser.js (2.16 KB)
+│   └── toolExecutor.js (3.18 KB)
+├── SSHManager/
+│   ├── SSHManager.js (47.31 KB)
+│   ├── index.js (6.89 KB)
+│   └── hosts.json (5.21 KB)
+├── chatCompletionHandler.js (30.47 KB)
+├── messageProcessor.js (16.24 KB)
+├── roleDivider.js (15.59 KB)
+├── agentManager.js (13.6 KB)
+├── logger.js (10.78 KB)
+├── contextManager.js (3.4 KB)
+├── tvsManager.js (2.96 KB)
+└── captchaDecoder.js (2.04 KB)
+```
+
+## 核心模块详解
+
+### messageProcessor.js
+**职责**: 消息预处理，解析所有占位符变量
+
+**支持的变量类型**:
+- `{{AgentName}}` - Agent提示词注入
+- `{{Date}}` `{{Time}}` `{{Today}}` - 时间变量
+- `{{Festival}}` - 农历节日信息
+- `{{角色名日记本}}` - RAG日记本内容
+- `{{xxx表情包}}` - 表情包列表
+- `{{VCP_ASYNC_RESULT::plugin::id}}` - 异步结果
+- `{{TarXxx}}` `{{VarXxx}}` - 环境变量/文件内容
+- `{{SarPromptN}}` - 模型特定提示词
+
+**关键函数**:
+- `resolveAllVariables()` - 主入口，递归解析所有变量
+- `replaceOtherVariables()` - 处理非Agent变量
+- `replacePriorityVariables()` - 优先处理表情包和日记本
+
+### roleDivider.js
+**职责**: 将单条消息按角色标签分割成多条消息
+
+**角色标签**:
+```
+<<<[ROLE_DIVIDE_SYSTEM]>>> ... <<<[END_ROLE_DIVIDE_SYSTEM]>>>
+<<<[ROLE_DIVIDE_ASSISTANT]>>> ... <<<[END_ROLE_DIVIDE_ASSISTANT]>>>
+<<<[ROLE_DIVIDE_USER]>>> ... <<<[END_ROLE_DIVIDE_USER]>>>
+```
+
+**保护机制**:
+- 保护 `<<<[TOOL_REQUEST]>>>` 块
+- 保护 `<<<DailyNoteStart>>>` 块
+- 支持ignoreList忽略特定内容
+
+### agentManager.js
+**职责**: 管理Agent提示词文件
+
+**核心机制**:
+- agent_map.json 定义别名→文件映射
+- promptCache 缓存已加载的提示词
+- chokidar 监听文件变化，自动清理缓存
+- 支持符号链接文件
+
+**关键API**:
+- `isAgent(alias)` - 检查是否为注册的Agent
+- `getAgentPrompt(alias)` - 获取Agent提示词内容
+- `getAllAgentFiles()` - 获取所有Agent文件列表
+
+### contextManager.js
+**职责**: 上下文Token管理和消息修剪
+
+**修剪规则**:
+1. system消息必须保留
+2. [系统提示:]前缀的user消息必须保留
+3. 最后两条消息必须保留
+4. 从前往后删除其他消息直到满足限制
+
+**关键API**:
+- `estimateTokens(messages)` - 估算Token数量
+- `pruneMessages(messages, limit)` - 修剪消息
+
+### logger.js
+**职责**: 服务器日志系统
+
+**特性**:
+- RotatingLogger类实现日志轮转
+- 默认5MB单文件限制
+- 按日期归档到archive/目录
+- 默认保留7天
+- 重写console.log/error/warn/info
+
+**配置**:
+- LOG_MAX_FILE_SIZE - 单文件大小限制
+- LOG_MAX_DAYS - 日志保留天数
+
+### tvsManager.js
+**职责**: TVStxt/目录文件缓存管理
+
+**特性**:
+- contentCache Map缓存文件内容
+- chokidar监听文件变化
+- 文件修改/删除时自动清理缓存
+
+## 请求处理流程
+
+```
+用户请求
+    ↓
+chatCompletionHandler (入口)
+    ├── messageProcessor (变量解析)
+    │   ├── agentManager (Agent提示词)
+    │   ├── tvsManager (TVS文件)
+    │   └── pluginManager (插件占位符)
+    ├── roleDivider (角色分割)
+    ├── contextManager (上下文修剪)
+    └── handlers/ (响应处理)
+        └── vcpLoop/ (工具调用)
+```
+
+Tag: VCP文档, modules, 消息处理, 角色分割, Agent管理
+Tag: VCP文档, modules, 消息处理, 角色分割, Agent管理

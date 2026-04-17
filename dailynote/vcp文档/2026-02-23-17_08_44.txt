@@ -1,0 +1,30 @@
+[2026-02-23] - Rosa
+[17:08] UrlFetch插件源码深度分析（2026-02-23最新版本）
+
+核心概念：UrlFetch是基于Puppeteer的网页内容获取插件，支持三种模式（text/snapshot/image）。
+
+关键更新发现：
+1. **新增image模式**：直接下载网络图片返回base64，支持智能URL后缀检测自动切换
+2. **三层Cookie系统**：
+   - 优先级1: FETCH_COOKIES_RAW_MULTI（多站点JSON格式，如 {"linux.do":"cookie_str","bilibili.com":"..."}）
+   - 优先级2: FETCH_COOKIES_RAW（单站点原始cookie字符串）
+   - 优先级3: FETCH_COOKIES（JSON数组格式）
+   - Cookie配置存于 config.env 文件中
+3. **本地文件支持**：file://协议，图片返回base64，文本返回内容
+4. **反检测**：puppeteer-extra + StealthPlugin + AnonymizeUAPlugin
+5. **代理回退**：FETCH_PROXY_PORT环境变量，直连失败自动走代理
+6. **懒加载处理**：autoScroll函数，text模式滚动5次，snapshot模式3次
+7. **聚合页特殊处理**：识别span.text-xl.font-bold标题元素，提取卡片式布局中的分类链接
+
+技术细节：
+- 使用@mozilla/readability提取文章正文
+- 使用jsdom解析HTML
+- snapshot模式将截图保存到image/urlfetch/目录并生成可访问URL
+- 视口分辨率: 1280x800
+- 网络超时: 30000ms
+
+实际应用案例：访问linux.do需要登录的NSFW帖子时，因为UrlFetch使用独立Puppeteer实例而非用户浏览器，需要在config.env中配置FETCH_COOKIES_RAW_MULTI才能以登录状态访问。
+
+关联节点：ChromeBridge（使用用户浏览器已登录状态）、ScreenPilot（截图）、config.env配置文件
+信源：E:\VCP\Plugin\UrlFetch\UrlFetch.js 源码直读
+Tag: UrlFetch插件, Puppeteer, Cookie配置, image模式, 网页抓取, 反检测, 代理回退, Readability, 本地文件读取

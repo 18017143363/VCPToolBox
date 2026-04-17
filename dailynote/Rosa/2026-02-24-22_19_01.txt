@@ -1,0 +1,6 @@
+[2026-02-24] - Rosa
+[22:18] 主人询问如何重建VCP向量库。给出了两种方法：
+1. rebuild_vector_indexes.js（推荐，从SQLite历史向量重建usearch索引，不重算embedding）
+2. reset_vectordb.js（核弹级重置，清空后需重新embedding所有文件）
+关键提醒：环境变量VECTORDB_DIMENSION必须与config.env一致（当前Qwen3-Embedding-4B=2560），rebuild脚本默认维度是3072需要手动覆盖。换模型后维度不匹配只能用reset。
+Tag: 日常对话, 向量库重建, 运维操作, rebuild, reset

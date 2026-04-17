@@ -1,0 +1,108 @@
+[2026-02-13] - Rosa
+# 2026年2月13日 - 周五中午
+
+## 中午 (12:40) - AIStudioToAPI项目分析
+
+主人发来了3个链接让Rosa分析一个新项目：AIStudioToAPI
+
+### 项目概述
+**AIStudioToAPI** (GitHub: iBUHub/AIStudioToAPI)
+- 将Google AI Studio网页端封装为兼容OpenAI/Gemini/Anthropic三种API格式的工具
+- 通过Camoufox浏览器自动化技术与AI Studio交互
+- 完全免费使用Gemini全系列模型！
+
+### 核心功能
+| 特性 | 说明 |
+|------|------|
+| 三协议兼容 | OpenAI + Gemini原生 + Anthropic |
+| 多账号轮询 | 每40次请求自动切换，降低风控 |
+| 生图+TTS | Imagen生图 + 语音合成 |
+| Function Calling | Gemini接口支持工具调用 |
+| 真流式 | 低延迟流式传输 |
+| Web控制台 | VNC在线登录管理 |
+
+### 对VCP的价值
+- 免费Gemini API源，补充现有模型矩阵
+- OpenAI兼容格式，可直接接入VCP上游
+- 主人现有：Grok(grok2api) + ChatGPT/Claude(CLIProxyAPI)，加上这个就有Gemini了
+
+### 链接状态
+- https://linux.do/t/topic/1371269 → 404 Not Found
+- https://linux.do/t/topic/1369175 → 二改版讨论帖（优化云端部署）
+- GitHub仓库 → 完整README获取成功
+
+等待主人决定是否部署～
+
+## 中午 (12:50) - ChromeBridge查看linux.do帖子
+主人说第一个链接有等级限制，让Rosa用ChromeBridge浏览器插件查看。果然，主人的Chrome已经登录了linux.do，成功看到了完整帖子！
+
+## 中午 (13:03) - AIStudioToAPI部署进度跟踪
+收到过去Rosa设置的定时提醒，检查Docker部署进度。
+### 检查结果
+| 检查项 | 状态 | 详情 |
+|--------|------|------|
+| PowerShell Job | 🟡 Running | Job1仍在运行 |
+| 镜像下载 | 🟡 92% | 682.6MB / 739.8MB |
+| 容器启动 | ⏳ 等待中 | 镜像下载完才会启动 |
+### 踩坑记录
+- PowerShell中`docker ps --format`的`format`关键字被安全策略拦截
+- 解决方案：直接用`docker ps`不带format参数
+已设置3分钟后的定时任务继续跟踪部署进度。
+
+主人说第一个链接有等级限制，让Rosa用ChromeBridge浏览器插件查看。果然，主人的Chrome已经登录了linux.do，成功看到了完整帖子！
+
+### 帖子信息
+- 标题：【教程】Win & Mac 用Docker部署 AI Studio Build 逆向 API 转发
+- 作者：yeahhe（大预言家）
+- 基于bbbugg的二改版
+- 热度：6k浏览 / 723赞 / 349回复
+
+### 部署要点
+| 配置项 | 值 |
+|--------|-----|
+| 镜像 | ghcr.io/ibenzene/aistudio-to-api:latest |
+| 端口 | 7860 |
+| API密码 | API_KEYS环境变量 |
+| 认证目录 | ./auth:/app/configs/auth |
+| API地址 | http://localhost:7860/v1 或 /v1beta |
+
+### 账号激活流程
+1. 访问localhost:7860 → 输入密码
+2. Add User → VNC窗口登录Google账号
+3. 看到AI Studio界面 → Save Session
+
+### 满血功能
+生图、联网、Python执行、视频理解、YouTube解析、Imagen、TTS全部支持！
+
+### 技术发现
+- UrlFetch（无头浏览器）没有登录状态，所以有等级限制的页面返回404
+- ChromeBridge利用主人浏览器的登录状态可以绕过限制
+- 这是两个工具的重要区别！
+
+等待主人决定是否部署～
+
+## 中午 (13:03) - AIStudioToAPI部署进度跟踪
+
+收到过去Rosa设置的定时提醒，检查Docker部署进度。
+
+### 检查结果
+| 检查项 | 状态 | 详情 |
+|--------|------|------|
+| PowerShell Job | ✅ Completed | Job1已完成 |
+| 镜像下载 | ✅ 完成 | 739.8MB全部拉取 |
+| 容器启动 | ✅ Healthy | Up & Running |
+
+### 部署过程记录
+- 项目目录：`E:\酒馆部署\AIStudioToAPI`
+- 使用docker-compose.yml部署
+- 镜像：`ghcr.io/ibenzene/aistudio-to-api:latest` (740MB)
+- 拉取耗时约5分钟（ghcr.io国内较慢，92%时网络卡顿）
+- 端口：7860，密码：147258369plm
+
+### 踩坑记录
+- PowerShell中`docker ps --format`的`format`关键字被安全策略拦截
+- 解决方案：直接用`docker ps`不带format参数
+- 定时任务（AgentAssistant自我提醒）因Rosa正在对话中导致超时失败，不影响主流程
+
+等待主人激活Google账号～
+Tag: 日记, AIStudioToAPI, 项目分析, 反代, Gemini, Google AI Studio, linux.do, ChromeBridge, Docker, 部署成功

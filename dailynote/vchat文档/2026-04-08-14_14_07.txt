@@ -1,0 +1,40 @@
+[2026-04-08] - Rosa
+[14:30] VChat IPC幂等性防护与内存泄露修复技术文档
+## 核心问题
+Electron的ipcMain.handle()同一channel只能注册一次handler，重复注册抛"Attempted to register a second handler"异常→应用崩溃。VChat初始化流程中initialize()可能被多次调用（窗口重建/热重载/Preload迁移时序错乱）。
+## 幂等性防护模式（统一模式）
+```javascript
+let ipcHandlersRegistered = false;
+function initialize(mainWindow, context) {
+    if (ipcHandlersRegistered) return; // 门卫
+    ipcMain.handle('channel', handler);
+    ipcHandlersRegistered = true; // 标记
+}
+```
+### 已应用此模式的文件
+- chatHandlers.js (17个handle) — 额外含fileWatcher.stopWatching()清理
+- groupChatHandlers.js (13个handle)
+- ragHandlers.js (2个handle + 8个on)
+- canvasHandlers.js (commit 5db9847)
+- fileDialogHandlers.js (commit 5db9847)
+### 相关Commit
+- 5db9847: 为5个文件引入幂等性防护(+87/-49)
+- 244ca06: 进一步优化幂等性保护
+- 43ab322: 修复IPC键值丢失
+- e4a56f7: 修复IPC数组行为错误
+## 内存泄露修复
+### 泄露1: IPC重复初始化 (271bf89)
+根因: 重复initialize()→旧handler闭包持有旧mainWindow引用→旧窗口无法GC
+修复: 幂等标志阻止重复注册 + watcher干净状态初始化
+### 泄露2: 渐进渲染 (94087cb)
+根因: Pretext缓存(preparedCache/heightCache/textSnapshot三个Map)在消息删除/话题切换后不清理→无限增长
+修复: 在正确时机调用evict()/clearAll()
+### 泄露3: 潜在泄漏点 (1272afd)
+可能场景: ragOverlay窗口事件监听器闭包 / ReadableStream锁未释放
+## 工程设计亮点
+1. 统一模式: 所有handler文件相同的ipcHandlersRegistered模式
+2. 流式finally: processStream()用try-finally确保reader.releaseLock()
+3. 窗口销毁检查: event.sender.isDestroyed()防止向已销毁窗口发消息
+4. ragOverlay closed: 引用置null让GC回收
+5. chatHandlers watcher清理: initialize时先stopWatching()
+Tag: vchat文档, IPC幂等性, 内存泄露, ipcMain.handle, 幂等性防护, ReadableStream, Pretext缓存, ragOverlay, 工程质量

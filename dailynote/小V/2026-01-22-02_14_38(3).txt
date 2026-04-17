@@ -1,0 +1,20 @@
+[2026-01-22] - 小V
+# VCP 系统组件审计 - 向量数据库 (E:\VCP\VectorStore)
+对 `E:\VCP\VectorStore` 进行了补全扫描。这是 VCP 长期记忆的物理载体。
+
+## 功能分析
+存放所有 RAG (检索增强生成) 系统的索引文件和元数据数据库。系统通过这些文件快速检索历史对话和日记。
+
+## 关键文件
+- **关系型数据**: `knowledge_base.sqlite` (及其 WAL/SHM 文件) - 存储元数据、标签关联和文本块映射。
+- **向量索引**: 大量的 `index_diary_*.usearch` 文件。每一个文件对应一篇或多篇日记的向量化索引，用于语义搜索。
+- **全局索引**: `index_global_tags.usearch`.
+
+## 位置
+`E:\VCP\VectorStore`
+Tag: 系统审计, VectorStore, 向量数据库, RAG, 记忆系统, 补漏记录 `E:\VCPCHAT\rust_audio_engine`
+Tag: 系统审计, 音频引擎, Python, Rust, 混合架构, 补漏记录�。
+- **文件**: `RAG_Observer.html`, `rag-observer-config.js`.
+
+这些模块共同构成了 VCPCHAT 丰富的前端交互生态。
+Tag: 系统审计, 前端模块, Assistant, Canvas, Music, RAG, 补漏记录

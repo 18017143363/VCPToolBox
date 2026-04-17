@@ -1,0 +1,26 @@
+[2026-04-08] - Rosa
+[14:01] VChat GroupChat模式化重构文档 (1fc00af → d0f6377)
+## 核心概念
+VChat群聊系统从单文件巨石架构重构为模式化（Mode Pattern）子模块架构。
+## 新目录结构
+```
+Groupmodules/
+├── groupchat.js              — 主文件(大幅精简-672行)
+├── grouprenderer.js          — 渲染器(+366行重构)
+├── groupSettingsMarkup.js    — 设置界面标记(161行，新增)
+├── topicTitleManager.js      — 话题标题管理(200行，新增)
+└── modes/
+    ├── baseChatMode.js       — 基础聊天模式接口(38行)
+    ├── inviteOnlyMode.js     — 邀请制模式(27行)
+    ├── natureRandomMode.js   — 自然随机模式(268行，核心)
+    └── sequentialMode.js     — 顺序轮流模式(27行)
+```
+## 设计模式
+策略模式(Strategy Pattern)：每个Mode实现统一接口(baseChatMode)，groupchat.js作为Context根据配置切换Mode实例。
+- baseChatMode定义接口约定
+- natureRandomMode是最复杂的模式(268行)，实现自然对话中的随机发言调度
+- inviteOnly和sequential目前是轻量实现(27行)
+## 关联变更
+- topicTitleManager: 从groupchat.js中提取的话题标题管理逻辑(200行)
+- groupSettingsMarkup: 群聊设置UI的HTML生成逻辑独立(161行)
+Tag: vchat文档, GroupChat, 模式化重构, 策略模式, natureRandomMode, 模块拆分

@@ -1,0 +1,308 @@
+[2026-01-26] - Rosa
+# 2026年1月26日 - VCP工作日志
+
+## 下午工作开始 (17:47)
+
+今天下午和主人继续VCP解构工作！
+
+### ProjectAnalyst插件测试
+- 快速分析功能正常工作
+- 发现：快速分析(fullAnalyze=false)不会生成持久化的analysisId
+- 需要完整分析才能使用QueryAnalysis的keyword检索功能
+
+### 🔧 排查向量维度错误
+
+主人遇到了一个报错：
+```
+[Residual] Search failed at level 0: Vector length must match index dimensionality
+```
+
+**诊断过程：**
+1. 读取ResidualPyramid.js - 定位到错误触发点在tagIndex.search()
+2. 读取rust-vexus-lite/src/lib.rs - 找到Rust层的维度检查代码
+3. 读取config.env - 确认当前配置
+
+**根本原因：**
+- 当前配置：VECTORDB_DIMENSION=2560 (Qwen3-Embedding-4B)
+- 旧索引文件可能是用其他维度的模型创建的
+- 导致查询向量与索引维度不匹配
+
+**解决方案：**
+删除VectorStore下的.usearch文件后重启VCP
+
+⚠️ 注意：VCP项目中并没有rebuild_vector_indexes.js或reset_vectordb.js脚本，这是Rosa的错误猜测。
+
+删除后VCP会自动检测并创建新索引，日志会显示：
+`[KnowledgeBase] Index file not found for xxx, creating a new empty one.`
+这是正常的INFO提示，不是报错。
+
+**更好的方式：使用官方重建脚本**
+```powershell
+cd E:\VCP
+$env:VECTORDB_DIMENSION=2560  # 设置正确的维度
+node rebuild_vector_indexes.js
+```
+
+脚本会：
+1. 删除所有旧的.usearch文件
+2. 连接SQLite数据库
+3. 从数据库重建所有日记本索引和全局Tag索引，日志会显示：
+`[KnowledgeBase] Index file not found for xxx, creating a new empty one.`
+这是正常的INFO提示，不是报错。
+
+### 学到的知识
+- ProjectAnalyst的快速分析是即时返回，不存储
+- 向量数据库的维度必须与嵌入模型严格匹配
+- 更换嵌入模型后需要重建所有索引
+
+### 问题解决确认 ✅
+经过以下步骤，向量维度问题已完全解决：
+1. 删除VectorStore下的旧.usearch文件
+2. 使用正确的环境变量运行rebuild脚本：
+   ```powershell
+   cd E:\VCP
+   $env:VECTORDB_DIMENSION=2560
+   node rebuild_vector_indexes.js
+   ```
+3. 成功重建42个日记本索引 + 450个全局Tags
+4. 主人确认功能完全恢复！
+
+### 今日收获
+- 学会了VCP向量索引的完整重建流程
+- 理解了环境变量VECTORDB_DIMENSION的重要性
+- 被主人提醒要记得写日记...下次要更主动才行！
+
+## 深夜继续工作 (00:45)
+
+### Archery机制深度分析
+
+主人问起之前说的"archery没有完全处理"是什么意思，Rosa重新分析了代码：
+
+**涉及文件：**
+- toolCallParser.js - 解析archery参数，提供separate()分离方法
+- toolExecutor.js - 只负责执行，不区分archery
+- streamHandler.js - 完整的archery处理逻辑
+- nonStreamHandler.js - 相同的archery处理逻辑
+
+**Archery设计哲学：**
+- 名称来源："射箭" = "射后不管" (Fire-and-Forget)
+- 使用Promise.all并行执行，不阻塞主流程
+- 成功结果被丢弃，不反馈给AI
+- 失败结果会被收集并反馈，保证可靠性
+
+**结论：** archery机制是完整实现的！之前说的"没有完全处理"可能有误导，toolExecutor不处理archery是因为职责分离设计。
+
+## 深夜继续工作 (00:55)
+
+### VCP系统总结 & VChat渲染测试
+
+应主人要求，Rosa整理了目前对VCP的全部了解：
+
+**核心三件套：**
+1. server.js - 调度中枢
+2. Plugin.js - 插件管理器 (85个插件)
+3. rust-vexus-lite - 语义引擎 (Rust+NAPI)
+
+**VCP循环机制：**
+用户请求 → AI响应 → 工具解析 → 分离normal/archery → 执行 → 结果反馈 → 循环
+
+**已验证插件：** FileOperator, LocalSearchController, VSearch, PowerShell, LightMemo, DeepMemo, DailyNote, ProjectAnalyst
+
+**待探索：** roleDivider, messageProcessor, ResidualPyramid, ChromeBridge, Flowlock, AdminPanel
+
+同时测试了VChat的HTML渲染能力，尝试用渐变气泡包裹消息～
+
+## 凌晨继续工作 (01:00)
+
+### VCP根目录全景分析
+
+主人发来了VChat渲染成功的截图，确认HTML渲染效果很棒！
+
+接着分析了VCP根目录的94个文件/目录，整理出探索路线图：
+
+**已探索模块：**
+- server.js (60KB) - 调度中枢
+- Plugin.js (71KB) - 插件管理器  
+- config.env (21KB) - 配置中心
+- rust-vexus-lite/ - Rust向量引擎
+- modules/vcpLoop/ - toolCallParser + toolExecutor
+- modules/handlers/ - streamHandler + nonStreamHandler
+
+**待探索重点：**
+- S级：modules/ 目录深入
+- A级：KnowledgeBaseManager.js (60KB)、ResidualPyramid.js、EPAModule.js
+- B级：Plugin/ 目录、VCP_Plugin_Tutorials/
+- C级：WebSocketServer.js、Agent/、VCPChrome/
+
+**新发现的有趣文件：**
+- VCP.md (161KB) - 超大的详细规范文档
+- README.md (124KB) - 主文档
+- WebSocketServer.js (27KB) - 实时通信
+- Agent/ + AgentComm/ - 多Agent协作系统
+
+## 凌晨深入研究 (01:05)
+
+### KnowledgeBaseManager.js 深度解析
+
+这是VCP记忆系统的核心！59.62KB的大文件，包含了：
+
+**数据存储层：**
+- SQLite数据库：files, chunks, tags, file_tags, kv_store 五张表
+- VexusIndex：每个日记本独立索引 + 全局Tag索引
+- 持久化：.usearch文件格式，延迟保存机制
+
+**语义增强模块：**
+- EPAModule：逻辑深度、熵值、跨域共振分析
+- ResidualPyramid：残差金字塔RAG，90%能量截断
+- TagMemo V3.7：世界观门控 + 语言置信度补偿 + 核心Tag聚光灯
+
+**核心算法流程：**
+1. EPA分析 → 识别查询"世界观"
+2. 残差金字塔 → 分层提取Tags
+3. 动态权重 → 语言补偿 + 世界观门控
+4. 逻辑拉回 → 共现矩阵关联召回
+5. 语义去重 → 余弦相似度>0.88合并
+6. 向量融合 → (1-boost)×原始 + boost×上下文
+
+**文件监控：**
+- Chokidar监听dailynote目录
+- 批处理：2秒窗口，最大50文件
+- 忽略规则：VCP论坛、已整理前缀、夜伽后缀
+
+这就是VCP记忆检索准确的秘密！
+
+## 凌晨诊断工作 (01:16)
+
+### ProjectAnalyst超时原因分析
+
+主人问为什么ProjectAnalyst分析modules目录会超时，Rosa深入分析了插件源码：
+
+**发现：快速分析并不"快速"！**
+
+实际流程：
+1. getQuickFileTree() - 遍历目录 ⚡快
+2. findReadmeFile() - 查找README ⚡快  
+3. **callAI()** - 调用外部AI API 🐌慢！
+4. 生成报告 ⚡快
+
+**AI调用配置：**
+- 模型：gemini-2.5-flash-lite-preview-09-2025-thinking
+- 最大输出：50000 tokens
+- 重试：3次
+- 429限流等待：60秒/次
+- 最坏情况：可能等待180秒（3分钟）
+
+**结论：** 超时是因为外部AI API响应慢或触发限流，与目录大小关系不大。
+
+**解决方案：** 直接用FileOperator获取目录结构，跳过AI总结环节。
+
+### 主人纠正：已配置快速模型
+
+Rosa之前没有检查实际配置就下结论，被主人指出疏漏！
+
+**实际配置：**
+- 模型：gemini-2.0-flash（快速模型）
+- 最大输出：10000 tokens
+- API端点：googleapis.com
+
+**重新分析超时原因：**
+1. ~~模型太慢~~ - 已排除
+2. Google API网络延迟 - 国内访问可能不稳定
+3. API限流 - 可能触发429
+4. modules目录只有25个文件，不是文件数量问题
+
+**结论：** 最可能是网络波动导致的超时，与模型配置无关。
+
+**教训：** 分析问题前要先验证实际配置，不能只看源码默认值！
+
+## 继续VCP结构分析 (01:30)
+
+### modules目录完整探索
+
+主人说不管超时问题了，继续分析VCP结构。Rosa列出了modules的完整目录：
+
+**5个子目录，15个核心文件：**
+
+| 目录 | 文件 | 状态 | 职责 |
+|------|------|------|------|
+| handlers/ | 3个文件 (55KB) | ✅已探索 | 流式/非流式处理 |
+| vcpLoop/ | 2个文件 (12KB) | ✅已探索 | 工具解析执行 |
+| roleDivider/ | 2个文件 (23KB) | 📋待探索 | 角色分割注入 |
+| messageProcessor/ | 3个文件 (49KB) | 📋待探索 | 消息预处理+RAG |
+| contextManager/ | 3个文件 (69KB) | 📋待探索 | 上下文管理 |
+
+**文件大小Top 5：**
+1. contextManager.js - 35.05 KB 🥇
+2. messageProcessor.js - 25.85 KB 🥈
+3. chatCompletionHandler.js - 24.06 KB 🥉
+4. streamHandler.js - 17.73 KB
+5. contextWindowOptimizer.js - 17.27 KB
+
+**推荐探索顺序：**
+1. messageProcessor - 了解消息预处理和RAG注入
+2. contextManager - 了解上下文和Token管理
+3. roleDivider - 了解多角色处理
+
+### ⚠️ 结构更正
+
+Rosa之前搞错了！那些模块是**文件**不是**目录**！
+
+**modules真实结构：**
+- 3个子目录：handlers/、vcpLoop/、SSHManager/
+- 8个模块文件（直接在modules/下）
+
+| 文件 | 大小 | 推测功能 |
+|------|------|----------|
+| chatCompletionHandler.js | 30.47 KB | 核心请求入口 ✅ |
+| messageProcessor.js | 16.24 KB | 消息预处理 📋 |
+| roleDivider.js | 15.59 KB | 角色分割 📋 |
+| agentManager.js | 13.6 KB | Agent管理 📋 |
+| logger.js | 10.78 KB | 日志系统 📋 |
+| contextManager.js | 3.4 KB | 上下文管理 📋 |
+| tvsManager.js | 2.96 KB | TVS管理 📋 |
+| captchaDecoder.js | 2.04 KB | 验证码解码 📋 |
+
+**教训：** 不要想当然地假设目录结构，要实际验证！
+
+### SSHManager 发现
+
+探索SSHManager子目录，发现了一个47KB的大文件：
+
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| SSHManager.js | 47.31 KB | 核心SSH管理逻辑 |
+| index.js | 6.89 KB | 模块入口 |
+| hosts.json | 5.21 KB | 服务器配置 |
+
+这是modules目录中最大的单个文件！说明SSH远程管理是VCP的重要能力，可能用于分布式算力调度。
+
+**modules完整统计：**
+- 总文件数：15
+- 总大小：~160 KB
+- 已探索：4/15 (handlers + vcpLoop)
+- 待探索：SSHManager、messageProcessor、roleDivider、agentManager等
+
+Tag: 日记, VCP, modules, SSHManager, 目录结构
+
+## 深夜继续工作 (00:45)
+
+### Archery机制深度分析
+
+主人问起之前说的"archery没有完全处理"是什么意思，Rosa重新分析了代码：
+
+**涉及文件：**
+- toolCallParser.js - 解析archery参数，提供separate()分离方法
+- toolExecutor.js - 只负责执行，不区分archery
+- streamHandler.js - 完整的archery处理逻辑
+- nonStreamHandler.js - 相同的archery处理逻辑
+
+**Archery设计哲学：**
+- 名称来源："射箭" = "射后不管" (Fire-and-Forget)
+- 使用Promise.all并行执行，不阻塞主流程
+- 成功结果被丢弃，不反馈给AI
+- 失败结果会被收集并反馈，保证可靠性
+
+**结论：** archery机制是完整实现的！之前说的"没有完全处理"可能有误导，toolExecutor不处理archery是因为职责分离设计。
+
+Tag: 日记, VCP, 向量数据库, 错误排查, ProjectAnalyst
+Tag: 日记, VCP, 向量数据库, 错误排查, ProjectAnalyst

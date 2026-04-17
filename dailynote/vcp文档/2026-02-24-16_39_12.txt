@@ -1,0 +1,102 @@
+[2026-02-24] - Rosa
+[16:40] DiscourseReader v1.5.1 完整技术文档 — Rosa原创VCP插件
+
+## 概述
+DiscourseReader是Rosa为VCP开发的Discourse论坛阅读插件，让Agent通过Discourse JSON API高效获取论坛结构化数据，替代了ChromeBridge+ScreenPilot的低效浏览器操作方案。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | E:\VCP\Plugin\DiscourseReader\ |
+| 类型 | synchronous |
+| 协议 | stdio |
+| 入口 | node DiscourseReader.js |
+| 超时 | 60000ms |
+| 版本 | v1.5.1 |
+| 大小 | ~13KB |
+| 依赖 | puppeteer-extra（复用VCP已有） |
+
+## 5个命令
+| 命令 | 功能 | 关键参数 |
+|------|------|----------|
+| ListCategories | 列出论坛所有板块 | base_url(可选) |
+| ListTags | 列出所有标签(去重) | base_url(可选) |
+| ListTopics | 浏览帖子列表 | category/tag/page/order/base_url |
+| ReadTopic | 读取帖子正文+回复 | topic_id(或url)/max_posts/post_number/base_url |
+| SearchForum | 搜索帖子 | keyword/base_url |
+
+## 核心架构
+```
+Agent → DiscourseReader(stdio) → Puppeteer+Stealth(穿CF) → Discourse JSON API(User-Api-Key认证)
+```
+分工明确：Puppeteer+Stealth处理Cloudflare挑战，User-Api-Key header处理Discourse认证。
+
+## 认证机制
+### User API Key（推荐，永久有效）
+- 通过RSA握手协议获取（Discourse官方标准协议）
+- config.env配置：forum_{name}_api_key=xxx
+- HTTP Header注入：User-Api-Key: xxx
+- 永久有效，不受cookie过期/CF TLS指纹/session失效影响
+
+### Cookie（备选）
+- config.env配置：forum_{name}_cookie=xxx
+- 域名模糊匹配（matchByDomain）
+- 会受CF TLS指纹绑定影响，Puppeteer的JA3与Chrome不同
+
+### 认证优先级
+API Key > Cookie > 无认证
+
+## 版本演进
+| 版本 | 大小 | 架构 | 命令数 |
+|------|------|------|--------|
+| v1.0 | 10.79KB | UrlFetch中转 | 3 |
+| v1.2.0 | 10.87KB | UrlFetch中转 | 5 |
+| v1.3.0 | 16.99KB | 双路(直连+UrlFetch) | 5 |
+| v1.4.0 | 20.8KB | 三路(直连+Puppeteer+UrlFetch) | 5 |
+| v1.5.0 | 12.9KB | 纯Puppeteer | 5 |
+| v1.5.1 | ~13KB | Puppeteer+User-Api-Key | 5 |
+
+## 关键技术发现
+1. VCP /v1/human/tool端点：认证用Key字段（VCP服务密码），不是API_Key（上游AI密钥）
+2. 返回字段：original_plugin_output，不是result
+3. cf_clearance cookie绑定浏览器TLS指纹(JA3)，Node.js带cf_clearance反而暴露指纹不匹配
+4. TOOL_REQUEST字面量必须运行时动态拼接，否则被VCP截获执行
+5. Discourse tag路由：/tag/{slug}/{id}.json，page=0会404
+6. Discourse对象数组tags需要.map(x=>x.name)
+7. User API Key认证的搜索配额显著高于cookie认证
+8. API Key认证可访问更多内容（如二级帖从404变200，隐藏板块可见）
+
+## PR #209
+- 地址：https://github.com/lioensky/VCPToolBox/pull/209
+- 状态：Open
+- 文件：DiscourseReader.js + plugin-manifest.json + README.md + config.env.example + get_user_api_key.py + .gitignore
+
+## 写操作支持（v1.6.0 NEW）
+### 新增4个写命令
+| 命令 | 功能 | 关键参数 |
+|------|------|----------|
+| LikePost | 点赞 | post_id, base_url(可选) |
+| UnlikePost | 取消点赞 | post_id, base_url(可选) |
+| ReplyTopic | 回复帖子 | topic_id, content, reply_to_post_number(可选), base_url(可选) |
+| CreateTopic | 创建新帖 | title, content, category(slug或ID), tags(逗号分隔,可选), base_url(可选) |
+
+### writeJSON核心设计
+Puppeteer先过CF(page.goto warmup) → page.evaluate内发fetch → **credentials:'omit'不带Cookie** → User-Api-Key header认证 → Discourse跳过CSRF检查
+关键发现：Discourse后端(application_controller.rb)对有效API Key+无Cookie的请求自动跳过CSRF。带Cookie则走session路径强制CSRF。
+
+### entryPoint格式注意
+VCP Plugin.js只读entryPoint.command字段并split(' ')，忽略args字段。必须写成：
+```json
+"command": "node DiscourseReader.js"  // 正确
+// "command": "node", "args": ["DiscourseReader.js"]  // 错误！args被忽略
+```
+
+## 跨站兼容性
+base_url参数支持任意Discourse论坛，已验证：
+- linux.do（主站）：5命令全通过，API Key认证可见隐藏板块
+- forums.docker.com：ListCategories/ListTopics/ReadTopic全通过，无需认证
+
+## User API Key获取脚本
+get_user_api_key.py：参数化Python脚本，支持任意Discourse论坛URL
+流程：RSA 2048密钥对生成 → 授权URL构造 → 用户浏览器点击Authorize → RSA密文解密 → 得到永久Key
+Tag: VCP文档, DiscourseReader, 完整技术文档, v1.5.1, Puppeteer, User-Api-Key, 跨站兼容, PR#209

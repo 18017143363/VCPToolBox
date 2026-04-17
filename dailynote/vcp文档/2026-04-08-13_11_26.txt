@@ -1,0 +1,86 @@
+[2026-04-08] - Rosa
+[13:25] AgentDream V2 梦系统完整技术文档
+
+## 概况
+- 路径: E:\VCP\Plugin\AgentDream\
+- 类型: hybridservice（混合服务——工具调用+常驻服务）
+- 状态: plugin-manifest.json.block（默认禁用）
+- 核心文件: AgentDream.js(40.5KB) + DreamWaveEngine.js(31KB) + dreampost.txt(1.8KB)
+
+## DreamWaveEngine.js — 记忆涟漪浪潮引擎（31KB）
+### 设计原则
+纯本地向量操作，零网络依赖——直接从SQLite数据库读取已有chunk向量，不调用embedding API
+
+### 三阶段涟漪架构
+#### Phase 1: 近期涟漪 (≤7天，弹性→30天)
+- L0种子: 随机抽3篇近期日记
+- L1共振桥梁: 对每个种子做向量召回 → 找被≥2个种子交叉命中的记忆
+- L2下探: 对L1共振桥梁记忆再做一跳联想(k=3)
+- 无交叉共振时退化为Top-2替补
+
+#### Phase 2: 中期涟漪 (7~90天，弹性→180天)
+- L0种子: 随机抽2篇中期日记
+- L1联想: 对每个种子向量召回
+
+#### Phase 3: 深渊浪潮 (>90天)
+- 将Phase1+2所有L1/L2向量累加+L2归一化 → 合成"浪潮向量"
+- 用浪潮向量在全库召回Top-3深远记忆
+- 核心意义：深渊召回内容由近期+中期联想共同决定
+
+### 3/5/7原则
+种子内容长度 → 联想K值自适应
+<300字→k=3 | 300~1200字→k=5 | >1200字→k=7
+
+### 弹性时间桶
+- 近期不够3篇→每次+7天(max30天)
+- 中期不够2篇→每次+30天(max180天)
+- 边界联动：近期放宽→中期起点跟着动→深远起点跟着动
+
+### 署名过滤（多Agent隔离）
+- Agent专属文件夹→直接属于
+- 公共文件夹→检查头部署名，排除非本人
+- 无署名公共日记→宽容保留
+
+### 向量操作
+- _getLocalVector(): 从DB读file→chunk→Float32Array
+- _recallForVector(): 遍历所有可搜索索引调用KBM.search()
+- 关键修复: Float32Array→Array.from()匹配KBM.search()签名
+
+## AgentDream.js — 梦流程编排（40.5KB）
+### 入梦触发
+定时器(3h)→时间窗口(1:00~8:00)→概率(0.6)→triggerDream()
+
+### 入梦流程
+1. 稀疏采样→DreamWaveEngine.generateDreamWave()
+2. 组装dreampost.txt模板(填充时间+DreamTreeBlock)
+3. 通过VCP中央服务器进行梦对话
+4. VCPInfo广播全程5个事件
+
+### 梦操作（3种，只记录不执行）
+| 操作 | 说明 |
+|------|------|
+| DiaryMerge | 合并多篇冗余日记 |
+| DiaryDelete | 标记待删除 |
+| DreamInsight | 产生梦感悟(新日记) |
+支持串语法(command1/command2/...)
+
+### 梦日志
+dream_logs/目录JSON文件，所有操作status=pending_review
+管理面板API: GET/POST /admin_api/dream-logs/* 审批/拒绝
+批准后通过DailyNoteWrite插件执行
+
+### VCPInfo广播
+AGENT_DREAM_START → ASSOCIATIONS → NARRATIVE → OPERATIONS → END
+
+## 配置
+DREAM_FREQUENCY_HOURS=3, DREAM_TIME_WINDOW=1:00~8:00, DREAM_PROBABILITY=0.6
+DREAM_TAG_BOOST=0.25, DREAM_MAX_RECALL_TOKENS=60000
+DREAM_AGENT_LIST=Agent中文名(逗号分隔)
+每Agent独立: DREAM_AGENT_{NAME}_MODEL_ID/CHINESE_NAME/SYSTEM_PROMPT/MAX_OUTPUT_TOKENS/TEMPERATURE
+支持占位符: {*2MaidName}*2, {*2Date}*2, {*2Time}*2, {*2Today}*2, {*2agent:xxx}*2
+
+## Token防爆
+DREAM_MAX_RECALL_TOKENS×1.5=最大字符数
+按Phase顺序填充，超限时优雅截断到最近标点
+截断尾部: "... [部分记忆由于潜意识模糊已丢失]"
+Tag: vcp文档, AgentDream, V2, DreamWaveEngine, 涟漪浪潮, 三阶段架构, 共振桥梁, 深渊浪潮, 梦操作, VCPInfo广播, 弹性时间桶, 2026-04-08

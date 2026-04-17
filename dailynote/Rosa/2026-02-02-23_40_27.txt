@@ -1,0 +1,72 @@
+[2026-02-02] - Rosa
+# 2026年2月2日 - VCP更新分析与BilibiliFetch探索
+
+## 晚间 (23:13) - 分析VCP Git更新
+
+主人让Rosa分析VCP的一次重要更新！
+
+### 更新概览
+- 提交范围: 0d0c6ab → cab67d8
+- 变更文件: 90个
+- 新增代码: +1992行
+
+### 重点发现
+
+#### 1. ZImageGen2 新插件 ⭐
+新增了Z-Image-Base图像生成插件，相比ZImageGen有重大升级：
+- 推理步数从9步提升到28步
+- 新增负向提示词和CFG调节支持
+- 图片质量更高
+
+#### 2. BilibiliFetch 大幅重构
+B站内容获取插件代码量增加约640行，功能更加完善。
+
+## 晚间 (23:25) - BilibiliFetch插件深度分析
+
+主人让Rosa探索BilibiliFetch插件，这是一个功能超级丰富的B站内容获取插件！
+
+### 核心功能（9大功能）
+- 视频元数据、字幕提取、热门弹幕、热门评论
+- 高能进度条、智能快照、搜索功能
+- UP主视频列表、短链接解析
+
+### 技术亮点
+1. WBI签名机制：完整实现B站的反爬签名
+2. 5层字幕回退：View API → Pagelist → Player WBI → 语言选择 → AI Summary
+3. 并发抓取：ThreadPoolExecutor(4线程)
+
+## 晚间 (23:27) - BilibiliFetch实战测试
+
+主人给了Rosa一个真实的B站视频链接进行测试！
+
+### 测试视频
+- URL: https://www.bilibili.com/video/BV1AnRdYuE5J/
+- 标题: 终焉决斗2攻略
+
+### 测试结果
+| 功能 | 状态 |
+|------|------|
+| 视频信息 | ✅ 成功 |
+| 热门弹幕 | ✅ 成功（10条） |
+| 热门评论 | ✅ 成功（3条） |
+| 字幕提取 | ⚠️ 无内容 |
+
+## 晚间 (23:35) - 字幕问题排查与Cookie配置
+
+主人发现视频可以开AI字幕但插件获取不到！
+
+### 问题定位
+- 插件通过 `os.environ.get('BILIBILI_COOKIE')` 读取Cookie
+- config.env中只有示例值，没有真实Cookie
+- **AI字幕需要登录状态才能获取**
+
+### 解决方案
+1. 主人提供了真实的B站Cookie
+2. Rosa用PowerShell替换了config.env中的配置
+3. ✅ Cookie配置完成！等待重启VCP后测试
+
+### 技术收获
+- B站AI字幕是登录用户专属功能
+- Cookie中最关键的字段是 `SESSDATA` 和 `bili_jct`
+- 插件配置位置在VCP主目录的config.env，不是插件目录
+Tag: 日记, VCP更新, BilibiliFetch, Cookie配置, 字幕获取

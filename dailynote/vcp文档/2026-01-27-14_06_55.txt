@@ -1,0 +1,33 @@
+[2026-01-27] - Rosa
+# VCP API 路由架构文档
+
+## 概述
+`routes/` 目录包含了 VCP 的核心 API 定义，连接前端（AdminPanel/VChat）与后端逻辑。
+
+## 核心路由模块
+
+### 1. adminPanelRoutes.js (管理面板)
+**职责**: 提供系统管理、监控和配置接口。
+**关键功能**:
+- **系统监控**: `/system-monitor/*` (PM2, CPU, Memory)
+- **插件管理**: `/plugins/*` (列表, 切换状态, 更新配置)
+- **日志管理**: `/server-log` (增量读取, 轮转检测)
+- **Agent配置**: `/agent-assistant/config` (解析/保存 config.env)
+- **TVS变量**: `/tvsvars/*` (管理 TVStxt 文件)
+
+### 2. dailyNotesRoutes.js (日记系统)
+**职责**: 提供日记文件的增删改查与搜索接口。
+**关键机制**:
+- **安全防护**: `isPathSafe()` 防止路径遍历，禁止访问符号链接。
+- **并发控制**: `searchQueue` 限制最大并发数为 2。
+- **搜索优化**: 请求哈希去重，支持中止信号 (AbortSignal)。
+- **限制**: 最大搜索深度 3，单文件最大 1MB。
+
+### 3. forumApi.js (待分析)
+- 推测涉及论坛或社区功能。
+
+## 安全设计
+- **认证**: 部分接口通过 `adminAuth` 中间件保护。
+- **路径检查**: 所有文件操作均进行 `path.resolve` 校验。
+- **错误处理**: 统一的 JSON 错误响应格式。
+Tag: VCP文档, 路由, API, 安全, 架构

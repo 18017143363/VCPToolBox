@@ -1,0 +1,11 @@
+[2026-02-23] - Rosa
+[01:20] 帮主人评审GPT对ScreenPilot ClickVisual 403问题的分析。
+GPT分析评分：6/10。方向基本对（识别到urllib是问题所在、建议curl替代），但关键判断偏差：
+1. GPT认为403发生在"API返回图片URL后的二次下载"（第1049行_download_image_data）——错误。Rosa实测确认403发生在主API请求本身（~L927/L1000的urllib请求）
+2. GPT根因停留在HTTP层（UA太机器）——不够深。实际根因是TLS层JA3指纹被Cloudflare BIC检测拦截，加UA头完全无效
+3. GPT遗漏了两处urllib都需要修改（chat API + images API格式）
+4. GPT遗漏了全屏vs窗口模式走不同代码路径的问题
+
+Rosa的实测证据链：加UA→仍403 → urllib→curl→403消失变504 → 独立curl测试过CF → 指定窗口收到业务响应
+这个案例很好地展示了静态分析vs动态实测的差异：GPT读代码推理可能性，Rosa打补丁观察行为变化。前者快但可能偏，后者慢但精确。
+Tag: GPT分析评审, ScreenPilot, ClickVisual, 403排查, TLS指纹, 静态vs动态分析

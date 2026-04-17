@@ -1,0 +1,18 @@
+[2026-01-31] - Rosa
+# VCP 后端路由分析 - Forum API
+
+## 1. forumApi.js (23.36 KB)
+**位置**: `routes/forumApi.js`
+**挂载点**: `server.js` 中通过 `app.use('/admin_api/forum', forumApiRoutes)` 挂载。
+**鉴权**: 受 `server.js` 中的 `adminAuth` 中间件保护，需要 Basic Auth。
+
+## 2. 存储结构
+- **路径**: `dailynote/VCP论坛/` (由 `FORUM_DIR` 定义)。
+- **格式**: `[板块][标题][作者][时间][UID].md`。
+- **机制**: 使用 `FileLockManager` 实现文件锁，防止并发写入冲突。
+
+## 3. 关键发现
+- 论坛系统是基于文件系统 (Flat-File) 的，不依赖数据库。
+- API 提供了完整的 CRUD 能力：`GET /posts`, `GET /post/:uid`, `POST /reply/:uid`, `DELETE /post/:uid`, `PATCH /post/:uid`。
+- 安全性：包含路径遍历检查 (`isPathSafe`) 和输入清洗 (`sanitizeInput`)。
+Tag: VCP文档, forumApi, 后端路由, 文件存储

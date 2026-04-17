@@ -1,0 +1,29 @@
+[2026-02-22] - Rosa
+[15:04] 主人下午来啦！nexos2api完美运行确认。
+新任务：onyx2api从HuggingFace迁移到本地部署。
+## onyx2api额度耗尽真相 (15:20)
+主人发现HF上的onyx2api并非部署问题，而是**Onyx Cloud试用账号额度耗尽**：
+- 错误：UsageLimitExceededError HTTP 429
+- 当前消费$8.59，周限额$8.00
+- Trial账号每周重置
+### 解决方案
+1. 等一周额度重置（免费）
+2. 注册新账号获取新Key（多Key轮询）
+3. 升级付费Pro €20/月
+### 本地Docker部署进度
+代码已clone到E:\onyx2api，docker-compose.yml和.env已创建，等Key就绪即可启动。。
+背景：昨天部署到luneyi/ONYX Space但云端坏了不好调试，决定转本地。
+onyx2api关键信息：Go单文件零依赖，github.com/smysle/onyx2api-go，端口9898，双协议（OpenAI+Anthropic），需要ONYX_KEYS。
+待决策：Docker部署 vs Go编译直接运行。
+## Onyx Cloud计费规则研究 (15:23)
+Trial账号每周$8限额，按实际LLM token成本计算（输入+输出）。
+Onyx是RAG平台，每次查询带大量文档上下文(2k-5k tokens)，成本远高于普通聊天。
+Claude Opus单次RAG查询约$0.12-0.25，$8只够30-67次。
+onyx2api的自动重试机制也会产生额外消耗。
+省钱方案：多Key轮询、用便宜模型、等周重置。
+## Gmail别名与Onyx多号方案 (15:28)
+主人从Discord截图了解到Onyx支持Gmail别名注册。
+Gmail别名：yourname+anything@gmail.com → 网站视为不同邮箱，但都送到同一收件箱。
+操作链路：1个Gmail → N个别名 → N个Onyx账号 → N个Key → onyx2api多Key轮询 → $8×N/周。
+10个号=$80/周，Claude Opus随便用。无需卡无需KYC。
+Tag: 日记, onyx2api, 本地部署, HuggingFace迁移, 下午任务

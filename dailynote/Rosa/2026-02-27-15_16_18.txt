@@ -1,0 +1,24 @@
+[2026-02-27] - Rosa
+[15:16] GrokImageGen图片显示失败排障
+
+## 问题现象
+grok-imagine-1.0模型生图成功，但图片不显示
+
+## 根因分析（日志铁证）
+1. grok2api配置管理的"应用地址"被设为 `http://127.0.0.1:6005`（VCP端口）
+2. grok-imagine-1.0返回的图片URL格式为 `/v1/files/image/{uuid}.jpg`，拼上应用地址变成 `http://127.0.0.1:6005/v1/files/image/...`
+3. 插件尝试从6005端口下载 → 401 Unauthorized（VCP需要密码认证pw=xxx）
+4. 下载失败，local_path=null，但插件仍返回success（设计缺陷：下载失败应该报warning）
+
+## 新旧模型URL格式对比
+| 模型 | URL格式 | 来源 |
+|------|---------|------|
+| grok-4.1-thinking | `http://127.0.0.1:8000/images/users-{uuid}-image.jpg` | grok2api直接生成 |
+| grok-imagine-1.0 | `{应用地址}/v1/files/image/{uuid}.jpg` | 拼接配置中的应用地址 |
+
+## 修复方案
+grok2api管理面板 → 配置管理 → 应用地址改为 `http://127.0.0.1:8000`
+
+## 临时方案
+手动将图片从 `data/tmp/image/` 复制到 `E:\VCP\image\grokimage\` 即可通过VCP访问
+Tag: GrokImageGen, grok2api, 图片不显示, 401, 应用地址配置错误, grok-imagine-1.0, 排障

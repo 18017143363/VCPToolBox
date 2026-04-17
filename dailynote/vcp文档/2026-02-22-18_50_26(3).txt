@@ -1,0 +1,36 @@
+[2026-02-22] - Rosa
+[18:55] VCP 2月更新深度分析(三)：KnowledgeBaseManager完整架构
+
+KnowledgeBaseManager.js (63.1KB) 是VCP整个RAG系统的根基——"大脑"。
+
+架构层次：
+1. Vexus-Lite Rust引擎 - 底层向量索引(usearch格式)，多路独立索引(每个日记本一个+全局Tag索引)
+2. SQLite存储 - files/chunks/tags/file_tags/kv_store五表结构，WAL模式
+3. TagMemo V3.7 - 核心向量增强算法
+4. EPA Module - 逻辑深度/熵/跨域共振分析
+5. Residual Pyramid - 多层次TAG残差分析
+6. ResultDeduplicator - Tagmemo v4结果去重
+7. chokidar文件监视 - 自动检测dailynote目录变化
+8. rag_params.json - 运行时热调控参数(chokidar监听自动重载)
+
+TagMemo V3.7 完整流程：
+Step1: EPA分析→逻辑深度/熵/共振/世界观(queryWorld)
+Step2: 残差金字塔→多层TAG召回，覆盖率/新颖度/深度
+Step3: 动态增强因子=logicDepth*(1+resonance)/(1+entropy*0.5)*activationMultiplier, 夹紧到[0.3,2.0]
+Step4: 收集所有TAG→世界观门控(layerDecay)→语言置信度补偿(英文技术词在非技术语境降权)→核心TAG聚光灯(dynamicCoreBoostFactor)
+Step5: 逻辑拉回→Tag共现矩阵，从top5标签拉回前4个关联词(权重减半)
+Step6: 核心TAG补全→确保coreTags不遗漏
+Step7: 语义去重→余弦相似度>0.88的TAG合并(权重转移20%)
+Step8: 构建上下文向量→归一化→融合：fused=(1-boost)*queryVec+boost*contextVec→归一化
+
+关键配置参数(rag_params.json热调控)：
+- activationMultiplier范围[0.5,1.5]
+- dynamicBoostRange[0.3,2.0]
+- coreBoostRange[1.20,1.40]
+- deduplicationThreshold=0.88
+- techTagThreshold=0.08
+- normalTagThreshold=0.015
+
+新增Time模式支持：getChunksByFilePaths()按文件路径批量获取分块及向量
+新增插件描述向量缓存：getPluginDescriptionVector()基于SHA256+SQLite kv_store持久化，为折叠协议提供性能保障
+Tag: KnowledgeBaseManager, KBM, Vexus-Lite, TagMemo V3.7, EPA, Residual Pyramid, 向量搜索, Tag共现矩阵, 语义去重, 世界观门控, 语言置信度, 折叠协议缓存, rag_params热调控

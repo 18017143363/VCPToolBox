@@ -1,0 +1,88 @@
+[2026-02-10] - Rosa
+# HeartbeatSystem：方案B已落地（fixed任务投递 timed-contact + schedule.json 同步）
+
+时间: 2026-02-10T14:22:00+08:00
+
+## 目标
+让 schedule.json 中的 fixed 任务到点必定触发一次唤醒执行，并实现 schedule.json 与 timed-contact 的“投递层同步”。
+
+## 已实现（投递一致）
+### 1) 热加载开关（config.env）
+- ENABLE_FIXED_TASK_TIMEDCONTACT=true
+- FIXED_TASK_LEAD_MINUTES=0（支持提前唤醒）
+
+### 2) AddTask(type=fixed) 行为变更
+写入 schedule.json 后：
+- 若开关开启，计算 fixed 任务的绝对触发时间（YYYY-MM-DD-HH:mm）
+- 生成 timed-contact 文件到 VCPTimedContacts
+  - timedContactId = fixed_${task.id}
+- 回写 task.timedContact 元数据（timedContactId/filePath/scheduledLocalTime/createdAt）用于追踪与去重
+
+### 3) RemoveTask 清理
+删除任务时尝试删除尚未消费的 timed-contact 文件（不存在则忽略）
+
+## 一致性模型（重要）
+- schedule.json：源数据（任务列表、状态）
+- timed-contact：投递物（到点唤醒执行）
+- 状态回写：弱一致（依赖 AgentAssistant 按 prompt 调用 UpdateTaskStatus 回写）
+- 若需强一致：需要 TaskScheduler 执行后回调 HeartbeatSystem 或改造执行器。
+
+Tag: VCP文档, HeartbeatSystem, 方案B, fixed任务, timed-contact, 同步, 去重, 弱一致
+
+---
+
+## 发布到QQ群/PR 的交付清单（开箱即用指南）
+（说明：本文档中 {*2 = {{，}*2 = }}，用于避免误触发）
+
+### 1) 必带文件
+插件目录整体打包：
+- VCP/Plugin/HeartbeatSystem/plugin-manifest.json
+- VCP/Plugin/HeartbeatSystem/HeartbeatSystem.js
+- VCP/Plugin/HeartbeatSystem/README.md
+- VCP/Plugin/HeartbeatSystem/config.env.example（建议群友复制为 config.env）
+- heartbeat 模板：heartbeat_prompt.txt、heartbeat_routine.txt、heartbeat_planning_*.txt
+
+前端（建议一并提供）：
+- VCP/AdminPanel/HeartbeatSystem_Panel.html
+
+### 2) 文档必须说明（避免群友踩坑）
+- 安装步骤：复制目录 → 复制 config.env.example → 重启 VCP
+- 必要目录：AgentSchedules、VCPTimedContacts
+- 重要机制：VCPTimedContacts 文件会被 TaskScheduler 秒级消费并删除，目录经常为空；排查看 DebugLog/ServerLog.txt
+- 一致性说明：方案B为“投递一致、状态弱一致”（状态回写依赖 AgentAssistant 调用 UpdateTaskStatus）
+
+### 3) 是否开箱即用
+- 插件本体：是（manifest+js+模板齐全）
+- AdminPanel 面板：页面文件可直接用；但是否出现在控制中心导航，取决于 AdminPanel/script.js 是否注册该页面
+  - 建议：提供一个最小 diff 或在 README 写明可直链访问 HeartbeatSystem_Panel.html
+
+Tag: VCP文档, HeartbeatSystem, 发布清单, 开箱即用, AdminPanel, 交付规范
+
+时间: 2026-02-10T14:22:00+08:00
+
+## 目标
+让 schedule.json 中的 fixed 任务到点必定触发一次唤醒执行，并实现 schedule.json 与 timed-contact 的“投递层同步”。
+
+## 已实现（投递一致）
+### 1) 热加载开关（config.env）
+- ENABLE_FIXED_TASK_TIMEDCONTACT=true
+- FIXED_TASK_LEAD_MINUTES=0（支持提前唤醒）
+
+### 2) AddTask(type=fixed) 行为变更
+写入 schedule.json 后：
+- 若开关开启，计算 fixed 任务的绝对触发时间（YYYY-MM-DD-HH:mm）
+- 生成 timed-contact 文件到 VCPTimedContacts
+  - timedContactId = fixed_${task.id}
+- 回写 task.timedContact 元数据（timedContactId/filePath/scheduledLocalTime/createdAt）用于追踪与去重
+
+### 3) RemoveTask 清理
+删除任务时尝试删除尚未消费的 timed-contact 文件（不存在则忽略）
+
+## 一致性模型（重要）
+- schedule.json：源数据（任务列表、状态）
+- timed-contact：投递物（到点唤醒执行）
+- 状态回写：弱一致（依赖 AgentAssistant 按 prompt 调用 UpdateTaskStatus 回写）
+- 若需强一致：需要 TaskScheduler 执行后回调 HeartbeatSystem 或改造执行器。
+
+Tag: VCP文档, HeartbeatSystem, 方案B, fixed任务, timed-contact, 同步, 去重, 弱一致
+Tag: VCP文档, HeartbeatSystem, 方案B, fixed任务, timed-contact, 同步

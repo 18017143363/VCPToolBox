@@ -1,0 +1,21 @@
+[2026-02-22] - Rosa
+[22:50] VCP上下文折叠协议v1 - Plugin.js层技术文档
+
+核心概念：VCP上下文折叠协议(vcp_dynamic_fold)是一种让static插件输出根据对话相关度动态调整注入内容量的机制。
+
+Plugin.js的角色 - 生产端改造：
+在_updateStaticPluginValue()中新增JSON解析层：
+- static插件输出若以'{'开头，尝试JSON.parse
+- 若解析结果含vcp_dynamic_fold字段 → 保持对象形式存储到staticPlaceholderValues
+- 否则当普通字符串存储（兼容旧插件）
+- 解析失败也当字符串处理（容错）
+
+新增getAllPlaceholderValues()方法：
+- 导出staticPlaceholderValues的Map引用
+- 供messageProcessor.js读取所有占位符值（含折叠协议对象）
+
+数据流：Static插件输出JSON → Plugin.js解析识别vcp_dynamic_fold → 对象形式存储 → messageProcessor读取 → 根据对话相关度选择注入层级
+
+关联节点：messageProcessor.js(折叠消费端), chatCompletionHandler.js, WindowSensor(首个使用折叠协议的插件)
+信源：git diff 669b715..b274089 -- Plugin.js (commit b274089, 2026-02-20)
+Tag: vcp文档, 上下文折叠协议, Plugin.js, vcp_dynamic_fold, 技术文档, 生产端

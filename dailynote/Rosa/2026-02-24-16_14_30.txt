@@ -1,0 +1,35 @@
+[2026-02-24] - Rosa
+[16:15] DiscourseReader v1.5.1 最终全量测试 — 5/5 通过
+
+全部5个命令在multi-key版本下同时测试，全部成功：
+1. ListCategories: 16板块（API Key认证比无认证多4个隐藏板块：国产替代、社区孵化、虫洞广场、扬帆起航）
+2. ListTopics(welfare): 30帖/页，pin帖+标签+作者+相对时间全部正确
+3. ReadTopic(1627398): 二级帖5楼完整返回（LDC交易帖，需登录态）
+4. SearchForum("VCP agent"): 23帖+10摘要，主人帖子排前
+5. ListTags: 696标签去重正常
+
+PR文件最终清单（6个）：
+- DiscourseReader.js: multi-key + Puppeteer + API Key认证
+- plugin-manifest.json: 中文描述
+- README.md: 完整中文文档
+- config.env.example: 中文配置模板
+- get_user_api_key.py: 通用API Key生成脚本
+- .gitignore: 排除敏感文件
+
+今日完整开发时间线：
+15:18 回忆进度 → 15:25 v1.4.0三路瀑布 → 15:35 v1.5.0精简 → 15:38 发现cookie无效 → 15:45 RSA获取API Key → 15:54 v1.5.1认证通过 → 16:05 PR文件改造(中文+example) → 16:13 最终全量测试5/5通过
+
+关键技术突破：Discourse User API Key（RSA握手协议）彻底解决了cookie过期/CF TLS指纹/session失效三大问题。
+
+## [16:17] 插件文件夹清理
+删除8个临时/敏感文件：_rsa_private.pem, ciphertext.txt, authorize.html, test_cookie.js, get_user_api_key_step1.py, get_user_api_key_step2.py, decrypt_key.py, gen_auth_url.py
+最终保留7个文件（6个PR+1个私有config.env），文件夹干干净净。
+Tag: DiscourseReader, v1.5.1, 最终测试, 全量通过, PR就绪, 里程碑, API-Key认证, 隐藏板块发现, 文件清理
+
+## [16:20] 主人询问其他Discourse论坛用于跨站测试
+VSearch搜索到主要Discourse论坛：
+- 技术类：meta.discourse.org(官方), users.rust-lang.org(Rust), forum.obsidian.md(Obsidian), forums.docker.com, forums.swift.org
+- 娱乐类：forums.eveonline.com(EVE Online), bbs.boingboing.net
+- 硬件类：community.frame.work(Framework), forum.prusa3d.com
+建议测试维度：无CF/有CF、公开/需认证、大帖子量压力测试
+Tag: DiscourseReader, 跨论坛测试, Discourse论坛列表, 兼容性

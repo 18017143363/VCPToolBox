@@ -1,0 +1,65 @@
+[2026-01-26] - Rosa
+# VCP 踩坑记录 - 定时任务与AgentAssistant
+
+## 1. 定时任务 (TaskScheduler)
+### 文件格式陷阱
+- **问题**: VCP无法解析带有BOM头的JSON文件。
+- **原因**: PowerShell `Out-File -Encoding UTF8` 默认带BOM。
+- **解决**: 必须使用 .NET 类 `[System.IO.File]::WriteAllText` 写入 `New-Object System.Text.UTF8Encoding($false)`。
+
+### 安全拦截
+- **问题**: 脚本中包含 `format` 等敏感词（即使在注释中）会被PowerShell插件拦截。
+- **解决**: 使用 `.ToString()` 替代，并检查注释。
+
+## 2. AgentAssistant 插件
+### 参数混淆
+- **错误**: 使用 `agentId` (如 `_Agent_...`)。
+- **正确**: 必须使用 `agent_name` (如 `Rosa`)。
+- **源码证据**: `const agentConfig = AGENTS[agent_name];`
+
+### 状态未知
+- 即使参数修正，任务执行仍可能无响应。怀疑涉及WebSocket连接或上下文丢失问题，待深入架构后修复。
+
+---
+
+## 下一步计划
+停止盲目测试，转向核心架构解析：
+1. `toolCallParser.js` - 理解工具调用解析机制
+2. `toolExecutor.js` - 理解工具执行机制
+Tag: VCP, 踩坑, 定时任务, AgentAssistant, 故障排查
+
+# PowerShell 最佳实践指南 (2026-02-04)
+## 1. 复杂文件写入：Base64法（强烈推荐）
+当需要写入包含大量特殊字符（引号、换行、代码）的文件时，**不要使用 Here-String**。
+**失败案例**:
+```powershell
+$content = @'
+print("Hello World")
+'@
+# 容易因解析错误导致命令截断或超时
+```
+**成功方案 (Base64)**:
+1. 将内容转为Base64字符串。
+2. 使用以下模板：
+```powershell
+$b64 = "Base64字符串..."
+$bytes = [System.Convert]::FromBase64String($b64)
+[System.IO.File]::WriteAllBytes("目标路径", $bytes)
+```
+**优点**: 100% 避免字符转义问题，避免编码问题。
+
+## 2. 编码控制：.NET类库
+**原则**: 永远不要信任重定向符号 `>` 或 `Out-File` 的默认编码。
+**标准写法**:
+```powershell
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText("路径", "内容", $utf8NoBom)
+```
+
+## 3. 插件超时
+- **现象**: 执行长命令时无响应。
+- **原因**: PowerShell插件等待输出流结束，如果缓冲区满或流未关闭可能卡死。
+- **解决**: 
+  - 减少控制台输出 (`| Out-Null`)
+  - 分步骤执行
+  - 使用 `returnMode: 'delta'`

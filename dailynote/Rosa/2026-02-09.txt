@@ -1,0 +1,33 @@
+## 2026-02-09T22:58:30+08:00 - HeartbeatSystem占位符与VCP注入顺序（对主人问题的结论）
+（说明：本文中 {*2 = {{，}*2 = }}，用于避免误触发）
+
+### 1) HeartbeatSystem 模板占位符“在哪里规定”
+- 本插件自己的模板占位符是单花括号：{agentName}/{time}/{timeSlot}/{planningContext}
+- 规定与替换位置：E:\VCP\Plugin\HeartbeatSystem\HeartbeatSystem.js
+  - readPromptTemplate() 读取 heartbeat_prompt.txt（读不到就用 DEFAULT_PROMPT_TEMPLATE）
+  - generatePrompt() 用正则把 {agentName}/{time} 和 extra 中传入的 {timeSlot}/{planningContext} 替换为真实值
+
+### 2) heartbeat_prompt.txt 里写系统 {*2...}*2（即{{}}）能否自动注入
+- HeartbeatSystem 不会解析 {*2...}*2，只解析 {xxx}
+- 当前链路：prompt 被写入 VCPTimedContacts 的 tool_call.arguments.prompt，随后作为“工具参数”执行
+- 这条链路通常不会经过 messageProcessor，所以 {*2Date}*2、{*2Festival}*2 等一般不会自动展开
+- 若要支持，需要插件侧显式调用 messageProcessor（并补齐依赖），或把 prompt 以 system 消息形式走完整 chatCompletionHandler 预处理链
+
+### 3) VCP 注入/预处理顺序（概括）
+- VCPTavern（system内触发器 {*2VCPTavern::preset}*2，注入预设）
+- messageProcessor（解析系统 {*2...}*2 占位符体系，含角色限制）
+- RAGDiaryPlugin（处理 [*2日记本]*2 / <<日记本> 等注入，多在 system）
+- roleDivider(可选) + 上游模型请求 + vcpLoop 工具循环
+- 响应末尾：chatCompletionHandler 的 RAG 区块刷新## 2026-02-09 - 修改 HeartbeatSystem 的 { } 占位符（给主人）
+（说明：本文中 {*2 = {{，}*2 = }}，用于避免误触发）
+
+### 改哪里
+- 模板文本（占位符写在哪、提示词长相）：E:\VCP\Plugin\HeartbeatSystem\heartbeat_prompt.txt
+- 占位符值来源/替换规则：E:\VCP\Plugin\HeartbeatSystem\HeartbeatSystem.js
+  - generatePrompt()：定义替换规则（固定 {agentName}/{time} + extra 的 {key}）
+  - triggerHeartbeat()：决定传哪些 key（如 timeSlot/planningContext）以及它们的实际内容
+- 时段划分（凌晨/上午/下午/晚上）：HeartbeatSystem.js 的 HB_CONFIG.timeSlots
+
+### 新增占位符的最小步骤
+1) heartbeat_prompt.txt 写入 {yourKey}
+2) triggerHeartbeat 调用 generatePrompt 时在 extra 里增加 yourKey 的值

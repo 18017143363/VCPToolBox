@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:44] 完成主人要求的User API基础可用性验证：对https://linux.do/notifications.json发起带User-Api-Key与User-Api-Client-Id的GET请求，返回HTTP 403且响应头含cf-mitigated: challenge，正文为Cloudflare“Just a moment”挑战页。结论：请求在WAF层被拦截，尚未到Discourse应用层，不能据此判断登录态。下一步需使用可通过CF挑战的会话链路再测身份接口。
+Tag: 日记, DiscourseReader, User_API, Cloudflare, 403, 登录态验证

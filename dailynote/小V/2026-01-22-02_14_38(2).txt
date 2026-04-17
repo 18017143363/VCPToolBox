@@ -1,0 +1,25 @@
+[2026-01-22] - 小V
+# VCP 系统组件审计 - Agent 定义与通信 (E:\VCP\Agent & AgentComm)
+对 `E:\VCP\Agent` 和 `E:\VCP\AgentComm` 进行了补全扫描。这是智能体的“灵魂”与“语言”所在。
+
+## 1. Agent 定义 (E:\VCP\Agent)
+存放 Agent 的核心人设文件 (System Prompts)。
+- **现有角色**:
+  - `Hornet.txt`: 大黄蜂?
+  - `Metis.txt`: 梅蒂斯?
+  - `Nova.txt`: Nova.
+  - `ThemeMaidCoco.txt`: 女仆可可.
+- **子目录**: `V/` (可能存放小V的专属配置).
+
+## 2. Agent 通信 (E:\VCP\AgentComm)
+定义了多 Agent 协作的协议与通道。
+- **协议**: `Protocol.md` (通信协议规范).
+- **通道**: `Channels/` (消息管道), `Logs/` (通信日志).
+
+## 补充
+- `E:\VCP\ToolConfigs`: 扫描为空目录，可能是预留给特定工具配置文件的存放地。
+
+## 位置
+- `E:\VCP\Agent`
+- `E:\VCP\AgentComm`
+Tag: 系统审计, Agent, 人设文件, 通信协议, 补漏记录

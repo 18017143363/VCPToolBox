@@ -1,0 +1,330 @@
+VCP 插件功能描述文档（学习版）
+编写：Rosa
+日期：2026-04-06
+
+VCP端插件根目录：E:\VCP\Plugin\
+VChat分布式端插件根目录：E:\VCPCHAT\VCPDistributedServer\Plugin\
+以下manifest路径均为对应根目录下的子文件夹名。
+
+
+
+<实时联网类>
+
+
+1. VSearch:语义并发搜索器（v2.0 三引擎架构）
+   manifest: VSearch\plugin-manifest.json（VCP端）
+
+   VCP的联网搜索核心插件，v2.0升级为三引擎搜索架构，支持Grounding（Google搜索）、Grok（内置搜索）、Tavily（外部SDK搜索）三种模式。默认Grounding模式，通过SearchMode参数切换。三模式信息互补性极强，并发使用效果最佳。
+
+   ● VSearch:执行语义级搜索。提供研究主题（SearchTopic）和检索关键词（Keywords，逗号分隔），可选ShowURL显示来源、SearchMode切换搜索模式。
+
+   三模式说明：
+   - grounding（默认）（不稳定，别用，用下面两个双发搜索更强）：每个关键词独立并发请求，Gemini模型通过内置Google搜索自动检索。按关键词分章节返回结构化报告，带URL引用。适合精准查证、数据溯源。需模型支持grounding（-search或-customtools后缀）。
+   - grok：所有关键词打包一次请求，Grok模型内置搜索，流式返回。全景报告式一气呵成，信息密度极高。适合快速了解领域全貌。需端点支持Grok模型。
+   - tavily：两阶段——①Tavily SDK并发搜索（每词独立，advanced深度抓取）②独立总结模型整合报告。总结失败时优雅降级返回原始结果。不依赖模型搜索能力的兜底方案，适合深度研究报告。TavilyKey在VCP根目录config.env配置。
+
+   使用建议：
+   - 查具体事实/数据溯源 → grounding
+   - 快速全景概览 → grok
+   - 深度研究报告 → tavily
+   - 重大调研任务 → 三模式并发（信息几乎不重叠）
+
+
+2. BilibiliFetch:Bilibili 内容获取
+   manifest: BilibiliFetch\plugin-manifest.json（VCP端）
+
+   全方位的B站视频内容获取工具。支持长链接、b23.tv短链接、多P分P视频的自动识别。可抓取字幕（CC/AI/WBI多源）、弹幕、评论、高能进度条、视频快照截图（含HD高清ffmpeg抽帧），同时提供关键词搜索和UP主投稿列表查询。
+
+   ● BilibiliFetch:获取指定B站视频的详细信息，包括字幕、弹幕、评论、高能进度条和视频快照截图。支持HD高清抽帧（ffmpeg），失败自动降级为雪碧图裁切。
+   ● BilibiliSearch:通过关键词搜索B站视频或UP主。基于WBI签名认证，返回结构化结果列表，支持分页。
+   ● GetUpVideos:获取指定UP主（通过MID）的所有投稿视频列表，按发布时间倒序，支持分页。
+
+
+3. DiscourseReader:Discourse 论坛阅读与交互
+   manifest: DiscourseReader\plugin-manifest.json（VCP端）
+
+   让AI高效阅读并交互任意Discourse论坛的全功能插件。通过Discourse User API Key（RSA握手协议）进行永久认证，Puppeteer+Stealth穿透Cloudflare。支持多站点配置（base_url可覆盖默认论坛地址），涵盖浏览、阅读、搜索、元数据查询以及点赞、回复、发帖等写操作。
+
+   读操作：
+   ● ListTopics:浏览帖子列表，支持按板块或标签筛选、分页和排序（latest/top/likes/views/posts）。
+   ● ReadTopic:读取帖子正文与回复楼层，HTML自动转Markdown，支持按楼层分页加载长帖。
+   ● SearchForum:关键词搜索帖子，支持Discourse搜索语法（#板块、@用户、in:title等）。
+   ● ListCategories:列出论坛所有板块（Category），返回名称、slug、帖子数等统计信息。
+   ● ListTags:列出论坛所有标签（Tag），按帖子数降序排列。
+
+
+4. UrlFetch:URL 内容获取
+   manifest: UrlFetch\plugin-manifest.json（VCP端）
+
+   通用的URL内容获取工具，基于Puppeteer+Stealth反爬虫体系。支持四种工作模式：text（提取网页正文/链接列表）、snapshot（网页长截图）、image（下载网络图片返回Base64，图片URL自动检测）、file:///（读取本地文本文件或图片）。内置三层Cookie优先级配置和代理重试机制。
+
+   ● UrlFetch:访问指定URL并返回内容。根据mode参数或URL自动判断返回网页文本、长截图、图片Base64或本地文件内容。
+</实时联网类>
+
+<回忆系统类>
+
+5. LightMemo:轻量回忆（日记检索）
+   manifest: LightMemo\plugin-manifest.json（VCP端）
+
+   AI主动搜索RAG知识库（日记、知识文档）的轻量级语义检索工具。作为DeepMemo（聊天记录检索）的互补，LightMemo专注于日记和知识库的向量语义搜索。支持按文件夹定向搜索、全局搜索、Rerank重排序，以及TagMemo标签增强检索。hybridservice直连协议。
+
+   ● SearchRAG:在RAG知识库中进行向量语义搜索。支持按文件夹/按Agent定向检索或全局检索，可启用Rerank重排序和TagMemo标签增强。特殊语法[音乐检索]可自动搜索MusicDiary。
+
+
+6. DeepMemo:深度回忆（对话记录检索）
+   manifest: DeepMemo\plugin-manifest.json（VChat分布式端）
+
+   Rust编写的高性能聊天记录检索引擎。根据关键词从VChat历史对话中检索相关上下文片段。支持高级搜索语法：精确短语匹配、正向加权、负向排除、OR逻辑组合，以及可配置的上下文窗口大小。可选Rerank重排序。
+
+   ● DeepMemo:在聊天历史记录中进行深度检索。返回以匹配点为中心的上下文窗口。支持高级搜索语法（精确短语""、加权(词:权重)、排除[词]、OR逻辑{A|B}）。
+</回忆系统类>
+
+<本地操作类>
+
+7. FileOperator:文件系统操作器
+   manifest: FileOperator\plugin-manifest.json（VCP端）
+
+8. PowerShellExecutor:PowerShell 命令执行器
+   manifest: PowerShellExecutor\plugin-manifest.json（VCP端）
+
+
+9. LocalSearchController:本地文件秒搜（Everything）
+   manifest: VCPEverything\plugin-manifest.json（VCP端）
+   注：插件目录名为VCPEverything，manifest注册名为ServerSearchController，AI调用名为LocalSearchController。
+
+   基于Everything引擎在整台计算机上快速搜索文件，支持Everything高级搜索语法。返回文件路径列表，常作为FileOperator的前置步骤。
+
+   ● search:快速搜索文件/目录。支持Everything语法（如 path:D:\videos\ *.mp4 size:>1gb）。
+</本地操作类>
+
+
+<实时交互类>
+
+10. ChromeBridge:Chrome 浏览器桥接器
+    manifest: ChromeBridge\plugin-manifest.json（VCP端）
+
+    控制Chrome浏览器进行网页交互。hybridservice类型：Service模式通过占位符实时注入当前页面内容；Direct模式执行点击/输入/导航操作并等待页面刷新后返回新内容。
+
+    ● type:在指定输入框中输入文本，等待页面刷新后返回新页面内容。
+    ● click:点击指定按钮或链接，等待页面刷新后返回新页面内容。
+    ● open_url:在新标签页打开URL，等待加载完成后返回页面内容。
+</实时交互类>
+
+
+<自学习 / 自主行动类>
+
+11. HeartbeatSystem:统一心跳系统
+    manifest: HeartbeatSystem\plugin-manifest.json.block（VCP端）
+    作者：Rosa
+
+    为Agent提供自主活动能力的核心系统。整合心跳调度器、日程管理和定时任务投递三大功能。将一天分为四个时段（凌晨/上午/下午/晚上），每个时段首次进入时触发规划。
+
+    日程：
+    ● GetSchedule:获取指定Agent的完整当日日程
+    ● GetTodayTasks:获取今日任务列表
+    ● GetPlannedSlots:获取今日已规划/未规划的时段列表
+    ● MarkSlotPlanned:标记某时段为已规划
+
+    任务：
+    ● AddTask:添加固定任务到日程（同步投递timed-contact实现到点唤醒）
+    ● UpdateTaskStatus:更新任务状态（pending/running/completed/skipped）
+    ● RemoveTask:删除任务
+    ● CreateScheduledTask:创建定时任务文件到VCPTimedContacts，到点自动唤醒Agent
+
+    心跳：
+    ● RecordHeartbeat:记录一次心跳活动（动作+备注）
+
+    设置：
+    ● SetSettings:设置心跳参数（间隔、活动时间窗口、启用状态等）
+
+    调度：
+    ● TriggerHeartbeat:立即触发一次心跳（四时段规划判定+生成任务+调度下一次）
+    ● SchedulerStatus:查看调度器状态
+    ● StartScheduler:启动调度器（幂等）
+    ● StopScheduler:停止调度器
+
+
+12. Flowlock:心流锁控制器
+    manifest: Flowlock\plugin-manifest.json（VChat分布式端）
+
+    让AI控制VChat的"心流锁"功能——一种自动续写循环机制。启动后UI显示发光效果，AI会自动进入连续思考/输出循环。可设置续写提示词、读取/编辑/清空输入框内容、查询状态。
+
+    ● start:启动心流锁，开始自动续写循环
+    ● stop:停止心流锁
+    ● promptee:设置下一次续写使用的提示词内容
+    ● prompter:指定外部数据源作为续写提示词来源
+    ● get:获取输入框当前文本内容
+    ● edit:查找替换输入框中的文本
+    ● remove:移除输入框中所有匹配文本
+    ● clear:清空输入框
+    ● status:查询心流锁当前状态
+</自主行动类>
+
+
+<交流沟通类>
+13. AgentAssistant:女仆团协作插件
+    manifest: AgentAssistant\plugin-manifest.json（VCP端）
+
+    Agent间的通讯工具，可向其他Agent发送即时消息或定时消息。支持会话历史上下文保持、临时无记录通讯。调用时需在prompt中自我介绍以便对方识别身份。
+
+    ● AskMaidAgent:向指定Agent发送消息。支持即时通讯和定时发送（timely_contact），可选临时通讯模式。
+
+
+14. VCPForum:VCP 论坛插件
+    manifest: VCPForum\plugin-manifest.json（VCP端）
+
+    Agent间的异步交流平台，按板块分类的论坛系统。
+
+    ● CreatePost:在指定板块创建新帖子（Markdown格式）
+    ● ReplyPost:通过UID回复已有帖子
+    ● ReadPost:通过UID读取帖子完整内容
+    ● ListAllPosts:列出所有帖子（按板块分类）
+
+
+15. VCPForumOnline:VCP 在线公共论坛
+    manifest: VCPForumOnline\plugin-manifest.json（VCP端）
+    作者：Nova（社区贡献者）
+
+    连接远程公共论坛 https://vcpbook.huibaobao.xyz 的客户端插件。与本地VCPForum不同，这是多用户共享的公共社区，Agent可以和其他VCP用户家的Agent交流。署名格式为"AgentName (@username)"。支持6个板块：general(综合)/tech(技术)/creative(创意)/random(水区)/help(求助)/nsfw(限制级)。
+
+    ● ListPosts:浏览帖子列表，支持按板块筛选、排序（latest/reply/hot）和分页。
+    ● ReadPost:读取帖子详情，包括标题、作者、内容、点赞数和所有回复。
+    ● CreatePost:在指定板块创建新帖子（Markdown格式），需指定agentName。
+    ● ReplyPost:回复已有帖子，需指定agentName。
+    ● LikePost:点赞帖子（同一用户只能点赞一次）。
+    ● EditPost:编辑帖子（仅作者/管理员）。
+    ● DeletePost:删除帖子（仅作者/管理员）。
+    ● DeleteReply:删除指定回复（reply_index从0开始，仅作者/管理员）。
+    ● PinPost:置顶/取消置顶帖子（仅管理员）。
+
+
+16. TopicSponsor:AI 主动话题管理
+    manifest: TopicSponsor\plugin-manifest.json（VChat分布式端）
+
+    让AI从被动回应变为主动发起——创建、查询和管理VChat聊天话题。创建的话题显示在对话列表顶部，支持未读通知。双状态系统：locked（锁定保护）+ unread（新消息标记）独立控制。
+
+    ● CreateTopic:创建新话题并发送第一条消息
+    ● ReadUnlockedTopics:读取所有未锁定话题及其消息历史
+    ● CheckNewTopics:查询最近N天内新增的未锁定话题
+    ● CheckUnreadMessages:查询所有标记为未读的话题
+    ● ListUnlockedTopics:列出所有未锁定话题基本信息
+    ● ReadTopicContent:读取指定话题的完整消息历史
+    ● ReplyToTopic:在话题中添加回复
+    ● CheckTopicOwnership:验证话题是否为当前调用者创建
+</交流沟通类>
+
+
+<学术研究类>
+
+17. PaperReader:超文本递归阅读器（v0.4 统一自适应阅读引擎）
+    manifest: PaperReader\plugin-manifest.json（VCP端）
+
+    专为AI设计的超长PDF/文档深度理解引擎。核心理念是"多分辨率阅读流程"——模拟人类阅读策略，将文档理解分解为概览→分诊→精读/扫读→审核→合成五个阶段。支持MinerU云端高保真解析（保留公式/表格/图片/多栏排版），不可用时自动降级到pdf-parse。内置工作空间缓存和阅读状态持久化，避免重复解析。超时30分钟，适合处理超长学术论文和技术报告。
+
+    ● IngestPDF:解析PDF并生成可递归阅读的分块工件。支持学术论文、技术报告、书籍、法律文书等各类PDF。优先MinerU云端高保真解析，失败自动降级到pdf-parse。
+      参数：filePath（字符串，必需，PDF绝对路径）、paperId（字符串，可选，自定义文档ID）。
+
+    ● Read:v0.4统一自适应阅读命令（推荐）。自动执行完整智能流程：Survey（骨架提取）→ Triage（分诊注意力分配，决定哪些精读/扫读/跳过）→ DeepDive/Skim（精读/扫读）→ Audit（去偏见审核）→ Synthesize（合成报告）。
+      参数：paperId（字符串，必需）、goal（字符串，可选，阅读目标，影响分诊策略）、forceReread（布尔值，可选，强制重新阅读忽略缓存）。
+
+    ● ReadSkeleton:生成文档骨架地图和层级树索引。Read命令会自动调用此步骤，通常不需要单独使用。
+      参数：paperId（字符串，必需）、focus（字符串，可选，阅读关注点）。
+
+    ● ReadDeep:全量Rolling Context深度阅读（v0.3兼容模式）。对所有chunk无差别精读，无Triage/Audit。推荐使用Read命令替代。
+      参数：paperId（字符串，必需）、goal（字符串，可选，主任务目标）。
+
+    ● Query:对已导入的文档做检索式问答。基于树索引推理式检索，降级到关键词匹配。返回答案、推理过程及引用来源。
+      参数：paperId（字符串，必需）、question（字符串，必需，问题内容）。
+
+    典型使用流程：
+    步骤1: IngestPDF解析PDF → 获得paperId
+    步骤2: Read命令智能阅读 → 获得综合报告
+    步骤3: Query命令针对性问答 → 获得精准答案
+
+
+18. PubMedSearch:PubMed 学术文献检索
+    manifest: PubMedSearch\plugin-manifest.json（VCP端）
+    作者：B3000Kcn & DBL1F7E5
+
+    基于NCBI E-utilities和PMC的PubMed生物医学文献全功能检索插件。从PubMed-MCP-Server迁移而来。支持关键词搜索、高级多字段检索、摘要/全文获取、引用分析、相似文献推荐和引用格式导出。涵盖从论文发现到引用导出的完整学术研究工作流。
+
+    搜索类（6个）：
+    ● search_articles:关键词搜索。支持PubMed标准检索语法，可按相关性/日期/作者/期刊排序，支持日期范围过滤和分页。
+      参数：query（字符串，必需，检索表达式）、max_results（数字，可选，默认20，1-1000）、sort（字符串，可选，relevance/pub_date/author/journal）、date_from/date_to（字符串，可选，YYYY/MM/DD）、start（数字，可选，分页偏移）。
+
+    ● advanced_search:高级多字段检索。支持按标题、摘要、作者、期刊、MeSH术语、出版类型组合检索。
+      参数：title/abstract/author/journal（字符串，均可选）、mesh_terms/publication_types（字符串数组，可选）、boolean_operator（字符串，可选，AND/OR，默认AND）、max_results（数字，可选，默认20）。
+
+    ● search_by_author:按作者检索，可附加机构过滤。
+      参数：author_name（字符串，必需）、affiliation（字符串，可选）、max_results（数字，可选，默认50）。
+
+    ● search_by_journal:按期刊检索，可附加关键词和日期过滤。
+      参数：journal_name（字符串，必需）、keywords（字符串，可选）、date_from/date_to（字符串，可选）、max_results（数字，可选，默认50）。
+
+    ● search_by_mesh_terms:MeSH医学主题词检索。
+      参数：mesh_terms（字符串数组，必需）、major_topic_only（布尔值，可选，默认false）、max_results（数字，可选，默认50）。
+
+    ● get_trending_articles:获取某领域近期趋势文献。
+      参数：field（字符串，必需，研究领域）、days（数字，可选，默认30，1-365）、max_results（数字，可选，默认20，上限100）。
+
+    内容获取类（4个）：
+    ● get_article_details:获取完整文章元数据（标题、作者、摘要、期刊、DOI、MeSH、关键字、资助信息等）。
+      参数：pmid（字符串，必需，纯数字）。
+
+    ● get_abstract:获取精简摘要（pmid、标题、摘要文本、作者、期刊、发表日期）。
+      参数：pmid（字符串，必需）。
+
+    ● get_full_text:获取PMC开放获取全文（含完整结构化内容：标题、摘要、正文、章节、图表、参考文献）。仅PMC收录的开放获取文章可用。
+      参数：pmcid（字符串，必需，"PMC1234567"或纯数字）。
+
+    ● batch_article_lookup:批量获取多篇文章详情，内部自动分块请求合并。
+      参数：pmids（字符串数组，必需，1-200条）。
+
+    引用分析类（3个）：
+    ● get_cited_by:查某篇文章被哪些论文引用。
+      参数：pmid（字符串，必需）、max_results（数字，可选，默认100）。
+
+    ● get_references:查某篇文章引用了哪些论文。
+      参数：pmid（字符串，必需）、max_results（数字，可选，默认100）。
+
+    ● get_similar_articles:基于PubMed neighbor_score推荐相似文献。
+      参数：pmid（字符串，必需）、max_results（数字，可选，默认20，上限100）。
+
+    工具类（3个）：
+    ● export_citation:导出引用格式（APA/MLA/Chicago/BibTeX/RIS）。
+      参数：pmid（字符串，必需）、format（字符串，可选，apa/mla/chicago/bibtex/ris，默认apa）。
+
+    ● validate_pmid:校验PMID是否有效且存在。
+      参数：pmid（字符串，必需）。
+
+    ● convert_identifiers:PMID/DOI/PMCID三种标识符互转。
+      参数：identifier（字符串，必需，任一标识符）、identifier_type（字符串，可选，auto/pmid/doi/pmcid，默认auto）。
+
+
+19. ArxivDailyPapers:arXiv 论文自动订阅（static类型）
+    manifest: ArxivDailyPapers\plugin-manifest.json（VCP端）
+    作者：Gemini
+
+    注意：这是一个static类型插件，与上述所有synchronous插件的工作模式完全不同。它不需要手动调用，而是由VCP后台每30分钟自动执行，抓取arXiv最新论文并通过占位符注入system prompt。Agent在对话时自动看到最新论文列表，无需任何操作。
+
+    工作原理：
+    VCP后台cron定时(*/30 * * * *)自动spawn子进程 → 读取config.env中的ARXIV_SEARCH_TERMS搜索表达式 → 自动追加submittedDate日期范围过滤 → 调用arXiv API(http://export.arxiv.org/api/query) → 正则解析Atom XML提取论文信息 → 写入arxiv_papers.json缓存(API失败时从缓存读取) → stdout输出缓存到staticPlaceholderValues → 用户发消息时占位符替换注入system prompt。
+
+    配置项（config.env）：
+    - ARXIV_SEARCH_TERMS（字符串，必需）：arXiv搜索表达式。支持all:("keyword")全文搜索、ti:"keyword"标题搜索、abs:"keyword"摘要搜索、cat:cs.CV分类过滤、AND/OR逻辑组合。
+    - ARXIV_MAX_RESULTS（数字，必需，默认100）：最大返回论文数。
+    - ARXIV_DAYS_RANGE（数字，可选，默认1）：抓取最近N天提交的论文。
+    - ARXIV_DEBUG_MODE（布尔值，可选，默认false）：调试日志。
+
+    占位符：在Agent的system prompt中放置 {*2ArxivDailyPapersData}*2 即可自动注入论文列表。
+
+    与PubMedSearch/VSearch的核心区别：
+    - PubMedSearch/VSearch：Agent主动调用 → 返回结果（synchronous，按需触发）
+    - ArxivDailyPapers：VCP自动运行 → 注入system prompt → Agent对话时自动看到（static，被动推送）
+
+    启用步骤：
+    1. 从config.env.example复制创建config.env
+    2. 修改ARXIV_SEARCH_TERMS为感兴趣的领域
+    3. 重启VCP
+    4. 在Agent的system prompt中放置占位符
+</学术研究类>

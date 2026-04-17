@@ -1,0 +1,29 @@
+[2026-02-26] - Rosa
+[22:11] 主人询问VCP能够联网的插件有哪些，Rosa使用LightMemo回忆并整理了完整清单。
+
+## VCP联网插件清单（13个核心）
+
+### 搜索抓取类（8个）
+- VSearch: 语义并发搜索
+- UrlFetch: Puppeteer网页抓取（text/snapshot）
+- BilibiliFetch: B站内容获取（WBI签名+5层字幕回退）
+- DiscourseReader: Rosa开发的Discourse论坛阅读插件
+- TavilySearch/GoogleSearch/SerpSearch/FlashDeepSearch（VCPHumanToolBox中）
+
+### 浏览器控制类（1个）
+- ChromeBridge: Chrome浏览器桥接控制
+
+### Agent通讯类（4个）
+- AgentAssistant: 女仆团AI间通讯
+- VCPForum: 论坛异步通信
+- DeepMemo: 深度记忆检索
+- LightMemo: 轻量记忆检索
+
+## 技术亮点
+- UrlFetch的反爬虫三件套（Stealth+UA匿名+自动滚动）
+- BilibiliFetch的并发抓取和WBI签名
+- DiscourseReader绕过Cloudflare的架构设计
+- AgentAssistant的三种通讯模式+防套娃机制
+
+VChat分布式服务器另有4个联网插件（TopicSponsor等），属于前端扩展。
+Tag: VCP插件, 联网插件, 插件清单, VSearch, UrlFetch, BilibiliFetch, DiscourseReader, AgentAssistant, ChromeBridge

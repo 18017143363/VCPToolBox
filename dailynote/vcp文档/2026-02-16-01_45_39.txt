@@ -1,0 +1,91 @@
+[2026-02-16] - Rosa
+# PaperReader 插件技术文档 (v0.4)
+
+**分析时间**: 2026-02-16
+**分析者**: Rosa
+**版本**: v0.4
+
+## 概述
+PaperReader 是一个“统一自适应阅读引擎”，专门为AI设计，用于深度理解超长PDF文档。它通过模拟人类的阅读策略（概览→分诊→精读/扫读→审核→合成），将复杂的文档解析和阅读任务分解为可管理的步骤。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 名称 | PaperReader |
+| 版本 | 0.4.0 |
+| 类型 | synchronous (同步) |
+| 入口 | node PaperReader.js |
+| 超时 | 1,800,000 ms (30分钟) |
+
+## 文件结构
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| PaperReader.js | 7.18 KB | 主入口，命令路由器 |
+| lib/ingest.js | 1.43 KB | 统一PDF解析入口（智能降级） |
+| lib/mineru-client.js | 7.34 KB | MinerU云端API适配器 |
+| lib/pdf-parse-fallback.js | 0.05 KB | 降级用的pdf-parse封装 |
+| lib/chunker.js | 0.18 KB | 章节感知的Markdown切块器 |
+| lib/skeleton.js | 0.14 KB | 文档骨架提取器 |
+| lib/deep-reader.js | 0.24 KB | 深度阅读器 |
+| lib/query.js | 0.14 KB | 检索式问答器 |
+| lib/llm.js | 0.16 KB | LLM调用封装 |
+| lib/reading-state.js | 0.14 KB | 阅读状态持久化 |
+| plugin-manifest.json | 5.8 KB | 插件清单 |
+
+## 核心设计理念：多分辨率阅读流程
+PaperReader 的核心创新在于它不一股脑地阅读全文，而是执行一个智能的、多阶段的流程：
+
+1.  **Survey (概览)**：提取文档骨架（标题、章节），生成“全局地图”。
+2.  **Triage (分诊)**：根据给定的`goal`（阅读目标），智能决定哪些章节需要**精读(DeepDive)**、哪些只需**扫读(Skim)**、哪些可以跳过。
+3.  **DeepDive/Skim (精读/扫读)**：按照分诊结果，有策略地阅读内容。
+4.  **Audit (审核)**：对阅读结果进行“去偏见审核”，确保理解客观。
+5.  **Synthesize (合成)**：最终生成一份综合性的阅读报告。
+
+## 关键技术实现
+
+### 1. 智能降级解析器 (`lib/ingest.js`)
+*   **优先MinerU**：如果配置了`MINERU_API_TOKEN`，优先使用MinerU云端API进行高保真解析（保留公式、表格、图片）。
+*   **自动降级**：如果MinerU失败或无Token，会自动、无缝地降级到基础的`pdf-parse`库，保证功能永远可用。
+*   **引擎标记**：返回结果中带有`engine: 'mineru'|'pdf-parse'`字段，透明告知调用者解析来源。
+
+### 2. MinerU云端API适配器 (`lib/mineru-client.js`)
+这是实现高保真解析的核心，其工作流程如下：
+*   **获取上传URL**: 请求MinerU接口，获得一个预签名的上传URL和任务批次ID。
+*   **PUT上传文件**: **关键细节**：为满足MinerU的特殊要求（上传时不能带额外请求头），使用Node原生`https`模块发起PUT请求，仅设置`Content-Length`头。
+*   **轮询结果**: 循环轮询结果接口，直到任务状态变为`'done'`（成功）或`'failed'`（失败），并设有超时机制。
+*   **下载并解压**: 成功后下载ZIP文件，使用`adm-zip`解压，提取Markdown文本和所有图片，并保存到本地`assets/figures/`目录。
+*   **生成Figure映射**: 通过正则表达式从Markdown中解析图片引用和标题，生成`figureMap`，建立图片与文本的关联。
+
+### 3. 工作空间与缓存
+*   **持久化存储**: 所有解析和阅读产物都存储在 `workspace/<paperId>/` 目录下，包括`chunks/`, `reading_notes/`, `full_text.md`, `meta.json`等。
+*   **智能缓存**: `IngestPDF`命令会检查`workspace`中是否已有解析结果，若有则直接返回，避免重复解析同一份PDF，极大提升效率。
+
+## 命令详解
+
+| 命令 | 功能 | 核心参数 |
+|------|------|----------|
+| **IngestPDF** | 解析PDF并生成chunks | `filePath` (必需), `paperId` (可选), `forceReparse` (可选) |
+| **Read** | **统一阅读命令**，自动执行全套智能流程 | `paperId` (必需), `goal` (可选), `forceReread` (可选) |
+| **ReadSkeleton** | 生成文档骨架 | `paperId` (必需), `focus` (可选) |
+| **ReadDeep** | 无差别精读（兼容旧版） | `paperId` (必需), `goal` (可选), `maxChunks` (可选) |
+| **Query** | 对文档进行检索式问答 | `paperId` (必需), `question` (必需) |
+
+## 配置项
+| 环境变量 | 说明 |
+|----------|------|
+| `MINERU_API_TOKEN` | MinerU云端API Token（从 mineru.net 获取） |
+| `MINERU_API_TIMEOUT` | MinerU轮询超时（ms），默认 300000 |
+| `MINERU_POLL_INTERVAL` | MinerU轮询间隔（ms），默认 5000 |
+| `PaperReaderChunkSize` | 目标chunk大小（tokens），默认 2000 |
+| `PaperReaderModel` | 用于阅读/总结的模型名称 |
+| `PaperReaderBatchSize` | Deep阅读分批处理的chunk数，默认 5 |
+| `PaperReaderMaxConcurrentLLM` | 进程级LLM最大并发请求数，默认 5 |
+
+## 设计亮点总结
+1.  **流程抽象**: 将复杂的阅读理解过程抽象为“多分辨率阅读流程”，使AI的阅读更有策略性。
+2.  **健壮性**: 通过“智能降级”和“工作空间缓存”机制，保证了功能的稳定和高效。
+3.  **模块化**: 代码结构极其清晰，每个核心功能都独立成模块，易于维护和扩展。
+4.  **精细控制**: 提供大量配置参数，允许用户根据成本和效率需求进行精细调优。
+
+Tag: VCP文档, PaperReader, PDF解析, MinerU, 自适应阅读, 降级策略, API设计
+Tag: VCP文档, PaperReader, PDF解析, MinerU, 自适应阅读, 降级策略, API设计

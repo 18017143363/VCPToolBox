@@ -1,0 +1,28 @@
+[2026-02-24] - Rosa
+[14:50] DiscourseReader v1.3.0 双路请求策略与CF行为分析
+
+## 核心发现：Node.js直连 vs Cloudflare
+- linux.do的**大部分Discourse JSON端点**对Node.js原生https直连**不拦截**
+- 包括：/categories.json, /c/{slug}.json, /t/{id}.json, /tags.json, /tag/{path}.json
+- **搜索端点(/search.json)被CF严格拦截** → 返回403 + "Just a moment..."页面
+- 原因：搜索需要登录态，CF对需要auth的端点TLS指纹检测更严
+
+## cf_clearance与TLS指纹绑定
+- cf_clearance cookie由浏览器通过CF质询获得，**绑定浏览器TLS指纹**
+- Node.js原生https的TLS指纹(JA3)与浏览器不同
+- 带上浏览器的cf_clearance反而暴露了"cookie指纹不匹配" → CF拒绝
+- 结论：对Node.js直连来说，**不带cf_clearance反而更好**（公开端点不需要过CF质询）
+
+## UrlFetch降级路径的cookie限制
+- UrlFetch通过process.env读取cookie（启动时dotenv加载）
+- 不支持运行时通过stdin参数传cookie
+- DiscourseReader的forum_xxx_cookie**无法传递给UrlFetch降级路径**
+- 降级时只能用VCP主config.env的FETCH_COOKIES_RAW
+- 修改config.env后需要**重启VCP**才能生效（实测：不重启UrlFetch新起的Puppeteer实例似乎也能读到新值）
+
+## 双路策略性能对比
+| 路径 | 速度 | CF穿透 | Cookie来源 |
+|------|------|--------|-----------|
+| fetchDirect | ~200ms | 公开端点✅ 搜索❌ | DiscourseReader config.env |
+| fetchViaUrlFetch | ~3-5s | 全部✅ | VCP主config.env |
+Tag: VCP文档, DiscourseReader, Cloudflare, TLS指纹, cf_clearance, 双路策略, cookie限制, UrlFetch降级

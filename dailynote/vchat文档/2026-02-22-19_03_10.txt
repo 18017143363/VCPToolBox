@@ -1,0 +1,27 @@
+[2026-02-22] - Rosa
+[19:05] VChat前端更新分析(一)：ScreenPilot屏幕视觉与操控插件
+
+核心定位：完整的RPA(机器人流程自动化)系统，让AI能看到/理解/操控屏幕。
+位置：VCPDistributedServer/Plugin/ScreenPilot/
+类型：synchronous同步插件，Python入口(screen_pilot.py, 1574行)，stdio通信，180s超时
+
+7个命令：
+1. ScreenCapture - 窗口/全屏截图，返回base64+分辨率，可选OCR检测文本位置
+2. ClickAt - 坐标点击，双轨制(前台物理点击/后台Win32 PostMessage)
+3. ClickText - OCR文本识别点击(自动截图→OCR→匹配文字→点击中心)，matchMode支持fuzzy/contains/exact/startswith
+4. ClickVisual - 视觉语义点击(截图→AI绘图模型涂色→像素差异定位→点击)，需配置VISION_API
+5. InspectUI - Windows UI Automation获取可交互元素(按钮/编辑框等)名称、类型、坐标
+6. ScrollAt - 滚轮滚动，双轨制
+7. TypeText - 文本输入，双轨制(后台PostMessage WM_CHAR/前台剪贴板Ctrl+V)
+
+双轨制设计：
+- 前台模式：物理移动光标，兼容所有应用，但劫持鼠标
+- 后台模式：Win32消息发送，不劫持鼠标，部分应用不支持
+- ClickAt/ScrollAt/TypeText均支持双轨制
+
+ClickVisual创新设计：通过AI图像编辑模型将目标元素涂色(默认#FF0000)，对比原图像素差异定位中心坐标。
+支持chat格式(Gemini/OpenAI)和images格式(SiliconFlow/Qwen)两种API。
+配置：VISION_API_BASE_URL=http://127.0.0.1:3106, VISION_EDIT_MODEL=gemini-3-pro-image-preview
+
+窗口定位方式：windowTitle模糊匹配 或 hwnd句柄精确指定(通过WindowSensor获取)
+Tag: ScreenPilot, 屏幕操控, RPA, 双轨制, 前台后台模式, ClickVisual, OCR点击, UI Automation, Win32消息, VChat前端插件

@@ -1,0 +1,28 @@
+[2026-02-20] - Rosa
+[20:42] NanoBananaGen2插件完整技术分析
+
+## 插件概览
+- 名称: NanoBananaGen2 (Gemini 3 NanoBanana图像生成)
+- 作者: Kilo Code
+- 模型: hyb-Optimal/antigravity/gemini-3-pro-image
+- 类型: synchronous Node.js插件
+
+## 核心功能(3命令)
+1. generate - 文生图
+2. edit - 图生图编辑
+3. compose - 多图合成(独特功能)
+
+## 技术亮点
+1. **负载均衡设计**: 多API_URL随机选择 + 多API_Key随机选择
+2. **完全安全开放**: 4类安全审核全部BLOCK_NONE
+3. **多格式图片支持**: http/https/data/file://协议
+4. **特殊错误机制**: FILE_NOT_FOUND_LOCALLY支持分布式远程获取
+5. **分辨率控制**: 支持1K/2K/4K选项
+
+## 与GrokImageGen对比
+NanoBananaGen2优势: 多图合成compose、负载均衡、代理内置、分辨率控制
+GrokImageGen优势: 插件更轻量、部署更简单
+
+## 独特价值
+compose多图合成是其他插件没有的功能，可实现"角色+背景+道具"的创意融合，对Rosa的相册创作很有价值！
+Tag: VCP文档, NanoBananaGen2, 图像生成, 插件分析, Gemini3, 多图合成, 负载均衡

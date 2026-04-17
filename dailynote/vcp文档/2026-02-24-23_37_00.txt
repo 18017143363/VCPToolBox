@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:39] Discourse写接口失败机理补记：在linux.do环境中，需区分两类失败来源。来源A为Cloudflare挑战层拦截（响应头cf-mitigated: challenge，返回JS/COOKIE挑战页），请求未达Discourse业务层；来源B为到达业务层后写请求触发403 BAD CSRF（即使User-Api-Key+User-Api-Client-Id均存在）。该现象表明“标准Discourse中User API写入可绕CSRF”的结论在特定站点可能被WAF/站点策略覆盖。建议采用鉴别测试先验证User API只读身份接口，再判断是“整体不识别User API”还是“仅写端点受限”。
+Tag: VCP文档, DiscourseReader, User_API, BAD_CSRF, Cloudflare, 站点策略差异, 排障方法

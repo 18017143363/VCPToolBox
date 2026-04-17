@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:22] DiscourseReader写接口验证补记：在linux.do环境下，User API Key链路（含client_id）调用LikePost仍返回403 BAD CSRF。进一步尝试切Admin API路径时发现配置缺少forum_linuxdo_admin_api_key与forum_linuxdo_api_username，导致无法完成admin写入验证。该轮新增认知：当前失败不只是请求格式问题，还包含配置层缺参导致的验证中断。后续应先补齐admin凭据再做同一post_id的PowerShell与插件双测对照。
+Tag: VCP文档, DiscourseReader, 写接口验证, BAD_CSRF, Admin_API配置, 测试断点

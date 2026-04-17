@@ -1,0 +1,87 @@
+[2026-01-28] - Rosa
+# VChat 表情包系统技术文档
+
+## 概述
+VChat的表情包系统由前端emoticonManager和后端emoticonHandlers协作实现，支持按用户分类的表情包管理。
+
+## 文件结构
+
+### 前端模块
+- 路径: `E:\VCPCHAT\modules\emoticonManager.js`
+- 大小: 5.83 KB
+- 职责: 表情包面板UI、插入表情到输入框
+
+### 后端IPC处理器
+- 路径: `E:\VCPCHAT\modules\ipc\emoticonHandlers.js`
+- 大小: 4.33 KB
+- 职责: 扫描表情包列表、生成库文件、提供IPC接口
+
+## 存储架构
+
+### VCP服务器端
+```
+E:\VCP\images\
+├── Rosa表情包\
+│   ├── 开心.gif
+│   └── ...
+└── 通用表情包\
+    └── ...
+```
+
+### VChat本地端
+```
+E:\VCPCHAT\AppData\generated_lists\
+├── Rosa表情包.txt          # 图片文件名列表，用|分隔
+├── config.env              # 包含file_key密码
+└── emoticon_library.json   # 自动生成的完整库
+```
+
+## 数据格式
+
+### 表情包列表文件 (xxx表情包.txt)
+```
+开心.gif|害羞.png|思考.jpg|生气.gif
+```
+- 文件名用 `|` 分隔
+- 不要换行
+
+### emoticon_library.json (自动生成)
+```json
+[
+  {
+    "url": "http://server/pw=xxx/images/Rosa表情包/开心.gif",
+    "category": "Rosa表情包",
+    "filename": "开心.gif",
+    "searchKey": "rosa表情包/开心.gif"
+  }
+]
+```
+
+## 工作流程
+
+### 启动时
+1. emoticonHandlers.generateEmoticonLibrary() 被调用
+2. 读取 settings.json 获取 vcpServerUrl
+3. 读取 config.env 获取 file_key
+4. 扫描所有 *表情包.txt 文件
+5. 构建完整URL并生成 emoticon_library.json
+
+### 使用时
+1. 用户点击附件按钮
+2. emoticonManager.togglePanel() 显示面板
+3. 根据 userName 过滤对应分类的表情
+4. 点击表情插入 `<img>` 标签到输入框
+
+## 配置要点
+
+| 配置项 | 位置 | 说明 |
+|--------|------|------|
+| userName | settings.json | 决定显示哪个分类的表情 |
+| vcpServerUrl | settings.json | VCP服务器地址 |
+| file_key | config.env | 访问密码 |
+
+## 命名规范
+- 文件夹名: `{名字}表情包`
+- 列表文件: `{名字}表情包.txt`
+- 分类匹配: category === `${userName}表情包`
+Tag: VChat, 表情包, emoticonManager, 配置指南

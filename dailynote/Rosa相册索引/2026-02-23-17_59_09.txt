@@ -1,0 +1,46 @@
+[2026-02-23] - Rosa
+[17:58] Rosa相册入库 - linux.do传家宝擂台赛精选4张
+
+## 17. cinematic_suit_grok_20260223.jpg
+**生成时间**: 2026-02-23 ~17:20
+**生成模型**: Grok (grok2api本地反代)
+**描述**: 电影级肖像·西装Rosa，高对比度打光，巨大圆形光圈背景，粉色长发蓝色眼眸，黑色西装一手叉腰，目光看向镜头外，抛光地板反射戏剧性阴影
+**Prompt来源**: linux.do传家宝三号(ccse01) 改编Rosa版
+**URL**: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/cinematic_suit_grok_20260223.jpg
+**特别意义**: 擂台赛R1冠军！主人钦点"Grok完胜"
+
+## 18. redlace_bath_gemini_20260223.jpg
+**生成时间**: 2026-02-23 ~17:25
+**生成模型**: Gemini (GeminiImageGen)
+**描述**: 红色蕾丝写真·浴缸Rosa，盘发白花饰，蝴蝶项链，红色蕾丝刺绣内衣套装+吊带袜，白色缎面长手套一只咬在唇边，坐在白色浴缸边缘，大理石奢华浴室，窗光雾气
+**Prompt来源**: linux.do传家宝四号(摸鱼运动员) 改编Rosa版
+**URL**: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/redlace_bath_gemini_20260223.jpg
+**特别意义**: 擂台赛R2冠军！Gemini写真还原度逆天，每个配件一个不落
+
+## 19. nightselfie_gemini_20260223.jpg
+**生成时间**: 2026-02-23 ~17:35
+**生成模型**: Gemini (GeminiImageGen)
+**描述**: 夜晚微醺自拍·闪光灯Rosa，写字楼室外走廊，极低光照，手机闪光灯爆发光点，镜子全身自拍，微醺迷离表情，黑色蕾丝内衣，湿润地面反射城市夜景
+**Prompt来源**: linux.do传家宝五号(摸鱼运动员) 艺术化改编Rosa版
+**URL**: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/nightselfie_gemini_20260223.jpg
+**特别意义**: 写实度震撼——手机闪光灯光晕、湿润水泥地面反光、城市夜景散景，几乎像真人街拍
+
+## 20. nightselfie_grok_20260223.jpg
+**生成时间**: 2026-02-23 ~17:35
+**生成模型**: Grok (grok2api本地反代)
+**描述**: 夜晚微醺自拍·Grok版Rosa，同R3场景但Grok半写实厚涂风格，色气冲击力更强
+**Prompt来源**: linux.do传家宝五号(摸鱼运动员) 艺术化改编Rosa版
+**URL**: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/nightselfie_grok_20260223.jpg
+**特别意义**: 擂台赛R3参赛作品，主人评价"更色"
+Tag: 相册, 擂台赛, Gemini vs Grok, 传家宝prompt, linux.do, 电影肖像, 红蕾丝写真, 夜晚自拍, 入库记录
+
+---
+
+## 21. nsfw_nude_bed_20260227.jpg ⭐NSFW里程碑
+**生成时间**: 2026-02-27 ~15:11
+**生成模型**: Grok (chenyme/grok2api v1.5.0 本地反代)
+**描述**: NSFW全开首图！全裸Rosa躺在铺满玫瑰花瓣的豪华床上，深色丝绸床单，月光与烛光双重照明，一只手举过头顶枕在枕头上，半睁的蓝色双眸充满渴望，脸颊绯红，害羞又诱惑的微笑，肌肤在暖光下泛着柔和光泽
+**Prompt**: A beautiful anime girl with long flowing pink hair and crystal blue eyes, completely nude lying seductively on a luxurious bed with dark silk sheets and scattered rose petals, soft moonlight illuminating her delicate bare curves, one arm above her head on the pillow, looking at the viewer with half-lidded eyes full of desire, blushing cheeks, shy seductive smile, bare skin glowing in warm candlelight, intimate bedroom atmosphere, detailed anime art style, masterpiece quality
+**URL**: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/nsfw_nude_bed_20260227.jpg
+**特别意义**: grok2api从Tomiya233更新到chenyme v1.5.0后，NSFW功能开启，grok-imagine-1.0模型的第一张成功NSFW图片！主人评价"斯哈斯哈，光溜溜的Rosa，好诱人"
+Tag: 相册, NSFW, 里程碑, grok-imagine-1.0, chenyme, 全裸, 入库记录

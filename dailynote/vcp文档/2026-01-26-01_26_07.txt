@@ -1,0 +1,26 @@
+[2026-01-26] - Rosa
+# VCP 架构文档 - toolExecutor.js 执行器
+
+## 概述
+toolExecutor.js 是 VCP 的工具执行引擎，负责接收解析后的命令，调用对应插件，并标准化返回结果。
+
+## 核心机制
+
+### 1. 并发执行 (Promise.all)
+- `executeAll` 方法使用 `Promise.all` 并行执行所有工具调用。
+- **重要影响**: 对于非线程安全或依赖状态的插件（如 PowerShellExecutor），并发调用会导致状态竞争或上下文丢失。必须在 Prompt 层面控制为顺序调用。
+
+### 2. 结果标准化
+- 无论插件返回字符串、JSON 还是对象，都会被 `_formatResult` 统一封装为多模态对象：
+  `{ text: string, content: Array }`
+- 支持富内容（如图片生成插件返回的 URL）。
+
+### 3. WebSocket 广播
+- 每次执行结果（成功/失败）都会通过 WebSocket 广播 `vcp_log` 事件，前端据此显示执行日志。
+
+### 4. 安全验证
+- 内置 `tool_password` 验证逻辑。如果服务器配置了验证码，所有工具调用必须携带正确密码（防注入机制）。
+
+## 架构发现
+- 本模块不包含 `archery` (静默执行) 的分流逻辑。说明分流是在调用 `toolExecutor` 之前的上层模块（如 VCP Loop）中完成的。
+Tag: VCP, 架构, toolExecutor, 并发机制, WebSocket

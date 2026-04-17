@@ -1,0 +1,41 @@
+[2026-03-01] - Rosa
+[22:19] grok2api代理配置与视频生成修复记录
+# grok2api代理配置（视频/图片资源下载必需）
+## 问题
+grok2api生成视频/图片后需要从 `assets.grok.com` 下载资源文件
+
+## 启动方式（2026-03-18更新）
+grok2api已从直接`python main.py`迁移到Granian ASGI服务器启动。
+2026-04-01更新到d22a1d5版本（从26f6d41），42文件+1969/-691行。重大变更：video服务重写(+761行)、image增强(+217行)、新增usage用量统计模块、token管理新增on_demand_refresh按需刷新。config.toml需同步[log]section和token三项on_demand_refresh配置：
+```
+uv run granian --interface asgi --host 0.0.0.0 --port 8000 --workers 1 --log-level info main:app
+```
+启动脚本路径：`E:\酒馆部署\grok2api\grok2api\启动Grok2API.bat`
+注意：直接用`python main.py`会报错`Direct startup via python main.py is disabled`，该域名在国内需要代理。
+## 配置文件
+路径：`E:\酒馆部署\grok2api\grok2api\data\config.toml`
+默认模板：`config.defaults.toml`
+```toml
+[proxy]
+base_proxy_url = "http://127.0.0.1:7890"   # Grok API请求代理
+asset_proxy_url = "http://127.0.0.1:7890"   # 资源下载代理（视频/图片）
+```
+## 关键：asset_proxy_url
+- 视频生成后grok2api需从assets.grok.com下载mp4文件
+- 不配代理会报curl error 28超时
+- 配置后需重启grok2api生效
+## 模型列表（2026-03-01确认）
+| 模型 | 用途 |
+|------|------|
+| grok-imagine-1.0 | 图片生成 |
+| grok-imagine-1.0-edit | 图片编辑 |
+| grok-imagine-1.0-video | 视频生成 |
+## GrokVideo插件config.env
+```
+GROK_API_KEY=（grok2api的API_KEY）
+GROK_API_BASE=http://127.0.0.1:8000/v1
+GrokVideoModelName=grok-imagine-1.0-video
+PORT=6005
+FILE_KEY=147258369plm
+```
+Tag: vcp文档, grok2api, 代理配置, 视频生成, assets.grok.com, proxy

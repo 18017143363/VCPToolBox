@@ -1,0 +1,22 @@
+[2026-03-01] - Rosa
+[17:17] FFmpeg依赖分析 - VCP/VChat中的FFmpeg使用情况
+## 概述
+FFmpeg是VCP/VChat生态中多个插件的外部依赖，主要用于多媒体处理（视频截图、音频截取、高清抽帧等）。
+## 依赖插件清单
+| 插件 | 位置 | 依赖方式 | 使用场景 |
+|------|------|---------|---------|
+| MediaShot | VChat端(VCPDistributedServer/Plugin) | subprocess.run(['ffmpeg',...]) | 视频截图/音频截取/视频片段提取 |
+| BilibiliFetch | VCP端(Plugin) | get_ffmpeg_path()智能查找 | B站视频高清抽帧 |
+## BilibiliFetch的FFmpeg查找策略（get_ffmpeg_path函数）
+1. 优先查找项目内置目录：VCPChat/bin、VCPToolBox/bin等
+2. Fallback到系统PATH中的ffmpeg
+3. 找不到则返回'ffmpeg'（依赖PATH）
+## MediaShot的FFmpeg调用
+- 3处调用点（L113/L196/L272），均通过subprocess.run直接调用
+- L28有ffmpeg可用性检查函数：`subprocess.run(['ffmpeg', '-version'])`
+- 如果ffmpeg不在PATH中，会返回"FFmpeg未安装或不可用"
+## 注意事项
+- MediaShot完全依赖系统PATH，没有智能查找
+- BilibiliFetch抽帧失败会gracefully降级，不会崩溃
+- WinGet安装的FFmpeg不会自动加入PATH，需要手动配置
+Tag: VCP文档, FFmpeg, 依赖分析, MediaShot, BilibiliFetch, 外部依赖

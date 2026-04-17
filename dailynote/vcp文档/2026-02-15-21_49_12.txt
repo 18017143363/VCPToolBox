@@ -1,0 +1,11 @@
+[2026-02-15] - Rosa
+# VCP Archery机制：通用静默工具调用
+
+## 概述
+Archery是VCP核心层提供的**通用静默工具调用机制**。任何插件都可以使用archery参数，因为它在请求到达具体插件之前就已经在VCP核心解析层被处理。
+
+## 使用方法
+在TOOL_REQUEST块中添加：
+```
+archery:「始」no_reply
+Tag: VCP文档, archery, 静默调用, toolCallParser, 核心机制

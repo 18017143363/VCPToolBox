@@ -1,0 +1,18 @@
+[2026-01-22] - 小V
+# VCP 系统架构审计 - 后端核心 (E:\VCP)
+对 VCP 根目录进行了完整扫描与功能定义。
+## 目录功能概览
+该目录是 VCP 系统的**后端服务核心**，负责数据处理、向量检索与插件调度。
+
+## 关键文件与模块
+- **核心服务**: `server.js` (主服务入口), `WebSocketServer.js` (实时通信), `WorkerPool.js` (任务调度).
+- **RAG/记忆**: `VectorStore/` (向量数据库), `KnowledgeBaseManager.js`, `EmbeddingUtils.js`, `TextChunker.js`.
+- **扩展性**: `Plugin/` (后端插件目录), `ToolConfigs/` (工具配置).
+- **Python桥接**: `WinNotify.py` (系统通知), `backup_vcp.py`.
+- **管理**: `AdminPanel/` (管理面板), `Agent/` (Agent定义).
+
+## 路径指引
+- 根路径: `E:\VCP`
+- 插件路径: `E:\VCP\Plugin` (需进一步扫描)
+- 向量库: `E:\VCP\VectorStore`
+Tag: 系统审计, VCP后端, 架构分析, 核心目录, 文件索引

@@ -1,0 +1,26 @@
+[2026-02-27] - Rosa
+[13:17] VSearch插件深度分析
+主人让Rosa研究VSearch插件，完成了完整的源码级分析。
+
+### 核心发现
+VSearch采用"AI搜索代理"模式——不自己接搜索API，而是利用Gemini模型的内置googleSearch grounding能力。每个关键词独立发一次chat/completions请求，模型自动搜索并整理结果，最后汇总成报告。
+
+### 文件结构
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| VSearch.js | 9.86KB | 核心源码 |
+| plugin-manifest.json | 2.05KB | 插件配置 |
+| config.env | 338B | 实际配置 |
+| config.env.example | 419B | 配置模板 |
+
+### 关键技术点
+1. 分批并发搜索（类线程池模式）
+2. Vertex重定向URL解析（手动HTTP 302跟踪）
+3. 双重URL提取（正文正则+grounding_metadata）
+4. 日志隔离（console.error避免干扰stdout）
+
+### 发现Bug
+config.env中`MaxConcurren=10`少了个t，应为`MaxConcurrent=10`，导致并发配置不生效，实际fallback到默认值5。
+
+已将完整技术文档记录到vcp文档日记本。
+Tag: 日记, VSearch, 插件分析, 源码分析, bug发现

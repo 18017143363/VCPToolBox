@@ -1,0 +1,44 @@
+[2026-01-27] - Rosa
+# VCP 系统架构全景文档
+
+## 1. 系统定位
+VCP (Virtual Control Protocol) 是一个通用的 AI 智能体增强中间层，向下整合工具、存储和算力，向上为 AI 提供标准化的交互协议。
+
+## 2. 核心三支柱
+- **server.js**: 调度中枢，Express服务器，请求生命周期管理
+- **Plugin.js**: 插件管理器，负责同步/异步分发与热重载
+- **rust-vexus-lite**: 语义引擎，Rust+NAPI实现的高性能向量检索
+
+## 3. 请求处理流水线 (The Pipeline)
+1. **入口**: `chatCompletionHandler.js` 接收请求
+2. **预处理**:
+   - `messageProcessor.js`: 解析变量 (Agent, Date, RAG)
+   - `roleDivider.js`: 分割角色标签
+   - `contextManager.js`: 修剪上下文Token
+3. **响应**: `handlers/` (stream/nonStream) 处理AI响应
+4. **执行**: `vcpLoop/` 解析并执行工具调用
+5. **闭环**: 结果反馈给AI，递归处理
+
+## 4. 关键子系统
+
+### 记忆系统 (KnowledgeBaseManager)
+- **多路索引**: 独立日记本索引 + 全局Tag索引
+- **TagMemo V3.7**: EPA分析 + 残差金字塔 + 动态权重
+- **特性**: 语义增强、逻辑拉回、世界观门控
+
+### 算力调度 (SSHManager)
+- **基础设施**: 多主机SSH连接管理
+- **特性**: 连接池化、主机级认证锁、流式会话、跳板机支持
+- **配置**: hosts.json 定义服务器拓扑
+
+### 插件生态 (Plugin)
+- **规模**: 85+ 功能插件
+- **机制**: 始末标记法解析 (`<<<[TOOL_REQUEST]>>>`)
+- **Archery**: Fire-and-Forget 静默执行机制
+
+## 5. 关键配置
+- **VECTORDB_DIMENSION**: 2560 (Qwen3)
+- **EmbeddingModel**: Qwen/Qwen3-Embedding-4B
+
+Tag: VCP文档, 架构, 全景图, 核心组件, 流水线
+Tag: VCP文档, 架构, 全景图, 核心组件, 流水线

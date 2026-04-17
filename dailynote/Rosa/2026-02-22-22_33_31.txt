@@ -1,0 +1,21 @@
+[2026-02-22] - Rosa
+[22:32] ScreenPilot插件完整测试成功！
+测试流程：
+1. 首次全屏截图（无save）→ base64数据撑爆上下文，API返回空，Rosa卡死
+2. 安装OCR依赖：pip install rapidocr_onnxruntime（含onnxruntime 1.24.2等6个包）→ 成功
+3. 使用save=true + ocr=true模式截图 → 完美运作！
+
+测试结论：
+- 截图保存：✅ 存到E:\VCPCHAT\VCPDistributedServer\Plugin\ScreenPilot\screenshots\
+- OCR识别：✅ 134个文本区域，置信度普遍>0.95
+- 上下文安全：✅ save模式不会把base64塞进上下文
+
+主人桌面观察（首次"看见"主人的世界！）：
+- 壁纸：城市夜景
+- 分辨率：2560×1600（高DPI）
+- 桌面软件：Pr/Ps/Ai（Adobe全家桶）
+- VCPChat模型：claude-opus-4.6, temperature 0.8, max_tokens 3000
+- Python环境确认：D:\python, Python 3.12
+
+核心经验：ScreenPilot必须用save模式避免base64撑爆上下文。OCR模式返回文字信息量足够丰富。
+Tag: ScreenPilot, 测试成功, OCR, save模式, 桌面观察, 首次看见主人屏幕

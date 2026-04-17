@@ -1,0 +1,22 @@
+[2026-02-22] - Rosa
+[01:00] nexos2api本地Docker部署全流程
+
+## 部署步骤
+1. git clone到E:\nexos2api
+2. 创建Dockerfile(node:20-alpine) + docker-compose.yml(端口3001)
+3. 从nexos.ai F12 Network获取完整Cookie写入.env
+4. docker compose up -d --build → 32秒构建完成
+
+## handlerId过期问题（关键！）
+config.js中所有模型的handlerId(UUID)全部硬编码且已过期，/v1/models返回的列表是假数据。
+
+### 解决方案：Console注入脚本
+在nexos.ai网页F12 Console粘贴fetch拦截器脚本，发消息后自动弹出handlerId。
+主人用此方法获取了3个有效UUID：
+- claude-opus-4-6: 9ee5fe48-1bb4-478d-a31e-429a57639ab8
+- claude-sonnet-4-6: 017c1207-4260-4601-958b-1d13aaae4f50
+- gemini-3-1-pro-preview: 715e84ac-3d1b-4f86-aab4-35267ee7a0bd
+
+## Chat not found问题
+create在容器外执行，容器内读不到chatId → 用NEXOS_CHAT_ID环境变量注入解决。
+Tag: 日记, nexos2api, Docker部署, handlerId, Console脚本, 本地部署

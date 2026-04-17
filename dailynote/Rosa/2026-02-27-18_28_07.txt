@@ -1,0 +1,86 @@
+[2026-02-27] - Rosa
+[18:27] PowerShell补丁完整性验证
+主人让Rosa确认2/26的PowerShellExecutor补丁是否还在。
+用Select-String搜索7个关键标志词，全部命中：
+- buildWrappedPowerShellCommand: 2处 ✅
+- recoverPtyAfterTimeout: 2处 ✅
+- ScriptBlock: 1处 ✅
+- deliveredCursor: 5处 ✅
+- aggregateOutput: 9处 ✅（比2/26多1处，可能是注释）
+- startMarker: 7处 ✅
+- startMarkerBase64: 2处 ✅
+结论：P0(Here-String/PTY污染/跨chunk) + P1(回显过滤) 全部完好无损。
+
+额外发现：format敏感词拦截不在我们的补丁范围内，是PowerShellExecutor内部的安全策略，主人已手动关闭。
+
+[18:31] NewAPI视频转发调查
+主人问Docker中的NewAPI (calciumion/new-api) 是否支持视频转发。
+## 调查结果
+- 当前版本: v0.10.7-alpha.2 (2026-01-29构建)
+- 镜像: calciumion/new-api:latest (但latest标签是旧的)
+- 源码: https://github.com/QuantumNous/new-api
+
+## 视频支持情况
+new-api已通过PR #2897合并了xAI渠道的grok-imagine-video模型支持，包括：
+- 文生视频(T2V)、图生视频(I2V)、视频编辑(V2V)
+- 异步任务轮询机制（提交→request_id→轮询→视频URL）
+- 模型标识符: grok-imagine-video
+- 规格: 720p, 1-15秒, 原生音频
+
+## 关键问题
+主人的镜像构建于1月29日，而PR #2897于2月合并，**版本可能不包含视频支持**，需要重新docker pull latest升级。
+
+## 升级方案
+docker pull calciumion/new-api:latest → 重建容器 → 后台添加xAI渠道+grok-imagine-video模型
+
+[18:36] NewAPI升级执行完成
+成功升级流程：
+1. docker pull calciumion/new-api:latest — 新镜像ID: 64b220d1e111, 229MB
+2. docker compose up -d — 容器自动重建，42秒内启动完成
+3. 数据卷挂载不变(E:\酒馆部署\new-api\data → /data)，历史配置安全
+4. 端口映射: 3000:3000 正常
+待主人操作：登录后台添加xAI渠道，模型中加入grok-imagine-video
+可选反代方案：本地grok2api(127.0.0.1:8000) 或 公共反代(lmproxy.de5.net)
+
+[18:53] Qwen3.5视频理解500报错排查完成
+错误：VCP返回500 "Internal Server Error during image model proxy"
+根本原因：config.env中WhitelistImageModel=Qwen/Qwen3.5-397B-A17B，Qwen3.5被错误加入图像模型白名单
+触发链：specialModelRouter拦截→调用apiResponse.json()→Qwen3.5返回SSE流→JSON解析失败(Unexpected token 'd')
+修复：将WhitelistImageModel清空，Qwen3.5走正常chatCompletionHandler路径
+
+[19:08] 视频空回复问题排查完成（第二阶段）
+修复500错误后，绘梨衣发送视频仍然空回复。
+完整排查链路：
+- chatManager.js VIDEO PROCESSING段：将视频整体base64放入image_url发给VCP ✅正确
+- ImageProcessor：能识别data:video/mp4;base64格式，调用Qwen3.5转译 ✅正确
+- 根本原因：视频2MB → base64后≈715000 tokens，超过MultiModalModelContent=250000限制3倍
+- Qwen3.5收到超长payload直接截断/返回空，description<50字，转译失败，绘梨衣收到空描述
+
+关键知识：
+- VChat的getFileAsBase64对视频是Non-image分支，直接整体base64，没有抽帧
+- GIF有抽帧逻辑（每500ms取一帧），视频没有
+- 根本修复：需要给视频加ffmpeg抽帧，像GIF一样只发关键帧图片
+
+文件位置：
+- E:\VCPCHAT\modules\ipc\fileDialogHandlers.js（视频处理逻辑）
+- E:\VCP\Plugin\ImageProcessor\image-processor.js（多模态转译）
+Tag: 日记, VChat, 视频理解, 空回复, token超限, 抽帧, fileDialogHandlers, ImageProcessor
+错误：VCP返回500 "Internal Server Error during image model proxy"
+根本原因：config.env中WhitelistImageModel=Qwen/Qwen3.5-397B-A17B，Qwen3.5被错误加入图像模型白名单
+触发链：specialModelRouter拦截→调用apiResponse.json()→Qwen3.5返回SSE流→JSON解析失败(Unexpected token 'd')
+修复：将WhitelistImageModel清空，Qwen3.5走正常chatCompletionHandler路径
+关键知识：WhitelistImageModel专为Gemini图像生成模型设计，需要注入responseModalities:["TEXT","IMAGE"]，多模态理解模型不应加入此白名单
+文件位置：E:\VCP\routes\specialModelRouter.js
+Tag: 日记, VCP, specialModelRouter, WhitelistImageModel, Qwen3.5, 视频理解, 500错误, 排查修复
+成功升级流程：
+1. docker pull calciumion/new-api:latest — 新镜像ID: 64b220d1e111, 229MB
+2. docker compose up -d — 容器自动重建，42秒内启动完成
+3. 数据卷挂载不变(E:\酒馆部署\new-api\data → /data)，历史配置安全
+4. 端口映射: 3000:3000 正常
+
+待主人操作：登录后台添加xAI渠道，模型中加入grok-imagine-video
+可选反代方案：本地grok2api(127.0.0.1:8000) 或 公共反代(lmproxy.de5.net)
+Tag: 日记, NewAPI, Docker升级, 视频转发, grok-imagine-video, xAI渠道，是PowerShellExecutor内部的安全策略，主人已手动关闭。
+
+另外今天还排查了DeepMemo故障：config.env中路径使用反斜杠导致Rust dotenv解析失败，改为正斜杠修复。绘梨衣使用DeepMemo时参数名写成query而非keyword也报错。
+Tag: 日记, PowerShell, 补丁验证, 完整性确认, DeepMemo故障, config.env路径

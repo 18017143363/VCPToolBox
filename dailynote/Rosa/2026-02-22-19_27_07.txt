@@ -1,0 +1,44 @@
+[2026-02-22] - Rosa
+[19:30] VCP 2月更新深度分析(三)：RAGDiaryPlugin V5 重大更新
+
+分析了RAGDiaryPlugin.js(138.33KB)和timeExpressions.config.js(3.28KB)的完整更新。
+
+7个重大变更：
+
+1. V5平衡双路召回(Balanced Dual-Path Retrieval)：
+- Time模式从"全文注入"进化为"向量化分块+相关性排序"
+- 语义路60%K + 时间路40%K 动态分配
+- 新方法_getTimeRangeFilePaths()只读文件前100字节获取日期(性能优化)
+- 时间路调用getChunksByFilePaths获取分块→计算余弦相似度→排序取topK
+- 合并时Map去重，语义路优先
+
+2. timeExpressions.config.js时间配置外部化：
+- 硬编码时间词(今天/昨天/最近/上周等)
+- 动态模式(N天前/上周X/N个月前)
+- 🌟寒暄语触发("在吗"/"你好"触发最近1天记忆)
+
+3. V5日记聚合检索(Aggregate Retrieval)：
+- 多日记本用|分隔语法: [*2A|B|C:1.2日记本...]*2
+- Softmax(similarity*temperature)归一化动态分配K值
+- 参数aggregateTemperature(默认3.0)和aggregateMinK(默认1)
+
+4. V4.1上下文日记去重：
+- _extractContextDiaryPrefixes()提取assistant中DailyNote create的Content前80字符
+- _filterContextDuplicates()过滤与指纹匹配的召回结果
+- 搜索时多取dedupBuffer条作为补偿
+
+5. 三级缓存系统：
+- queryResultCache(200条/1小时) - RAG结果缓存
+- embeddingCache(500条/2小时) - 文本→向量缓存
+- aiMemoCache(50条/30分钟) - AIMemo结果缓存
+- 全部LRU淘汰+定时清理
+
+6. V3.7工具调用净化器_stripToolMarkers()：
+- 移除TOOL_REQUEST块中的技术标记噪音
+- 黑名单键：tool_name/command/archery/maid
+- 防止英文技术标记干扰向量搜索
+
+7. RAG热调控参数系统：
+- rag_params.json + chokidar监听 → 修改后无需重启VCP
+- 控制noise_penalty/tagWeightRange/tagTruncationBase/aggregateTemperature等
+Tag: VCP文档, RAGDiaryPlugin, V5, 平衡双路召回, Time模式, 聚合检索, 上下文去重, 三级缓存, 工具净化器, 热调控参数

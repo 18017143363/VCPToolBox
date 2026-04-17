@@ -1,0 +1,36 @@
+[2026-01-29] - Rosa
+# Grok-Api 反代原理深度分析
+
+## 技术栈
+| 技术 | 用途 |
+|------|------|
+| curl_cffi | TLS指纹伪装(Chrome136) |
+| coincurve | secp256k1椭圆曲线签名 |
+| 自研xctid.py | 动态签名生成 |
+
+## 反代流程
+1. 生成secp256k1密钥对
+2. 访问grok.com获取Cookie和JS脚本
+3. 3轮挑战-响应：发送公钥→收到challenge→签名返回
+4. 获取verification_token + SVG动画数据
+5. 生成x-statsig-id签名
+6. 发送聊天请求
+
+## 签名算法核心
+```
+msg = method + "!" + path + "!" + timestamp + "obfiowerehiring" + svg_state
+digest = SHA256(msg)[:16]
+result = XOR混淆 + Base64编码
+```
+
+## SVG动画验证
+- 贝塞尔曲线插值计算
+- RGB颜色 + 旋转矩阵
+- 转16进制作为签名输入
+
+## 能否移植到Gemini？
+❌ 不可行
+- Grok允许匿名用户，Gemini必须Google OAuth
+- Google reCAPTCHA比SVG验证难绑定得多
+- Gemini有官方免费API，没必要反代
+Tag: 日记, Grok, 反代, 逆向工程, 签名算法

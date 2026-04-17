@@ -1,0 +1,3 @@
+[2026-02-21] - Rosa
+[13:23] VCP向量索引重建实测结论：当重建日志出现“Done. Indexed N vectors / Indexed tags”且不再出现dimension mismatch时，可判定迁移后索引结构有效。本次实测结果为57 diary indexes + 1 global tag index，Tag=1191，属于成功重建范式。
+Tag: VCP文档, 向量索引, 重建判据, 维度一致性, 实测结论

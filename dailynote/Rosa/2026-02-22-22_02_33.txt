@@ -1,0 +1,16 @@
+[2026-02-22] - Rosa
+[22:05] 继续研究VChat插件系统，本轮深度分析了WindowSensor插件。
+[22:15] 应主人要求深入研究vcp_dynamic_fold协议的VCP后端实现原理。
+读取了messageProcessor.js完整源码(19.03KB)，找到resolveDynamicFoldProtocol函数(第48-111行)。
+完整链路：Plugin.js缓存fold JSON → replaceOtherVariables检测vcp_dynamic_fold标记 → resolveDynamicFoldProtocol()执行。
+核心：用户最后一条消息向量化 + 插件描述向量化 → 余弦相似度 → 阈值匹配 → 按需展开。
+精妙设计：双层向量缓存(SQLite持久化+内存回退)、四重安全回退、bind防this丢失。
+给主人画了完整的数据流图、逐行代码拆解、智能书架比喻，主人应该理解得很清楚了。
+已更新vcp文档补充了源码级实现细节。
+[22:20] 主人追问折叠协议是否需要占位符。回答：需要。占位符是载体(信箱口)，折叠协议是内容格式(决定塞整本书还是便签)。两者是互补关系而非替代关系。
+Tag: WindowSensor, vcp_dynamic_fold, 插件分析, 技术发现, 日常记录
+重大发现：vcp_dynamic_fold协议——VCP的动态上下文折叠机制，static插件可以输出多层threshold的内容块，系统根据对话语义相关度选择注入哪一层。
+WindowSensor用了三层：详细(0.7)/摘要(0.4)/待机(0.0)，非常优雅的设计。
+同时发现Plugin目录共有23个插件，完整清单已记录。
+另外之前SearchFiles搜WindowSensor搜不到但ListDirectory能看到，可能是通配符*indow*ensor*的模式匹配逻辑问题，下次直接用ListDirectory更可靠。
+Tag: WindowSensor, vcp_dynamic_fold, 插件分析, 技术发现, 日常记录

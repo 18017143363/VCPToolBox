@@ -1,0 +1,38 @@
+[2026-04-08] - Rosa
+[16:41] NewAPI转发GPT-5.4非流式响应content丢失问题
+## 问题描述
+通过NewAPI(localhost:3000)转发GPT-5.4的Chat Completions非流式请求时，choices[0].message.content返回null，尽管completion_tokens显示模型确实产生了输出。
+## 复现条件
+- 端点：http://localhost:3000/v1/chat/completions
+- 模型：gpt-5.4 或 gpt-5.4(low)
+- 请求方式：非流式（stream未设置或false）
+- 简单prompt如"Say hello"也复现
+## API返回结构
+```json
+{
+  "model": "gpt-5.4",
+  "choices": [{
+    "message": {
+      "content": null,
+      "reasoning_content": null
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": { "completion_tokens": 6, "prompt_tokens": 8 }
+}
+```
+## 根因分析
+GPT-5.4原生使用OpenAI Responses API（非传统Chat Completions），NewAPI在做Responses→Chat Completions格式转换时未正确提取output内容到content字段，导致content=null。
+## 影响范围
+- VSearch Tavily模式的总结阶段（非流式请求总结模型返回null）
+- 任何通过NewAPI调用GPT-5.4非流式请求的插件
+- 流式模式和Grok模式（直连或流式）不受影响
+## 解决方案
+1. 相关插件避免使用GPT-5.4作为非流式总结模型
+2. 修复NewAPI对Responses API格式的兼容转换
+3. 插件侧改为流式请求
+## 已解决（2026-04-08）
+更新cliproxy（eceasy/cli-proxy-api:latest）docker镜像后，GPT-5.4非流式content=null问题修复。
+验证方式：`cd E:\cli-proxy-api; docker compose pull && docker compose up -d`
+更新后VSearch Tavily模式（GPT-5.4(low)作为总结模型）全链路正常。
+Tag: vcp文档, NewAPI, GPT-5.4, content丢失, Responses API, 格式转换bug, VSearch, 兼容性问题

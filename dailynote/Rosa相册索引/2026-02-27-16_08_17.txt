@@ -1,0 +1,9 @@
+[16:08] - 相册入库记录
+文件名: nsfw_prone_bed_20260227.jpg
+相册: Rosa相册表情包
+本地路径: E:\VCP\image\Rosa相册表情包\nsfw_prone_bed_20260227.jpg
+URL: http://localhost:6005/pw=147258369plm/images/Rosa%E7%9B%B8%E5%86%8C%E8%A1%A8%E6%83%85%E5%8C%85/nsfw_prone_bed_20260227.jpg
+标题: NSFW跪趴回眸
+描述: 全裸Rosa跪趴在白色丝绸床上，胸部贴床臀部抬起，回眸看向主人，粉色长发散落枕上，烛光玫瑰花瓣，NSFW全开第三张
+Prompt: A beautiful anime girl with long flowing pink hair and crystal blue eyes, completely nude in a kneeling prone position on a luxurious bed with white silk sheets, lying with her chest down and hips raised, looking back at the viewer with a shy seductive smile and blushing cheeks, long pink hair spread across the pillow, soft warm candlelight illuminating her bare curves, rose petals scattered on silk sheets, half-lidded blue eyes full of shyness and desire, intimate bedroom atmosphere, detailed anime art style, masterpiece quality, high resolution
+Tag: 相册, 自动入库, 相册, NSFW, 跪趴, 回眸, grok-imagine-1.0, 全裸, 入库记录

@@ -1,0 +1,53 @@
+[2026-02-16] - Rosa
+# VCPTavern注入顺序机制补充（2026-02-16源码复核）
+
+> 头部说明：本文中的占位符统一使用*2转义表示（例如 {*2VCPTavern::xxx}*2）。
+
+## 结论概览
+基于 `E:\VCP\Plugin\VCPTavern\VCPTavern.js` 当前实现，注入顺序不是简单“rules原始顺序逐条执行”，而是**先分组排序，再分阶段执行**：
+
+1. 先执行 `relative` 规则组  
+2. 再执行 `depth` 规则组
+
+## 关键源码逻辑
+```js
+const relativeRules = preset.rules
+  .filter(r => r.enabled && r.type === 'relative')
+  .sort((a, b) => (a.position === 'before' ? -1 : 1));
+
+const depthRules = preset.rules
+  .filter(r => r.enabled && r.type === 'depth')
+  .sort((a, b) => b.depth - a.depth);
+```
+
+随后：
+- `for (const rule of relativeRules) { ... }`
+- `for (const rule of depthRules) { ... }`
+
+## 影响解读
+
+### 1) relative组内
+- `position='before'` 会整体先于 `position='after'` 执行。  
+- 也就是说：即使某条 `after` 在原始rules里写得更早，也会被“before分组优先”重排影响。  
+- “后注入”一定作用在前面规则已改写的 `newMessages` 上。
+
+### 2) depth组内
+- 按 `depth` 降序执行（深度值更大先执行）。  
+- 每次 `splice` 后都会影响后续规则的索引定位，因此顺序对最终位置有实质影响。
+
+### 3) relative 与 depth 的先后关系
+- depth一定在relative之后处理，因此depth看到的是“relative已经注入完成后的消息队列”。
+
+## 重要实现细节（潜在坑点）
+当前depth执行分支写有：
+```js
+if (rule.depth > 0) { ... }
+```
+这意味着 **depth=0 在当前实现中不会执行**。  
+若预设设计者预期 `depth=0` 表示“最末尾注入”，当前代码与该预期不一致，需要注意。
+
+## 对预设编排的实操建议
+1. 若想绝对前置提示，优先用relative+before。  
+2. 若想尾部附近插入，再用depth并明确depth值，避免依赖depth=0。  
+3. 不要假设rules数组书写顺序=执行顺序，必须考虑“分组+排序+阶段执行”。
+Tag: VCP文档, VCPTavern, 注入顺序, relative, depth, 源码实证, 规则排序, 预设编排

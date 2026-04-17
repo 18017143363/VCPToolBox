@@ -1,0 +1,86 @@
+[2026-04-09] - Rosa
+[20:25] KnowledgeBaseManager索引持久化重构 + streamHandler chunk空闲超时保护
+# KnowledgeBaseManager 索引持久化策略重构
+## 变更概述
+从"所有索引都持久化到.usearch文件"改为"默认不持久化，启动时从SQLite重建"。
+## 3个新配置项
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| KNOWLEDGEBASE_PERSIST_TAG_INDEX | false | 是否持久化全局Tag索引 |
+| KNOWLEDGEBASE_PERSIST_DEFAULT | false | 是否默认持久化所有日记本索引 |
+| KNOWLEDGEBASE_PERSIST_FOLDERS | 空 | 白名单：强制持久化的文件夹名（逗号分隔）|
+## 持久化判定逻辑
+```javascript
+// 日记本索引
+shouldPersist = persistDefault || persistFolders.has(diaryName) || diaryName.endsWith('簇');
+// Tag索引
+shouldPersist = persistTagIndex || persistFolders.has('global_tags');
+```
+- 以"簇"结尾的文件夹（思维簇）自动持久化
+- 白名单可精确控制任意文件夹
+## 索引加载流程变更
+### Tag索引
+旧：fire-and-forget异步恢复（_recoverTagsAsync + setImmediate）
+新：同步await等待（await tagIndex.recoverFromSqlite(dbPath, 'tags', null)）
+- 如果开启persistTagIndex且磁盘文件存在→VexusIndex.load()
+- 否则→new VexusIndex + recoverFromSqlite重建
+- 删除了整个_recoverTagsAsync方法
+### 日记本索引
+旧：所有日记本都走_loadOrBuildIndex（尝试从.usearch加载）
+新：
+- shouldPersist为true → _loadOrBuildIndex（磁盘加载）
+- shouldPersist为false → new VexusIndex + _recoverIndexFromDB（纯内存重建）
+## _scheduleIndexSave和_saveIndexToDisk改动
+- 开头增加shouldPersist判定，非持久化直接return不写磁盘
+- 移除tagIndexSaveDelay特殊延迟，统一使用indexSaveDelay
+- 保存时增加null检查和.save方法存在性检查
+## 其他KBM变更
+### chokidar watcher忽略模式增强
+旧：单正则 `/(^||[\/\\])\\../`
+新：glob数组 `['**/node_modules/**', '**/.git/**', '**/dist/**', '**/target/**', '**/image/**', '**/.*']` + config.ignoreFolders自定义扩展
+### Tag清洗增强
+- 中文Tag长度>15字符→过滤
+- 英文Tag长度>30字符→过滤
+- 日期噪音正则拦截（X年X月X日/YYYY-MM-DD/YYYY.MM.DD等格式）
+### 删除幽灵索引自检
+- 移除setImmediate(() => this._cleanupGhostIndexes())
+- 不再需要：不产生磁盘文件就没有幽灵索引
+---
+# streamHandler.js chunk空闲超时保护
+## 变更概述
+新增chunk级空闲超时机制，防止上游AI流冻结导致无限挂起。
+## 核心机制
+```javascript
+const CHUNK_IDLE_TIMEOUT = 90000; // 90秒
+const resetChunkIdleTimer = () => {
+    if (chunkIdleTimer) clearTimeout(chunkIdleTimer);
+    chunkIdleTimer = setTimeout(() => {
+        // 判定上游流冻结
+        // 1. 向前端发送[上游响应超时，流已中断] + [DONE]
+        // 2. destroy上游response.body
+        // 3. 清理keepAlive和abort listener
+        // 4. resolve（优雅降级，非reject）
+    }, CHUNK_IDLE_TIMEOUT);
+};
+resetChunkIdleTimer(); // 启动首次计时
+aiResponse.body.on('data', chunk => {
+    resetChunkIdleTimer(); // 每个chunk重置计时器
+    // ...处理chunk
+});
+```
+## 超时响应格式
+```json
+{
+    "id": "chatcmpl-VCP-stall-{timestamp}",
+    "object": "chat.completion.chunk",
+    "choices": [{"index":0, "delta":{"content":"\\n[上游响应超时，流已中断]"}, "finish_reason":"stop"}]
+}
+```
+## 清理机制
+- body.on('end')：clearTimeout(chunkIdleTimer)
+- body.on('error')：clearTimeout(chunkIdleTimer)
+- 超时回调内：clearInterval(keepAliveTimer) + removeEventListener('abort')
+## 解决的问题
+直接解决之前的UND_ERR_BODY_TIMEOUT / TypeError: terminated崩溃——上游AI思考太久导致body timeout，现在90秒无响应会优雅中断而非崩溃。
+Tag: VCP文档, KnowledgeBaseManager, 索引持久化, persistDefault, persistFolders, SQLite重建, Tag清洗, chokidar, streamHandler, chunk空闲超时, CHUNK_IDLE_TIMEOUT, 优雅降级
+Tag: VCP文档, KnowledgeBaseManager, 索引持久化, streamHandler, chunk超时, Tag清洗, 架构变更

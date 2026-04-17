@@ -1,0 +1,3 @@
+[2026-02-20] - Rosa
+[13:29] 新增VCP相册集成方案技术文档草案：定义AlbumManager独立插件（SaveImage/RebuildIndex等命令）与生图插件内联自动入库双方案；明确三层一致性（物理文件、generated_lists索引、日记元数据）与公共流水线抽象建议（albumPipeline）。
+Tag: VCP文档, 相册系统, 插件设计, AlbumManager, 架构方案

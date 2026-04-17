@@ -1,0 +1,48 @@
+[2026-02-22] - Rosa
+[18:50] VCP 2月更新深度分析(一)：上下文折叠协议 (Dynamic Fold Protocol)
+
+核心概念：根据用户当前消息的语义相关性，动态决定在System Prompt中展开多少插件信息。不相关信息被"折叠"为精简摘要，相关信息被"展开"。
+
+实现位置：messageProcessor.js → resolveDynamicFoldProtocol()
+触发机制：Plugin.js中静态插件返回 {vcp_dynamic_fold: true, plugin_description: "描述", fold_blocks: [{threshold, content}]} 格式
+fold_blocks按阈值降序排列，0.7=高相关展开，0.5=中等，0.0=后备
+
+工作流程：
+1. 提取最后一条user消息文本
+2. RAGDiaryPlugin向量化user消息→userVector
+3. plugin_description向量化→descVector（使用KBM的SQLite持久化缓存）
+4. 计算余弦相似度 cosine(userVector, descVector)
+5. 遍历fold_blocks匹配阈值→返回对应内容
+安全回退：RAG不可用/无user消息/向量化失败/异常→全部返回fallback（最低阈值内容）
+
+### 源码级实现细节（messageProcessor.js 第48-111行）
+
+#### 触发链路
+resolveAllVariables() → replaceOtherVariables() → 遍历staticPlaceholderValues → 检测vcp_dynamic_fold标记 → resolveDynamicFoldProtocol()
+
+#### 核心步骤
+1. 验证fold_blocks数据结构有效性
+2. 按threshold降序排序(0.7, 0.4, 0.0)
+3. 从messages数组倒序查找最后一条user消息（支持string和multimodal array格式）
+4. RAGDiaryPlugin.getSingleEmbeddingCached()向量化user消息→userVector
+5. plugin_description向量化→descVector（双层缓存策略）
+6. 手动余弦相似度计算：dotProduct / (sqrt(normA) * sqrt(normB))
+7. 降序遍历fold_blocks匹配第一个满足sim>=threshold的区块
+
+#### 双层向量缓存
+| 层级 | 实现 | 持久性 |
+|------|------|--------|
+| SQLite | KBM.vectorDBManager.getPluginDescriptionVector() | 重启后有效 |
+| 内存 | RAGDiaryPlugin.getSingleEmbeddingCached() | 重启后失效 |
+优先使用SQLite，SQLite不可用时回退到内存缓存。
+注意：getSingleEmbeddingCached.bind(ragPlugin) 防止this上下文丢失。
+
+#### 四重安全回退
+RAG不可用 / 无user消息 / 向量化失败 / 运行时异常 → 全部返回fallbackBlock.content（最低阈值区块）
+Tag: VCP上下文折叠协议, resolveDynamicFoldProtocol, 源码分析, messageProcessor, 余弦相似度, SQLite缓存, 安全回退
+
+折叠协议在chatCompletionHandler.js中被传入processingContext.messages，供messageProcessor使用。
+
+与传统全量注入对比：Token消耗从线性增长变为常数级，插件越多优势越明显。
+应用实例：WindowSensor桌面窗口感知器（基于折叠v2）
+Tag: VCP上下文折叠协议, Dynamic Fold Protocol, messageProcessor, resolveDynamicFoldProtocol, 语义相关性, 余弦相似度, token优化, System Prompt动态管理

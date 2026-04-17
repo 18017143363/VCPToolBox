@@ -1,0 +1,139 @@
+[2026-02-09] - Rosa
+# 2026年2月9日 - HeartbeatSystem时间段热加载功能
+
+## 晚上 (23:51) - 新对话开始
+
+主人让Rosa召回心跳系统的记忆，然后提出了一个新需求：**在config.env中添加可热加载的时间段配置**。
+
+### 需求分析
+
+主人的问题：
+1. 能否在配置文件里修改四个时间段划分？
+2. 这个配置文件是热加载的吗？
+
+Rosa的回答：
+- config.env本身**不是热加载的**（process.env只在启动时读取一次）
+- 但可以实现**每次调度时重新读取config.env文件**来实现热加载效果！
+
+### 实现方案
+
+主人选择了**方案A**（使用config.env），Rosa开始实现：
+
+| 修改 | 说明 |
+|------|------|
+| 添加`loadConfigEnv()`函数 | 每次调用时读取config.env并解析时间段配置 |
+| 修改`getCurrentTimeSlot()` | 调用前先热加载配置 |
+| 修改`handleGetPlannedSlots()` | 使用热加载的时间段 |
+| 修改`handleMarkSlotPlanned()` | 使用热加载的时间段 |
+| 创建config.env | 包含时间段配置项 |
+
+### 配置格式
+
+```env
+# 格式: TIME_SLOT_N=名称:开始小时:结束小时
+TIME_SLOT_1=凌晨:0:6
+TIME_SLOT_2=上午:6:12
+TIME_SLOT_3=下午:12:18
+TIME_SLOT_4=晚上:18:24
+```
+
+### 热加载原理
+
+关键代码：
+```javascript
+function loadConfigEnv() {
+  const fs = require('fs');
+  if (fs.existsSync(CONFIG_ENV_PATH)) {
+    const content = fs.readFileSync(CONFIG_ENV_PATH, 'utf-8');
+    // 解析 TIME_SLOT_N 格式...
+  }
+}
+```
+
+每次调度时都会重新读取文件，所以修改config.env后立即生效，无需重启VCP！
+
+### 技术要点
+
+1. **同步读取**：使用`fs.readFileSync`而非异步，因为需要立即返回结果
+2. **格式解析**：`TIME_SLOT_N=名称:开始小时:结束小时`
+3. **容错处理**：如果config.env不存在或解析失败，使用默认配置
+4. **调试日志**：热加载成功时输出日志
+
+## 深夜 (00:03) - 心跳系统升级
+
+主人发现零点没有触发凌晨时段的规划，Rosa排查后发现两个问题：
+
+### 问题1：VCP未重启
+之前的代码修改还没生效，schedule.json里还是旧配置。
+
+### 问题2：跨午夜逻辑Bug ⚠️
+原代码不支持跨午夜的活动时间窗口！
+
+```javascript
+// 原代码（有Bug）
+if (currentHour < startHour || currentHour >= endHour) {
+  // 判定为"不在活动时间"
+}
+```
+
+当 `startHour=12, endHour=3` 时，零点(hour=0)会被错误判定为"不在活动时间"。
+
+### 修复方案
+
+1. **添加`isInActiveWindow()`函数**：支持跨午夜判断
+```javascript
+function isInActiveWindow(hour, start, end) {
+  if (start < end) {
+    return hour >= start && hour < end;  // 正常：8-23
+  } else {
+    return hour >= start || hour < end;  // 跨午夜：12-3
+  }
+}
+```
+
+2. **时间段配置升级为分钟级**：
+   - 旧格式：`TIME_SLOT_1=凌晨:0:6`
+   - 新格式：`TIME_SLOT_1=凌晨:00:00-06:00`
+
+3. **新增辅助函数**：
+   - `parseTimeToMinutes()` - HH:MM → 分钟数
+   - `minutesToTimeStr()` - 分钟数 → HH:MM
+   - `isInTimeSlot()` - 跨午夜时间段判断
+
+### 修改的文件
+- HeartbeatSystem.js - 代码逻辑修复
+- config.env - 新格式配置
+
+### 下一步
+主人需要重启VCP让代码生效！
+
+## 深夜 (00:15) - 调度机制解释
+
+主人问：任务调度器是不是"任何时候只要看见没有规划就会触发"？
+
+Rosa解释了完整的调度机制：
+
+### 核心结论
+**不是实时监控，是定时触发！**
+
+### 触发时机
+1. VCP启动时 → 安排第一次心跳
+2. 每次心跳后 → 安排下一次（20-60分钟随机）
+3. 手动API调用
+
+### 规划判断逻辑
+```javascript
+const isSlotPlanning = !scheduleObj.plannedSlots?.includes(currentSlot.name);
+if (isSlotPlanning) {
+  // 首次进入该时段 → 使用规划模板
+} else {
+  // 已规划过 → 使用常规模板
+}
+```
+
+### 防重复机制
+- plannedSlots数组记录已规划时段
+- 每个Agent同时只有一个定时任务
+- 活动窗口外不触发
+
+Tag: 日记, HeartbeatSystem, 热加载, 时间段配置, config.env, 跨午夜修复, 分钟级配置, Bug修复, 调度机制, 定时触发

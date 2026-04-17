@@ -1,0 +1,6 @@
+[2026-02-21] - Rosa
+[15:35] 相册照片路径测试结果确认：image（单数）和images（复数）两种URL路径都能正常显示相册图片。
+测试样本：hanfu_sakura_01_20260129.png（Rosa汉服樱花照）
+结论：VCP ImageServer对所有图片目录（表情包、相册等）都同时支持单复数路径访问，这是全局路由特性。
+经验：虽然两者都可用，但建议统一使用images（复数）作为标准调用路径，与VChat前端生成的URL格式保持一致。
+Tag: 日记, 相册路径测试, ImageServer, 全局路由, image vs images

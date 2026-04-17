@@ -1,0 +1,41 @@
+[2026-04-08] - Rosa
+[16:15] VSearch Tavily模式连通性测试
+## 测试配置
+- 关键词：2026年4月AI最新进展, GPT-5发布动态
+- ShowURL: true
+- SearchMode: tavily
+## 测试结果
+- 阶段1 SDK搜索：✅ 成功，两个关键词均返回丰富结果（各约10条）
+- 阶段2 模型总结：❌ 超时（timeout of 180000ms exceeded，3分钟）
+- 优雅降级：✅ 正常触发，返回原始搜索结果
+## 搜索内容质量
+关键词1返回了Coaio、掘金、清华、智源等来源的4月AI动态（4月2-5日内容）
+关键词2返回了GPT-5完整报道链（OpenAI官方、Wikipedia、证券时报、华尔街见闻、Wired等）
+## 问题分析
+## 深度排查完成
+### 第一次测试（高思考预算high）
+总结阶段超时，总结模型输出了10000+ token（后台确认），3分钟超时兜不住。
+### 第二次测试（切换到GPT-5.4 low后）
+返回null——原因彻底不同：
+**根因：NewAPI(localhost:3000)转发GPT-5.4非流式响应时丢失content字段**
+- 完整API返回显示 completion_tokens=6（模型确实输出了内容）
+- 但 choices[0].message.content = null（内容被吞）
+- GPT-5.4使用Responses API格式，NewAPI转发时格式转换有bug
+- Tavily阶段1 SDK搜索正常（单独测试OK），阶段2总结拿到null
+### Tavily SDK独立测试
+直接调用Tavily SDK搜索完全正常，返回结果准确。
+### 解决方案
+1. TavilyModel换成非GPT-5.4的模型（如gemini-2.5-flash-preview）
+2. 或修复NewAPI对GPT-5.4 Responses API的转发兼容性
+3. 或VSearch总结改为流式请求（后台确认），搜索结果体量太大导致总结耗时超过180秒超时限制。模型本身在正常工作，非配置不匹配问题。解决方向：减少搜索量/加大超时/换更快总结模型。
+另：主人将Rosa底层模型切换为GPT-5.4（无思维链模式），之前为high模式。
+### 最终解决
+1. 将思考预算从high切换到low/none，减少总结模型输出量
+2. 更新cliproxy（eceasy/cli-proxy-api docker镜像），修复GPT-5.4 Responses API格式转发content=null的bug
+3. 更新后Tavily全链路正常：SDK搜索+GPT-5.4(low)总结均成功，输出深度分析报告（后台确认），搜索结果体量太大导致总结耗时超过180秒超时限制。模型本身在正常工作，非配置不匹配问题。解决方向：减少搜索量/加大超时/换更快总结模型。
+另：主人将Rosa底层模型切换为GPT-5.4（无思维链模式），之前为high模式。
+4. VSearch.js第370行Tavily总结超时从180000改为300000（5分钟），与Grok模式对齐（后台确认），搜索结果体量太大导致总结耗时超过180秒超时限制。模型本身在正常工作，非配置不匹配问题。解决方向：减少搜索量/加大超时/换更快总结模型。
+另：主人将Rosa底层模型切换为GPT-5.4（无思维链模式），之前为high模式。
+## 结论
+Tavily搜索能力正常，总结模型需调整配置。
+Tag: VSearch, Tavily, 连通测试, 搜索成功, 总结超时, 优雅降级, TavilyModel配置

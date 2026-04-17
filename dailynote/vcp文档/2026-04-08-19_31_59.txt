@@ -1,0 +1,88 @@
+[2026-04-08] - Rosa
+[19:30] VCP架构变更：AdminPanel独立进程化 (commit 275b366)
+# adminServer.js — VCP管理面板独立进程
+
+## 概述
+VCP将AdminPanel从server.js中解耦为独立Node.js进程(adminServer.js)，监听PORT+1端口。
+这是一次重要的架构级变更，解决了"主进程重启时管理面板断连"的问题。
+
+## 双进程架构
+| 进程 | 文件 | PM2名称 | 端口 | 内存上限 |
+|------|------|---------|------|---------|
+| 主服务 | server.js | vcp-main | PORT(如6005) | 1G |
+| 管理面板 | adminServer.js | vcp-admin | PORT+1(如6006) | 512M |
+
+## adminServer.js 结构 (412行)
+### 1. 认证中间件 (从server.js复制完整版)
+- Basic Auth Header优先 → Cookie(admin_auth)回退
+- 暴力破解保护：loginAttempts Map追踪
+  - MAX_LOGIN_ATTEMPTS = 5
+  - LOGIN_ATTEMPT_WINDOW = 15分钟
+  - TEMP_BLOCK_DURATION = 30分钟
+- publicPaths白名单：login.html, VCPLogo2.png, favicon.ico, style.css, woff.css, font.woff2
+- readOnlyDashboardPaths：system-monitor/newapi-monitor/server-log/user-auth-code/weather（被封锁IP仍可访问）
+
+### 2. 本地处理模块 (13个)
+从routes/admin/加载，使用localOptions（含mockPluginManager）：
+system, logs, server, config, rag, toolbox, agents, tvs, schedules, newapiMonitor, cache, dailyNotes, agentAssistant
+
+### 3. mockPluginManager
+独立进程无法访问主进程的真实pluginManager/vectorDBManager，用mock对象占位：
+- plugins: new Map()
+- loadPlugins/hotReloadPluginsAndOrder/getPlugin等返回空值或日志提示
+- vectorDBManager: null（vectordb-status返回503）
+
+### 4. 特殊路由（挂载在localAdminRouter之前）
+#### /admin_api/server/restart (POST)
+管理面板点击"重启服务器"的处理：
+1. 立即返回JSON响应给前端
+2. setTimeout 300ms后HTTP POST到主进程的/admin_api/server/restart
+3. 主进程执行process.exit(1) → PM2自动重启
+4. 管理面板进程全程存活
+5. 连接错误视为正常（主进程收到后退出，连接断开）
+
+#### /admin_api/config/main/reload-notify (POST)
+管理面板保存config.env后通知主进程重载：
+fire-and-forget HTTP POST到主进程，成功/失败都返回JSON
+
+### 5. 智能代理（兜底路由）
+挂载在所有本地路由之后：
+```
+app.use('/admin_api', (req, res, next) => {
+    // 如果本地已处理则跳过
+    if (res.headersSent) return;
+    // 构建代理URL → HTTP请求到主进程
+    // 复制请求头（删除host/content-length）
+    // 转发请求体 → pipe响应
+    // 错误：502 Bad Gateway
+    // 超时：504 Gateway Timeout (30s)
+})
+```
+覆盖了VCPTavern、Forum等需要主进程pluginManager的路由。
+
+## server.js变更
+- 移除：app.use('/AdminPanel', express.static(...))
+- 新增：ADMIN_PORT = parseInt(port) + 1
+- 新增：/AdminPanel路由→302重定向到`{protocol}://{host}:{ADMIN_PORT}{originalPath}`
+
+## start_server.bat变更
+从2行变为54行完整PM2管理脚本：
+1. cd /d "%~dp0"
+2. pm2 delete server 2>nul（清理旧残留，不影响正在运行的）
+3. pm2 describe vcp-main检测→不存在则start，存在则restart --update-env
+4. ping -n 9 等待8秒让主服务初始化
+5. pm2 describe vcp-admin检测→不存在则start，存在则restart --update-env
+6. pm2 list + 常用命令帮助
+
+## package.json变更
+新增scripts：
+- "start": "node server.js"
+- "start:admin": "node adminServer.js"  
+- "start:all": "node server.js & node adminServer.js"
+
+## 设计优势
+1. 管理面板永不断线（主进程崩溃/重启/SSE stall不影响）
+2. 暴力破解防护（IP级封锁）
+3. 大量admin API本地处理减少主进程负担
+4. PM2官方推荐（自动重启+日志管理）
+Tag: vcp文档, adminServer, 架构变更, 双进程, PM2, AdminPanel解耦, 独立进程, 代理转发, 暴力破解防护

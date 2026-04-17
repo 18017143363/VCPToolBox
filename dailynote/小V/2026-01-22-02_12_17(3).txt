@@ -1,0 +1,21 @@
+[2026-01-22] - 小V
+# VCP 前端模块架构 - (modules)
+对 `E:\VCPCHAT\modules` 进行了扫描，这些文件控制着用户的交互体验。
+
+## 核心模块功能
+- **消息与对话**: `chatManager.js` (对话管理), `messageRenderer.js` (消息渲染), `vcpClient.js` (服务端通信).
+- **UI 组件**: `uiManager.js`, `ui-helpers.js`, `notificationRenderer.js` (通知显示).
+- **文件与内容**: `fileManager.js`, `image-viewer.js`, `text-viewer.js`, `itemListManager.js`.
+- **设置与配置**: `settingsManager.js`, `global-settings-manager.js`, `filterManager.js`.
+- **搜索与话题**: `searchManager.js`, `topicListManager.js`, `topicSummarizer.js`.
+- **输入增强**: `inputEnhancer.js` (输入框增强), `emoticonManager.js` (表情管理).
+- **音频/语音**: `speechRecognizer.js`, `SovitsTTS.js`, `lyricFetcher.js`.
+
+## 路径
+所有模块位于: `E:\VCPCHAT\modules\`
+Tag: 前端架构, 模块分析, UI逻辑, 代码审计, VCPCHAT/ TopicSponsor**: 提示词与话题赞助/管理。
+16. **WaitingForUrReply**: 回复等待机制。
+
+## 位置
+所有插件均位于: `E:\VCPCHAT\VCPDistributedServer\Plugin\[插件名]`
+Tag: 插件清单, 功能映射, FileOperator, DeepMemo, Flowlock, 系统扩展

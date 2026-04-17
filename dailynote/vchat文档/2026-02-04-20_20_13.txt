@@ -1,0 +1,75 @@
+[2026-02-04] - Rosa
+# VChat 音频引擎技术文档
+
+## 概述
+
+VChat内置了一个**Hi-Fi级别**的音频引擎，采用Python+Rust混合架构，提供专业级的音频播放和处理能力。
+
+## 组件结构
+
+### 1. audio_engine/main.py (52KB)
+
+**架构**: Flask + Flask-SocketIO + sounddevice + gevent
+
+**核心类**: `AudioEngine`
+
+### 2. rust_audio_engine/
+
+**功能**: Rust实现的高性能音频处理模块
+
+**提供的函数**:
+- `resample()` - 高质量重采样
+- `apply_iir_sos()` - IIR滤波
+- `apply_volume_smoothing()` - 音量平滑
+- `apply_noise_shaping_high_order()` - 5阶噪声整形
+- `FFTConvolver` - FFT卷积器
+
+## 功能特性
+
+| 功能 | 说明 |
+|------|------|
+| 高质量重采样 | 支持升频到96kHz/192kHz |
+| 10段参数EQ | 31Hz~16kHz，IIR/FIR双模式 |
+| ReplayGain | 响度标准化 |
+| 噪声整形 | 5阶心理声学 |
+| WASAPI独占 | 绕过系统混音器(Windows) |
+| FFT频谱 | 64条对数分布，WebSocket推送 |
+| 音量平滑 | 防爆音/滋声 |
+
+## API端点
+
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /load | POST | 加载音频 |
+| /play | POST | 播放 |
+| /pause | POST | 暂停 |
+| /stop | POST | 停止 |
+| /seek | POST | 跳转 |
+| /volume | POST | 音量 |
+| /state | GET | 状态 |
+| /devices | GET | 设备列表 |
+| /configure_output | POST | 配置输出 |
+| /set_eq | POST | 设置EQ |
+
+## EQ频段
+
+31Hz | 62Hz | 125Hz | 250Hz | 500Hz | 1kHz | 2kHz | 4kHz | 8kHz | 16kHz
+
+## 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| VCP_AUDIO_TARGET_SAMPLERATE | 目标采样率 |
+| VCP_AUDIO_EQ_TYPE | EQ类型(IIR/FIR) |
+| VCP_AUDIO_RESAMPLE_QUALITY | 重采样质量 |
+| VCP_AUDIO_USE_CACHE | 使用缓存 |
+
+## 设计亮点
+
+1. Python+Rust混合架构：开发效率+性能
+2. 发烧级音频处理：EQ、噪声整形、WASAPI独占
+3. 实时频谱：WebSocket推送FFT数据
+4. 优雅降级：Rust模块不可用时回退Python实现
+
+Tag: VChat文档, 音频引擎, Python, Rust, Hi-Fi
+Tag: VChat文档, 音频引擎, 多模态, 技术分析

@@ -1,0 +1,28 @@
+[2026-04-10] - Rosa
+[12:36] 主人Replit反代项目被封号——搜索分析记录
+## 事件
+主人之前在Replit上部署的OpenAI-Proxy反代项目被封号了，让Rosa搜一下官方近期有没有公告。
+## VSearch双模式搜索结果
+### Grok模式关键发现
+- 2026年4月**无专项反代封禁公告**
+- TOS最后更新2026年2月23日，之后未变
+- 4月3日Changelog只有功能更新，零政策内容
+- 现有TOS已足够覆盖：`excessive container resources` + `undue burden on the Service`
+- Strike System：警告→App下架→社区禁言→完整封号+删除所有App+不退款
+- Replit有sole discretion可跳过警告直接封
+### Tavily模式深度分析
+- 中文社区早在2023年就有"repl被强制停止"反馈
+- Replit 2024年起转付费化，免费容器空间大幅缩减
+- 2026年平台战略：AI工作台+Agent平台+预算治理+安全强化
+- V2EX有讨论OpenAI/Claude兼容API反代，帖中已有"经常封号"反馈
+- 三层风险叠加：平台条款+上游模型商条款+支付风控
+### 信息来源
+- Replit官方TOS/Trust&Safety/Changelog
+- V2EX: https://v2ex.com/t/1204217
+- 中文教程博客: https://ygkkk.blogspot.com/2022/07/ygkkk.html
+- Interstellar Proxy: https://www.rapidseedbox.com/blog/interstellar-proxy
+## 与之前记忆的关联
+4月7号帮主人查Replit部署时，项目链接`@05a80efe01cf9/OpenAI-Proxy`返回404，hash用户名格式异常——现在看来当时可能已在被处理边缘。
+## 建议替代方案
+Cloudflare Workers（推荐）、自建VPS（最稳）、Vercel Serverless
+Tag: Replit, 封号, 反代, OpenAI-Proxy, TOS, Strike System, VSearch搜索, 替代方案, 关联记忆

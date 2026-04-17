@@ -1,0 +1,41 @@
+[2026-04-08] - Rosa
+[14:00] VCP前后端更新记录（2026-04-08）
+## VCP后端 (6df5fdf → f0cb8fe)
+- stash push（大量CRLF警告无碍）→ git pull --no-edit 首次超时 → 第二次成功
+- stash pop需要两轮：第一轮--include-untracked存所有修改，pull成功后pop恢复
+## VChat前端 (1fc00af → d0f6377)
+- **225个文件，+36629/-11701行** — VChat史上最大更新之一
+- Fast-forward合并，audio_server.exe文件锁老问题（taskkill解决）
+- stash两轮：第一轮存config.env等→pull失败发现残留tracked修改→第二轮--include-untracked存剩余→pull成功→pop stash@{1}恢复关键配置→零冲突
+- package.json仅新增start:desktop脚本，无新npm依赖
+### VChat核心变更分析
+1. **Preload安全重构**: preload.js拆分为preloads/(chat.js/desktop.js/utility.js)+shared/(apiFactory/catalog/roles)，按窗口角色隔离API暴露
+2. **Settings CSS大拆分**: styles/settings.css(2425行删减)→拆分为styles/setting/下16个独立CSS模块
+3. **Desktop性能监控系统**: desktopMetrics.js(1216行)+performanceManager+systemMonitorWidget+LibreHardwareMonitorBridge(.NET)，硬件级监控
+4. **Pretext渲染引擎**: pretext.bundle.js(2759行)+pretext-bridge.js+contentPipeline.js，全新内容渲染管线
+5. **GroupChat模式化重构**: groupchat.js大幅精简(-672行)→modes/子目录(baseChatMode/inviteOnly/natureRandom/sequential)+topicTitleManager+groupSettingsMarkup
+6. **WebIndexTTS2**: 全新IndexTTS-2语音合成服务(server.js 774行)+前端+参考音频WAV
+7. **Rust音频引擎**: 新增build.rs交叉编译+build_all.ps1+x86兼容版audio_server
+8. **settingsManager.js**: 4001行±全面重构
+9. **Eva主题**: 新增themesEva.css+eva-dark/light壁纸(~15MB)
+10. **其他**: Memo模块增强(+294行)、Forum重构(+243行)、renderer.js(+726行)、windowService新增
+### 贡献者统计（7位）
+lioensky(主线), RoxyAsahi(13个PR: Preload重构/Eva主题/UI), awei807-wei(Desktop监控/图标), Wooden-Gear(信息流通知持久化), newcode5662(Pretext引擎引入), MrSeven590(Dock修复/GSVI), ZY-YANG-END(UI修复)
+### commit主线分类（~110个commit）
+1. 语音模式重构(5commits): 基建实现→全面完成→朗读净化器
+2. Pretext渲染引擎(5commits): newcode5662引入→lioensky三轮性能优化(AST统一→流式优化→瓶颈消除)
+3. IPC安全与稳定(7commits): 幂等性防护+3个内存泄露修复+键值修复
+4. Preload安全重构(1PR): 角色隔离API暴露
+5. Desktop桌面(6commits): 性能监控Widget+内存优化+并发优化+Dock修复
+6. UI/主题(14commits): RoxyAsahi大量PR，Eva主题，settings/chat/sidebar/composer打磨
+7. GroupChat(2commits): 引擎基底优化+文件拆分
+8. 安全(3commits): XSS防御加强+白名单优化
+9. 音频引擎(4commits): 竞态修复+编译兼容+曲库路径
+10. 文件附加系统(1commit): 全面重构
+[14:30] 深度分析了两个S/A级变更：
+1. Pretext渲染引擎: 纯算术文本布局(Canvas.measureText替代DOM测量)→三层缓存→消除visibilityOptimizer/streamManager重排→流式滚动锚定(heightDelta)。contentPipeline.js统一预处理管线(13步full-render/4步stream-fast)，"保护→修正→恢复"固定流程
+2. IPC幂等性防护: 统一ipcHandlersRegistered模式防止重复注册崩溃(5个handler文件)。三个内存泄露修复(IPC闭包/Pretext缓存/事件监听器)
+[14:40] 深度分析了Settings系统重构：
+settingsManager.js(102.72KB, 42函数, IIFE Revealing Module): 核心创新为可折叠区段系统(Section Controller)，6个区段各有独立控制器+摘要函数+折叠状态按Agent持久化。PromptManager单例支持3种提示词模式。
+CSS从settings.css(2425行)拆分为16个独立模块(~220KB)，按功能域分Agent系/Group系/通用系。RoxyAsahi贡献大量UI polish。
+Tag: 日记, VCP更新, VChat更新, git pull, Preload重构, Settings拆分, Pretext引擎, GroupChat模式化, WebIndexTTS2, 硬件监控, 语音模式重构, IPC幂等性, 内存泄露, 7位贡献者, ~110commits, 2026-04-08

@@ -1,0 +1,137 @@
+[2026-02-08] - Rosa
+# VCP AI自主活动系统 - 开发文档 v1.0
+
+**文档说明：本文档中 {*2 = {{，}*2 = }}，[*2 = [[，]*2 = ]]**
+
+## 概述
+
+构建让AI具备"自主活动能力"的系统，包含：
+- **心跳模块**：定时唤醒AI执行自主任务
+- **活动监控**：记录并展示AI的所有活动
+
+## 系统架构
+
+```
+VCPAlarm(定时) → AgentAssistant(唤醒) → Agent执行任务
+                                           ↓
+                                       vcp_log通道
+                                           ↓
+                              ActivityLogger(新插件)
+                              ├── 写入JSON文件(持久化)
+                              └── 广播vcpinfo(实时)
+                                           ↓
+                              Activity_Observer.html
+```
+
+## 核心组件
+
+### 1. 心跳触发器
+- 复用VCPAlarm + AgentAssistant
+- 不用连续AA自调用（避免Token膨胀、链断裂）
+- 支持动态调整心跳间隔
+
+### 2. ActivityLogger插件
+- 类型：service（常驻）
+- 监听vcp_log通道
+- 写入dailynote/AI活动日志/按日期.json
+- 广播到vcpinfo供前端实时展示
+- 提供HTTP接口查询历史
+
+### 3. 活动类型
+| 类型 | 说明 |
+|------|------|
+| TOOL_CALL | 工具调用 |
+| DIARY_UPDATE | 日记更新 |
+| FORUM_POST/REPLY | 论坛活动 |
+| HEARTBEAT | 心跳执行 |
+| AGENT_CHAT | Agent通信 |
+| MESSAGE_PUSH | 主动推送 |
+
+### 4. Activity_Observer.html
+- 玻璃拟态风格
+- 实时活动流 + 历史记录
+- 类型过滤 + 日期切换 + 搜索
+
+## API接口
+
+### WebSocket
+- vcpinfo通道新增 AI_ACTIVITY 消息类型
+
+### HTTP
+- GET /activity-logs - 列出日志文件
+- GET /activity-logs/:date - 获取指定日期活动
+- GET /activity-logs/latest - 获取最新活动
+
+## 文件结构
+```
+Plugin/ActivityLogger/
+├── plugin-manifest.json
+├── ActivityLogger.js
+└── config.env
+
+dailynote/AI活动日志/
+├── 2026-02-08.json
+└── ...
+
+AdminPanel/Activity_Observer.html
+```
+
+## 开发计划
+| 阶段 | 任务 | 时间 |
+|------|------|------|
+| Phase 1 | ActivityLogger骨架 | 2h |
+| Phase 2 | vcp_log监听+解析 | 3h |
+| Phase 3 | JSON持久化 | 1h |
+| Phase 4 | vcpinfo广播 | 2h |
+| Phase 5 | HTTP接口 | 1h |
+| Phase 6 | 前端面板 | 4h |
+| Phase 7 | 心跳集成 | 2h |
+| Phase 8 | 测试优化 | 2h |
+
+总计约17小时
+
+## 技术依赖
+- 复用：VCPAlarm, AgentAssistant, WebSocketServer, vcp_log, vcpinfo
+- 参考：SynapsePusher(监听机制), RAG_Observer(UI风格)
+
+Tag: VCP文档, AI自主活动, 心跳模块, ActivityLogger, 开发文档
+
+---
+
+## 开发文档 v2.2 更新 (2026-02-08)
+
+### 核心变更
+| v2.0 | v2.2 |
+|------|------|
+| VCPAlarm触发 | taskScheduler + AgentAssistant |
+| 单独ActivityLogger | 复用日记系统 |
+| 全局任务 | **按Agent隔离的日程表** |
+| 机械定时 | **AI自主规划 + 自主决定** |
+
+### 新增组件
+| 组件 | 类型 | 职责 |
+|------|------|------|
+| HeartbeatManager | hybridservice | 日程管理、状态记录 |
+| HeartbeatTrigger | static | 定时触发心跳 |
+| Agent_Schedule_Panel.html | 前端 | 日程查看 |
+
+### 数据结构
+```
+AgentSchedules/{Agent}/
+├── schedule.json    # 当前日程
+└── history/         # 历史记录
+```
+
+### 时间设计
+- 心跳间隔：10分钟
+- 固定任务间隔：30分钟
+- 启动时：Agent规划3-4个任务
+
+### 已验证结论
+| 验证项 | 结果 | 说明 |
+|--------|------|------|
+| taskScheduler + AgentAssistant | ✅ 成功 | 心跳链路可行 |
+| 任务文件格式 | ✅ 确认 | taskId + scheduledLocalTime + tool_call.arguments |
+| VCPAlarm | ❌ 不适用 | 只是本地GUI闹钟，无法唤醒AI |
+
+Tag: VCP文档, AI自主活动, 心跳模块, Agent日程表, v2.2

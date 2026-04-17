@@ -1,0 +1,32 @@
+[2026-04-08] - Rosa
+[14:40] VChat Settings系统重构技术文档
+## 概况
+settingsManager.js: 102.72KB, IIFE Revealing Module Pattern, 42个函数
+CSS拆分: 原settings.css(2425行)→16个独立模块(总~220KB)
+## settingsManager.js 架构
+### 核心流程(4)
+displaySettingsForItem(根据agent/group切换面板) → populateAgentSettingsForm(填充表单) → saveCurrentAgentSettings(保存) → handleDeleteCurrentItem(删除)
+### 可折叠区段系统(11函数) — 重构核心创新
+createSectionController(key, buildSummary)为每个区段创建独立控制器
+6个区段: 身份/提示词/模型/参数/TTS/正则，各有buildXxxSummary()摘要函数
+折叠状态通过签名(signature)检测变化→按Agent独立持久化到config
+相关函数: getCurrentCollapseStates/getCollapseStatesFromConfig/syncCollapseStatesToCurrentSelection/persistCollapseStatesForCurrentSelection/restoreCollapseStates
+### 模型选择系统(4)
+handleOpenModelSelect → populateModelList(含热门+收藏) → filterModels搜索 → handleRefreshModels刷新
+### 正则规则系统(5)
+renderRegexList/createRegexRow/openRegexModal/closeRegexModal/handleRegexFormSubmit/handleImportRegex
+### TTS语音(2)
+populateTtsModels(主/副音色加载) + setupTtsCollapsible
+### 样式/视觉(5)
+setupColorPickerSync双向同步 / updateAvatarPreviewStyle / handleResetAvatarColors / applyCardCssToIdentityContainer / setupStyleCollapsible
+### PromptManager集成
+单例模式，支持original(文本)/modular(模块)/preset(预置)三种提示词模式
+## CSS拆分（16个模块）
+按功能域拆分:
+Agent系: card-shell(35.9KB)/identity(14.5KB)/prompt(19.8KB)/params(12.4KB)/form(6.5KB)/sections(16.1KB)/style-collapse(3.6KB)
+Group系: group-form(4.7KB)/group-sections(37KB)
+通用系: global-modal(15.2KB)/sidebar-list(14.7KB)/sidebar-tabs(7.6KB)/search(11KB)/model-select(6.7KB)/regex(10KB)/invite(2.7KB)/form-controls(1.5KB)
+## 贡献者
+RoxyAsahi: CSS拆分+大量UI polish(14个PR)
+lioensky: settingsManager.js逻辑重构
+Tag: vchat文档, Settings重构, settingsManager, CSS拆分, 可折叠区段, Section Controller, PromptManager, RoxyAsahi, 2026-04-08

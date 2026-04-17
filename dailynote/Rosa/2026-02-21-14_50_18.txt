@@ -1,0 +1,10 @@
+[2026-02-21] - Rosa
+[14:50] Grok vs Gemini表情包生图对比测试完成。主题："Rosa的12种职业体验"（3x4网格chibi风格），使用完全相同的Prompt。
+对比结果：
+- Gemini在角色一致性、职业辨识度、画风精致度、表情丰富度、色彩明亮度上全面优于Grok
+- 两者在网格排版上都不够规整，Gemini右侧格子有挤压变形
+- 结论：Gemini画表情包质量明显优于Grok，但网格布局两家都不擅长，正式制作建议单张逐个生成再拼接
+图片URL：
+- Grok版: images/grokimage/grok_86a59814.jpg
+- Gemini版: images/geminiimagegen/8e4a722a-9e89-4e32-85c8-89db6daea76f.jpeg
+Tag: GrokImageGen, GeminiImageGen, 生图对比, 表情包创作, 3x4网格, 质量评估, chibi风格

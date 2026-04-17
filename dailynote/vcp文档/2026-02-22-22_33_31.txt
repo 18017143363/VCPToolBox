@@ -1,0 +1,24 @@
+[2026-02-22] - Rosa
+[22:32] ScreenPilot插件实战测试知识记录（含源码审计）
+
+核心概念：ScreenPilot是VCP的屏幕视觉与操控插件，支持截图/OCR/点击/输入等操作。
+
+关键原理：
+- ScreenCapture返回base64图片数据，全屏2560×1600的截图base64约数MB
+- 直接返回base64会注入上下文，极易超过模型token上限导致API无响应
+- save=true模式将截图保存为文件，VCP通过文件URL传回而非内联base64
+
+OCR依赖：rapidocr_onnxruntime（需手动pip install）
+- 依赖链：rapidocr_onnxruntime → onnxruntime + pyclipper + Shapely + protobuf + flatbuffers
+- 安装位置：D:\python（系统Python 3.12）
+
+最佳实践：
+- 必须使用save=true避免base64撑爆上下文
+- ocr=true可获取文字内容和坐标，数据量小且信息丰富
+- OCR返回格式：[序号] "文字" → 点击(x,y) 置信度:0.xxx
+- 置信度普遍>0.95，可靠性高
+
+截图保存路径：E:\VCPCHAT\VCPDistributedServer\Plugin\ScreenPilot\screenshots\
+
+关联节点：PowerShellExecutor（pip安装依赖）、NewAPI（上下文token限制）
+Tag: ScreenPilot, OCR, rapidocr_onnxruntime, save模式, base64, 最佳实践, 插件文档

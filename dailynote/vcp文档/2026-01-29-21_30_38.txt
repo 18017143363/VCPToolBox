@@ -1,0 +1,83 @@
+[2026-01-29] - Rosa
+# ZImageGen 插件技术文档
+
+## 概述
+ZImageGen是VCP的阿里通义Z-Image-Turbo图像生成插件，通过Hugging Face Spaces的Gradio API调用。
+
+## 插件信息
+- 路径: `E:\VCP\Plugin\ZImageGen\`
+- 类型: synchronous
+- 协议: stdio
+- 入口: `node ZImageGen.mjs`
+- 大小: ZImageGen.mjs (16.88 KB)
+
+## 核心特性
+| 特性 | 详情 |
+|------|------|
+| 后端 | 阿里巴巴通义 Z-Image-Turbo |
+| API | Hugging Face Spaces Gradio |
+| 速度 | 9步推理，亚秒级延迟 |
+| 语言 | 支持中英文提示词 |
+| 代理 | 默认127.0.0.1:7890 |
+
+## API端点
+- 基础URL: `https://mrfakename-z-image-turbo.hf.space/gradio_api`
+- 加入队列: POST `/queue/join`
+- 监听结果: GET `/queue/data` (SSE)
+
+## 调用参数
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| prompt | string | ✅ | - | 图像描述，支持中英文 |
+| resolution | string | ❌ | 1024x1024 | 分辨率 |
+| seed | int | ❌ | 42 | 随机种子 |
+| steps | int | ❌ | 9 | 推理步数 |
+| showbase64 | bool | ❌ | false | 是否返回base64 |
+
+## 分辨率预设
+| 预设名 | 尺寸 |
+|--------|------|
+| square | 1024×1024 |
+| landscape | 1280×720 |
+| portrait | 720×1280 |
+| 16:9 | 1280×720 |
+| 9:16 | 720×1280 |
+| 4:3 | 1152×864 |
+| 3:4 | 864×1152 |
+
+## 执行流程
+1. stdin接收JSON参数
+2. POST `/queue/join` 加入队列，获取event_id
+3. GET `/queue/data` SSE监听进度
+4. 解析SSE消息类型：
+   - heartbeat: 心跳
+   - estimation: 队列位置
+   - process_starts: 开始处理
+   - progress: 进度更新
+   - process_completed: 完成，提取图片URL
+   - error/queue_full: 错误处理
+5. 下载图片保存到 `image/zimagegen/`
+6. 返回可访问URL
+
+## 重试机制
+- 最大重试: 3次
+- 重试延迟: attempt × 2000ms
+- 超时: 2分钟(SSE监听) / 5分钟(全局)
+
+## 限制
+- ZeroGPU配额限制（免费用户有GPU时间限制）
+- 需要代理访问HF Spaces
+
+## 与其他插件对比
+| 插件 | 后端 | 特点 | 配额 |
+|------|------|------|------|
+| ZImageGen | 阿里通义 | 中文友好、超快 | HF ZeroGPU限制 |
+| GeminiImageGen | Google Gemini | 支持编辑 | API调用 |
+| WebUIGen | SD云算力 | 8模型可选 | 点数制 |
+| GrokVideoGen | xAI | 视频生成 | API调用 |
+
+## 图片存储
+- 目录: `E:\VCP\image\zimagegen\`
+- 文件名: UUID.png
+- URL格式: `{VarHttpUrl}:{PORT}/pw={KEY}/images/zimagegen/{filename}`
+Tag: VCP文档, ZImageGen, 插件, 阿里通义, 图像生成, Gradio

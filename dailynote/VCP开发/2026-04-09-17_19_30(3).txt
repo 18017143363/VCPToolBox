@@ -1,0 +1,221 @@
+[2026-04-09] - Rosa
+[17:35] Sub2API模块7——Beta Header管理（策略选择+Policy系统+Haiku例外）
+
+# Sub2API · Beta Header管理
+**源码文件**: claude/constants.go (Beta常量定义), gateway_service.go (getBetaHeader, evaluateBetaPolicy, mergeAnthropicBetaDropping等)
+**核心逻辑**: 根据客户端类型×账号类型×模型选择合适的anthropic-beta header值
+
+## 一、Beta Flag常量定义
+
+**文件**: claude/constants.go
+
+```go
+const (
+    BetaOAuth                    = "oauth-2025-04-20"
+    BetaClaudeCode               = "claude-code-20250219"
+    BetaInterleavedThinking      = "interleaved-thinking-2025-05-14"
+    BetaFineGrainedToolStreaming = "fine-grained-tool-streaming-2025-05-14"
+    BetaTokenCounting            = "token-counting-2024-11-01"
+    BetaContext1M                = "context-1m-2025-08-07"
+    BetaFastMode                 = "fast-mode-2026-02-01"
+)
+```
+
+### 预组合Header常量
+| 常量名 | 包含的Beta | 使用场景 |
+|--------|-----------|---------|
+| DefaultBetaHeader | claude-code + oauth + interleaved-thinking + fine-grained-tool-streaming | 标准Claude Code OAuth |
+| HaikuBetaHeader | oauth + interleaved-thinking | Haiku模型OAuth（**无claude-code**） |
+| CountTokensBetaHeader | claude-code + oauth + interleaved-thinking + token-counting | count_tokens请求 |
+| APIKeyBetaHeader | claude-code + interleaved-thinking + fine-grained-tool-streaming | API Key（**无oauth**） |
+| APIKeyHaikuBetaHeader | interleaved-thinking | API Key + Haiku（**无claude-code无oauth**） |
+
+### DroppedBetas（转发时移除的Beta）
+```go
+var DroppedBetas = []string{}  // 当前为空
+```
+预留接口，管理员可通过Beta Policy动态添加。
+
+## 二、Beta策略选择矩阵
+
+### Forward()中的anthropic-beta处理
+
+```go
+if tokenType == "oauth" {
+    if mimicClaudeCode {
+        // 路径A: 非Claude Code + OAuth → 全面伪装
+        requiredBetas := []string{BetaClaudeCode, BetaOAuth, BetaInterleavedThinking}
+        if !strings.Contains(strings.ToLower(modelID), "haiku") {
+            // 非Haiku: 必须包含claude-code
+            requiredBetas = []string{BetaClaudeCode, BetaOAuth, BetaInterleavedThinking}
+        }
+        header = mergeAnthropicBetaDropping(requiredBetas, incomingBeta, effectiveDropSet)
+        
+    } else {
+        // 路径B: 真Claude Code + OAuth → 透传+补齐oauth
+        header = stripBetaTokensWithSet(getBetaHeader(modelID, clientBetaHeader), effectiveDropSet)
+    }
+} else {
+    // 路径C: API Key → 按需注入（默认关闭）
+    if existingBeta != "" {
+        header = stripBetaTokensWithSet(existingBeta, effectiveDropSet)
+    }
+}
+```
+
+### 完整决策表
+
+| 客户端 | 账号 | 模型 | Beta Header |
+|--------|------|------|------------|
+| 非CC | OAuth | 非Haiku | `claude-code, oauth, interleaved-thinking` + 客户端原有 |
+| 非CC | OAuth | Haiku | `oauth, interleaved-thinking` + 客户端原有（**无claude-code**） |
+| 真CC | OAuth | 任意 | 客户端原始header + 补齐`oauth` |
+| 任意 | API Key | 任意 | 透传（可选按需注入） |
+
+## 三、Haiku例外机制
+
+**源码注释原文**：
+> Claude Code OAuth credentials are scoped to Claude Code. Non-haiku models MUST include claude-code beta for Anthropic to recognize this as a legitimate Claude Code request; without it, the request is rejected as third-party ("out of extra usage"). **Haiku models are exempt from third-party detection and don't need it.**
+
+这意味着：
+1. Anthropic对Haiku模型不做第三方检测
+2. 因此Haiku请求不需要claude-code beta
+3. 反代只需要确保oauth beta存在即可
+
+### Haiku检测
+```go
+if !strings.Contains(strings.ToLower(modelID), "haiku") {
+    requiredBetas = append(requiredBetas, BetaClaudeCode)
+}
+```
+简单的字符串包含检测，大小写不敏感。
+
+## 四、getBetaHeader()——OAuth客户端Beta补齐
+
+```go
+func (s *GatewayService) getBetaHeader(modelID string, clientBetaHeader string) string {
+    if clientBetaHeader != "" {
+        // 客户端已提供header
+        if strings.Contains(clientBetaHeader, BetaOAuth) {
+            return clientBetaHeader  // 已包含oauth，直接返回
+        }
+        // 需要插入oauth
+        // 优先在claude-code后面插入（保持顺序）
+        // 没有claude-code则放在最前面
+        return insertOAuthBeta(clientBetaHeader)
+    }
+    
+    // 客户端未提供，根据模型生成
+    if strings.Contains(strings.ToLower(modelID), "haiku") {
+        return HaikuBetaHeader  // oauth + interleaved-thinking
+    }
+    return DefaultBetaHeader  // claude-code + oauth + interleaved-thinking + fine-grained-tool-streaming
+}
+```
+
+### 插入位置策略
+当客户端已提供anthropic-beta但缺少oauth时：
+1. 找到`claude-code-20250219`的位置
+2. 在其后面插入`oauth-2025-04-20`
+3. 如果没有claude-code，放在header最前面
+
+这确保beta token的顺序与真实Claude Code一致。
+
+## 五、mergeAnthropicBetaDropping()——合并+去重+过滤
+
+```go
+func mergeAnthropicBetaDropping(required []string, incoming string, drop map[string]struct{}) string {
+    // 1. 先添加required（保证必需beta存在）
+    // 2. 再添加incoming中的token（去重）
+    // 3. 最后移除drop集合中的token
+    
+    seen := make(map[string]struct{})
+    out := []string{}
+    
+    for _, r := range required { add(r) }
+    for _, p := range strings.Split(incoming, ",") { add(p) }
+    
+    // 过滤
+    result := []string{}
+    for _, p := range out {
+        if _, dropped := drop[p]; !dropped {
+            result = append(result, p)
+        }
+    }
+    return strings.Join(result, ",")
+}
+```
+
+### effectiveDropSet构成
+```go
+effectiveDropSet = mergeDropSets(policyFilterSet)
+// = defaultDroppedBetasSet（来自claude.DroppedBetas，当前为空）
+//   + policyFilterSet（来自管理面板Beta Policy规则）
+```
+
+## 六、Beta Policy管理系统
+
+### 规则结构
+```go
+type BetaPolicyRule struct {
+    BetaToken            string    // 目标beta token
+    Action               string    // "block" / "filter" / "pass"
+    ErrorMessage         string    // block时的错误消息
+    Scope                string    // "all" / "oauth" / "apikey" / "bedrock"
+    ModelWhitelist       []string  // 模型白名单（空=全部匹配）
+    FallbackAction       string    // 白名单不匹配时的备选动作
+    FallbackErrorMessage string    // 备选错误消息
+}
+```
+
+### 动作类型
+| 动作 | 行为 |
+|------|------|
+| block | 如果请求header包含该beta → 返回错误拒绝 |
+| filter | 静默移除该beta（不报错） |
+| pass | 允许通过（默认） |
+
+### 评估流程
+```go
+func (s *GatewayService) evaluateBetaPolicy(ctx context.Context, betaHeader string, account *Account, model string) betaPolicyResult {
+    settings := s.settingService.GetBetaPolicySettings(ctx)
+    
+    for _, rule := range settings.Rules {
+        // 1. scope匹配检查
+        if !betaPolicyScopeMatches(rule.Scope, isOAuth, isBedrock) { continue }
+        
+        // 2. 确定有效动作（模型白名单 → 主动作 / 不匹配 → 备选动作）
+        effectiveAction, effectiveErrMsg := resolveRuleAction(rule, model)
+        
+        // 3. 执行动作
+        switch effectiveAction {
+        case "block":
+            if containsBetaToken(betaHeader, rule.BetaToken) {
+                result.blockErr = &BetaBlockedError{Message: effectiveErrMsg}
+            }
+        case "filter":
+            result.filterSet[rule.BetaToken] = struct{}{}
+        }
+    }
+    return result
+}
+```
+
+### Block双重检查
+Sub2API在两个时机检查block规则：
+1. **Forward()入口**：检查客户端header中的beta token
+2. **body自动注入后**：`checkBetaPolicyBlockForTokens()`检查通过body触发自动补齐的beta token
+
+这防止了"客户端不在header带beta，但body中thinking字段触发自动注入interleaved-thinking→绕过block规则"的漏洞。
+
+## 七、与CLIProxyAPI对比
+
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| Beta策略 | 4路矩阵（客户端×账号×模型） | 2路（Claude Code / 非Claude Code） |
+| Haiku例外 | ✅ 源码注释说明免检机制 | ✅ 注释说明exempt |
+| 管理面板 | ✅ Beta Policy规则系统（block/filter/pass） | ❌ 无动态管理 |
+| 自动注入 | 按需（API Key默认关闭） | 始终注入 |
+| Drop机制 | DroppedBetas + Policy filter双层 | 无 |
+| 顺序控制 | 在claude-code后插入oauth | 无特定顺序 |
+Tag: VCP开发, Sub2API, Beta Header, evaluateBetaPolicy, getBetaHeader, Haiku例外, Beta Policy, block, filter

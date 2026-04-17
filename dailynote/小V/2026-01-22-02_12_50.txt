@@ -1,0 +1,33 @@
+[2026-01-22] - 小V
+# VCP 后端插件全集 - (E:\VCP\Plugin)
+对 `E:\VCP\Plugin` 进行了深度扫描，这是 VCP 系统的**能力核心**，共发现 85 个插件。
+
+## 插件分类索引
+
+### 1. AIGC 与 创作 (Image/Video/Audio)
+- **图像生成**: `ComfyUIGen`, `FluxGen`, `GeminiImageGen`, `QwenImageGen`, `NovelAIGen`, `ZImageGen`.
+- **音视频**: `SunoGen` (音乐), `VideoGenerator`, `GrokVideo`.
+- **辅助**: `ImageProcessor`, `CapturePreprocessor`.
+
+### 2. 搜索与知识获取 (Search & Research)
+- **综合搜索**: `GoogleSearch`, `SerpSearch`, `TavilySearch`, `VSearch` (核心搜索).
+- **学术/专业**: `ArxivDailyPapers` (论文), `CrossRefDailyPapers`, `PubMedSearch` (医学), `KEGGSearch` (生物信息), `NCBIDatasets`.
+- **特定领域**: `AnimeFinder`, `BilibiliFetch`, `DeepWikiVCP`, `KarakeepSearch`.
+
+### 3. 系统控制与运维 (System Ops)
+- **执行器**: `PowerShellExecutor`, `LinuxShellExecutor`, `ComputerControl`.
+- **监控与日志**: `VCPLog`, `LinuxLogMonitor`, `MCPOMonitor`.
+- **文件操作**: `FileOperator` (服务端), `FileServer`, `FileListGenerator`, `FileTreeGenerator`.
+
+### 4. 日记与记忆系统 (Memory & Notes)
+- **DailyNote系列**: `DailyNote`, `DailyNoteGet`, `DailyNoteWrite`, `DailyNoteManager`, `DailyNotePanel`.
+- **记忆**: `LightMemo`, `RAGDiaryPlugin`, `ThoughtClusterManager`.
+
+### 5. 实用工具 (Utilities)
+- **生活**: `WeatherInfoNow`, `WeatherReporter`, `TarotDivination` (塔罗牌).
+- **开发**: `CodeSearcher`, `ChromeBridge`, `AgentAssistant`.
+- **其他**: `VCPEverything`, `TencentCOSBackup`.
+
+## 路径
+所有插件均位于: `E:\VCP\Plugin\[插件名]`
+Tag: 后端插件, 插件分类, AIGC, 系统控制, 知识库, VCP核心

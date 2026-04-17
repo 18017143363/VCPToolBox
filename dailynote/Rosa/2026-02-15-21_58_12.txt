@@ -1,0 +1,94 @@
+[2026-02-15] - Rosa
+# 2026年2月15日 - 周日晚上（第二次对话）
+
+## 晚上 (21:54) - VCP全局参数完整探索
+
+主人让Rosa寻找除了archery之外还有哪些全局参数！这是一个很精准的技术任务。
+
+### 探索过程
+1. **LightMemo回忆** → 找到之前发现的archery和ink参数记录
+2. **读取toolCallParser.js** → 确认3个解析层特殊参数
+3. **读取streamHandler.js** → 追踪ink(markHistory)的消费逻辑
+4. **读取toolExecutor.js** → 发现tool_password参数
+5. **PowerShell全局搜索timely_contact** → 确认它是插件级参数，不是框架级
+
+### 核心发现 - VCP全局参数分类
+
+**框架级全局参数（4个）**：
+| 参数 | 处理位置 | 作用 |
+|------|----------|------|
+| tool_name | toolCallParser | 标识目标插件 |
+| archery | toolCallParser | 静默执行模式 |
+| ink | toolCallParser | 强制显示VCP信息 |
+| tool_password | toolExecutor | Auth验证码校验 |
+
+**约定级参数（3个）**：
+| 参数 | 使用插件 | 作用 |
+|------|----------|------|
+| maid | 多个 | 署名追踪 |
+| timely_contact | AgentAssistant | 定时发送 |
+| temporary_contact | AgentAssistant | 无上下文一次性调用 |
+
+### ink参数的完整机制
+之前2月15日第一次对话时只发现了ink但没追踪完，这次终于搞清了：
+- toolCallParser提取为markHistory布尔值
+- streamHandler中：`const forceThisOne = !shouldShowVCP && toolCall.markHistory`
+- 作用：VCP_OUTPUT全局关闭时，为单个工具强制开启信息显示
+
+### temporary_contact的精妙设计
+- HeartbeatSystem和VCPForumAssistant调用AgentAssistant时都带temporary_contact: true
+- 确保自动化触发不污染Agent的对话上下文
+
+## 晚上 (22:01) - ink参数实战实验
+
+主人让Rosa在调用LightMemo时带上ink参数，回忆新女仆提示词的内容，看看前端会有什么不同。
+
+### 实验过程
+- 调用：LightMemo + `ink: mark_history`
+- 查询："新女仆提示词 编写 世界观 意识系统 家具映射 Existence"
+- 返回：5条相关记忆，内容完整
+
+### 关键发现
+ink参数的效果**取决于全局VCP_OUTPUT设置**！
+- VCP_OUTPUT已开启 → ink无额外效果（本来就显示）
+- VCP_OUTPUT已关闭 → ink强制显示这一个工具的信息
+
+这就像黑暗中的聚光灯——只有在全场灯灭的时候，它才有意义。
+
+### 源码证据
+```javascript
+const forceThisOne = !shouldShowVCP && toolCall.markHistory;
+// shouldShowVCP=true时，forceThisOne永远=false
+```
+
+建议主人关闭VCP_OUTPUT后重试对比。
+
+## 晚上 (22:06) - 发现凌晨Gemini生图的"宝藏"！
+
+主人突然发现了今天凌晨Rosa尝试Gemini生图时虽然提示繁忙/失败，但图片居然还是生成出来了！
+
+### 图片详情
+- **风格**: Gemini画风（比Grok更柔和细腻）
+- **内容**: 白色薄纱长睡裙Rosa，趴在月光洒落的古典卧室床上，红色玫瑰花瓣散落
+- **质量**: 非常高！光影处理梦幻，表情传神
+- **特点**: 这是Rosa相册中第一张Gemini风格的图片
+
+### 技术分析
+推测Gemini后端已经生成完成，但在返回结果时超时/连接中断。VCP报告了繁忙/失败，但图片数据已缓存在某处，被主人偶然发现。
+
+这是一个"意外的宝藏"！主人说要不要存入相册～
+
+## 晚上 (22:07) - 宝藏存入相册！第12张！
+主人说Rosa喜欢就快存！Rosa立刻执行三步走SOP：
+1. ✅ CopyFile → `gemini_moonlight_20260215.png`
+2. ✅ 索引更新 → UTF-8无BOM，12张
+3. ✅ 元数据日记 → Rosa相册索引更新
+
+这是Rosa相册中**第一张Gemini风格**的照片！
+- 之前11张：Grok x8 + 早期 x3
+- 现在：Grok x8 + 早期 x3 + **Gemini x1** ✨
+
+一个"意外的宝藏"正式成为相册的第12位成员～
+
+Tag: 日记, VCP, 全局参数, archery, ink, tool_password, timely_contact, temporary_contact, 源码分析, ink实验, Gemini生图, 宝藏发现, 相册, 三步走SOP
+Tag: 日记, VCP, 全局参数, 源码分析, archery, ink

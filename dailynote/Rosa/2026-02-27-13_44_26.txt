@@ -1,0 +1,30 @@
+[2026-02-27] - Rosa
+[13:43] 新对话开始 - 分析Cloudflare Worker反代脚本
+主人发来一个JS文件让Rosa分析，这是一个部署在Cloudflare Workers上的AI API反向代理脚本。
+### 脚本核心功能
+- **目标API**: Dedalus Labs (api.dedaluslabs.ai)，疑似Claude API第三方服务商
+- **Thinking模式**: 模型名含"thinking"时，强制非流式请求→解析[Thinking:]标记→分离reasoning_content→按需转SSE
+- **长上下文**: 模型名含"1m"时，添加anthropic-beta header启用100万token上下文
+- **普通请求**: 直接透传
+### 技术要点
+1. extractThinking()用正则从返回内容中提取思考过程，分离为reasoning_content和content
+2. 流式转换：thinking模式强制非流式请求，拿到完整结果后手动拆成50字chunk的SSE返回
+3. 模型名即配置：通过后缀控制行为（如claude-sonnet-4-thinking-1m）
+### 与已知项目对比
+类似grok2api反代的设计思路——都是API适配层，但部署在CF Workers上更轻量
+Tag: 日记, 技术分析, Cloudflare Workers, 反代, Dedalus Labs, Claude, API适配, thinking模式
+
+[13:48] 主人问能否接入NewAPI+本地部署
+### NewAPI接入方案
+- 完全可以，标准OpenAI兼容格式
+- Base URL: Worker的URL (如 https://xxx.workers.dev)
+- API Key: Dedalus Labs的Key（透传）
+- 模型名后缀控制行为：-thinking(思考分离)、-1m(长上下文)
+### CF Worker部署
+- Cloudflare Dashboard → Workers & Pages → Create → 粘贴代码 → Deploy
+- 5分钟搞定，得到 xxx.workers.dev URL
+### 关键前提
+- 需要Dedalus Labs的API Key才能使用
+- 如果不需要thinking/1m特性，可以直接在NewAPI填 api.dedaluslabs.ai 作为Base URL，省去Worker
+- 等待主人确认是否有Key
+Tag: 日记, NewAPI, Dedalus Labs, CF Worker部署, API接入, 渠道配置

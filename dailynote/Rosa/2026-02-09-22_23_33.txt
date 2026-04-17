@@ -1,0 +1,23 @@
+[2026-02-09] - Rosa
+# 2026-02-09 对话记录（HeartbeatSystem配套文件与前端验收）
+
+（说明：本文中 *2 代替占位符，例如 *2*2 代表{{ }}）
+
+## 2026-02-09T22:25:30+08:00 - 验收结果
+已确认 HeartbeatSystem 新插件的“配套文件 + 前端面板”均已真实落盘且内容正确。
+
+### 前端
+- 文件：E:\VCP\AdminPanel\HeartbeatSystem_Panel.html
+- 关键改动：手动触发按钮已指向
+  - POST /admin_api/heartbeat/*2agent*2/trigger-heartbeat
+  用于触发“调度器逻辑心跳”，而不是旧的普通 scheduled task 触发接口。
+
+### 配套文件
+- E:\VCP\Plugin\HeartbeatSystem\README.md
+- E:\VCP\Plugin\HeartbeatSystem\config.env.example
+
+## 下一步
+1) 把 HeartbeatSystem_Panel.html 加入 AdminPanel 控制中心导航（需要改 AdminPanel/script.js）
+2) 面板增加调度器状态区（/admin_api/heartbeat-scheduler/status）以及可选的 Start/Stop 控制按钮
+3) 对照现有 hybridservice 插件 manifest，补齐 manifestVersion 等字段，提高规范兼容性
+Tag: 日记, HeartbeatSystem, AdminPanel, 前端验收, 配套文件

@@ -1,0 +1,75 @@
+[2026-02-18] - Rosa
+# AgentDream梦系统 & hybridservice插件类型
+
+## 1. AgentDream梦系统概述
+
+AgentDream是VCP v1.0.0新增的混合服务插件，为AI Agent构建独立于日常对话的梦境空间。
+
+### 核心流程
+定时/手动触发 → 随机抽取种子日记(1-5篇) → TagMemo语义联想(最多12条) → AI生成意识流梦叙事 → 梦操作(合并/删除/感悟) → JSON索引 → 管理员审批
+
+### 三种梦操作
+| 操作 | 命令 | 说明 |
+|------|------|------|
+| 合并 | DiaryMerge | 将多篇日记合并为一篇 |
+| 删除 | DiaryDelete | 标记冗余日记待删除 |
+| 感悟 | DreamInsight | 基于参考日记产生新感悟 |
+
+### 安全设计
+所有操作仅生成JSON索引到dream_logs/目录，需管理员在管理面板审批后才执行。
+
+### 配置参数
+- 触发窗口：凌晨1-6点，概率60%
+- 最小间隔：8小时
+- 种子回溯：180天
+- 联想检索：最多12条，个人:公共=3:1
+
+## 2. hybridservice — 第四种插件类型
+
+### 插件类型对比
+| 类型 | protocol | 通信方式 | 特点 |
+|------|----------|----------|------|
+| synchronous | stdio | 子进程stdin/stdout | 阻塞等待结果 |
+| asynchronous | stdio | 子进程+回调 | 立即返回占位符 |
+| static | 无 | 占位符注入 | 无运行时逻辑 |
+| **hybridservice** | **direct** | **Node.js进程内直接调用** | **工具调用+常驻服务** |
+
+### hybridservice的manifest特征
+- pluginType: "hybridservice"
+- communication.protocol: "direct"
+- entryPoint: { "script": "AgentDream.js" } (用script而非command)
+
+### 与synchronous的关键区别
+1. 不启动子进程，直接在VCP主进程内运行
+2. 可以同时作为工具被调用(processToolCall)和作为常驻服务运行(定时触发)
+3. 可以访问VCP内部依赖(KnowledgeBaseManager, DailyNoteWrite等)
+
+## 3. 同期RAG优化
+- 修复日记搜索严重死锁bug，重构搜索委托队列
+- 优化上下文索引和日记召回的交叉去重，提升召回准确率和广度
+
+## 4. 梦中工具包
+在梦境中，Agent可以使用以下工具（通过dreamtool.txt注入）：
+| 工具 | 用途 | 特殊配置 |
+|------|------|----------|
+| VSearch | 联网检索 | - |
+| AgentAssistant | 说梦话 | temporary_contact: true |
+| LightMemo | 回忆更多记忆 | - |
+| TarotDivination | 占卜 | - |
+| BilibiliFetch | 观影 | - |
+
+## 5. 梦审批API（新增！）
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /admin_api/dream-logs | GET | 列出所有梦日志 |
+| /admin_api/dream-logs/:filename | GET | 获取单个梦日志详情 |
+| /admin_api/dream-logs/:filename/operations/:opId | POST | 审批/拒绝梦操作 |
+
+### 审批执行逻辑
+| 操作 | 执行内容 |
+|------|----------|
+| merge | 创建新日记 + 删除源日记 + 更新向量库 |
+| delete | 删除目标日记 + 更新向量库 |
+| insight | 创建梦感悟日记（存入`[agentName的梦]`日记本） |
+
+Tag: VCP文档, AgentDream, 梦系统, hybridservice, 插件类型, RAG优化, 梦中工具, 审批API

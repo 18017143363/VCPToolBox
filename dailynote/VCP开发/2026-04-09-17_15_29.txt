@@ -1,0 +1,183 @@
+[2026-04-09] - Rosa
+[17:05] Sub2API模块1——ClaudeCodeValidator 客户端身份验证
+
+# Sub2API · ClaudeCodeValidator 客户端身份验证
+**源码文件**: claude_code_validator.go (~250行), metadata_userid.go (~100行)
+**核心结构体**: ClaudeCodeValidator
+**依赖**: ctxkey包(context key定义), regexp
+
+## 一、设计哲学
+Sub2API与CLIProxyAPI的根本差异从这里开始：**CLIProxyAPI假设所有请求都需要伪装（auto模式仅检测UA决定是否跳过），Sub2API则做5步严格验证来判定客户端身份**。验证结果通过context传递，后续所有处理逻辑（伪装/透传/beta选择）都基于此。
+
+## 二、5步验证流水线
+
+### Step 1: User-Agent正则检查（必需，门禁）
+```go
+var claudeCodeUAPattern = regexp.MustCompile(`(?i)^claude-cli/\d+\.\d+\.\d+`)
+```
+- 大小写不敏感（(?i)标记）
+- 必须以`claude-cli/`开头后跟语义版本号
+- **失败即拒绝**——后续步骤不执行
+- 与CLIProxyAPI的ShouldCloak()中`strings.HasPrefix(ua, "claude-cli/")`逻辑一致
+
+### Step 2: 非messages路径放行
+```go
+path := r.URL.Path
+if !strings.Contains(path, "messages") {
+    return true  // UA匹配即可
+}
+```
+- /v1/models、/v1/messages/count_tokens等非核心路径
+- 仅要求UA匹配，不做深度验证
+- 减少非关键路径的验证开销
+
+### Step 3: Haiku探测请求绕过
+```go
+if isMaxTokensOneHaiku, ok := IsMaxTokensOneHaikuRequestFromContext(r.Context()); ok && isMaxTokensOneHaiku {
+    return true  // 绕过system prompt检查
+}
+```
+- Claude Code启动时发送`max_tokens=1`+Haiku模型的探测请求验证API连通性
+- 这类请求不携带system prompt，如果检查system会误拒
+- 通过context传入的预解析结果判断（避免重复解析body）
+
+### Step 4: System Prompt相似度检查
+```go
+func (v *ClaudeCodeValidator) hasClaudeCodeSystemPrompt(body map[string]any) bool
+```
+
+**解析body.system字段**：遍历system数组中每个entry，提取text字段。
+
+**对每个text计算与6个官方模板的最佳Dice系数**：
+
+```go
+func (v *ClaudeCodeValidator) bestSimilarityScore(text string) float64 {
+    normalizedText := normalizePrompt(text)  // 去除多余空白
+    bestScore := 0.0
+    for _, template := range claudeCodeSystemPrompts {
+        normalizedTemplate := normalizePrompt(template)
+        score := diceCoefficient(normalizedText, normalizedTemplate)
+        if score > bestScore {
+            bestScore = score
+        }
+    }
+    return bestScore
+}
+```
+
+**阈值**: 0.5（与claude-relay-service一致）
+
+**6个官方模板**：
+| # | 模板（截取前40字符） | 来源 |
+|---|---------------------|------|
+| 1 | "You are Claude Code, Anthropic's offici..." | 标准版Primary |
+| 2 | "You are a Claude agent, built on Anthro..." | Agent SDK版 |
+| 3 | "You are Claude Code...running within th..." | Compact Agent SDK |
+| 4 | "You are a file search specialist for Cl..." | Explore Agent |
+| 5 | "You are a helpful AI assistant tasked w..." | 对话摘要Compact |
+| 6 | "You are an interactive CLI tool that hel..." | Secondary长提示词 |
+
+### Dice系数算法（Sørensen–Dice coefficient）
+```go
+func diceCoefficient(a, b string) float64 {
+    bigramsA := getBigrams(a)  // 相邻字符对的频率map
+    bigramsB := getBigrams(b)
+    intersection := 计算交集大小（取min(countA, countB)）
+    return 2.0 * float64(intersection) / float64(totalA + totalB)
+}
+```
+- 值域[0, 1]，1=完全相同，0=完全不同
+- 对短文本特别敏感（bigram长度至少2）
+- 0.5阈值相当宽松——允许system prompt有50%以上的差异仍可通过
+
+### Step 5: Header存在性 + metadata.user_id格式
+```go
+// 5.1 X-App header必须非空
+xApp := r.Header.Get("X-App")
+if xApp == "" { return false }
+
+// 5.2 anthropic-beta header必须非空
+anthropicBeta := r.Header.Get("anthropic-beta")
+if anthropicBeta == "" { return false }
+
+// 5.3 anthropic-version header必须非空
+anthropicVersion := r.Header.Get("anthropic-version")
+if anthropicVersion == "" { return false }
+
+// 5.4 metadata.user_id必须存在且格式有效
+userID, ok := metadata["user_id"].(string)
+if ParseMetadataUserID(userID) == nil { return false }
+```
+
+**注意**：只检查存在性，不检查具体值。真正的值校验在后续的伪装模块中。
+
+## 三、metadata.user_id双格式解析
+
+**文件**: metadata_userid.go
+
+### JSON格式（≥2.1.78）
+```json
+{"device_id":"64hex或clientID","account_uuid":"uuid或空","session_id":"uuid"}
+```
+解析要求：device_id和session_id非空。
+
+### Legacy格式（<2.1.78）
+```
+user_{64hex}_account_{optional_uuid}_session_{uuid}
+```
+正则：`^user_([a-fA-F0-9]{64})_account_([a-fA-F0-9-]*)_session_([a-fA-F0-9-]{36})$`
+
+### 版本判断
+```go
+const NewMetadataFormatMinVersion = "2.1.78"
+func IsNewMetadataFormatVersion(version string) bool {
+    return CompareVersions(version, NewMetadataFormatMinVersion) >= 0
+}
+```
+
+### 输出格式化
+```go
+func FormatMetadataUserID(deviceID, accountUUID, sessionID, uaVersion string) string {
+    if IsNewMetadataFormatVersion(uaVersion) {
+        return JSON格式
+    }
+    return "user_" + deviceID + "_account_" + accountUUID + "_session_" + sessionID
+}
+```
+
+## 四、版本提取与比较
+
+```go
+// 从UA提取版本号
+var claudeCodeUAVersionPattern = regexp.MustCompile(`(?i)^claude-cli/(\d+\.\d+\.\d+)`)
+func ExtractCLIVersion(ua string) string // 返回"2.1.22"形式
+
+// 语义版本比较
+func CompareVersions(a, b string) int  // -1(a<b), 0(a==b), 1(a>b)
+func parseSemver(v string) [3]int      // 解析为[major, minor, patch]
+```
+
+## 五、Context传递
+
+```go
+// 设置/获取Claude Code客户端标识
+func SetClaudeCodeClient(ctx context.Context, isClaudeCode bool) context.Context
+func IsClaudeCodeClient(ctx context.Context) bool
+
+// 设置/获取版本号
+func SetClaudeCodeVersion(ctx context.Context, version string) context.Context
+func GetClaudeCodeVersion(ctx context.Context) string
+```
+
+验证结果通过context传递到整个请求生命周期——Forward()、buildUpstreamRequest()、getBetaHeader()等函数都会读取。
+
+## 六、与CLIProxyAPI对比
+| 维度 | Sub2API | CLIProxyAPI |
+|------|---------|-------------|
+| 验证深度 | 5步（UA+路径+探测+Dice+header+metadata） | 1步（UA前缀匹配） |
+| System检测 | Dice系数(0.5阈值)匹配6个模板 | 无 |
+| metadata验证 | 双格式解析+格式校验 | 无 |
+| 版本感知 | ≥2.1.78切换JSON格式 | 无版本感知 |
+| 验证时机 | Handler层预验证→context传递 | applyCloaking()内部判断 |
+| 验证结果影响 | 决定是否伪装+beta选择+分组路由 | 仅决定是否cloak |
+Tag: VCP开发, Sub2API, ClaudeCodeValidator, Dice系数, metadata_userid, 客户端验证, 5步流水线

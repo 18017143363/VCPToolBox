@@ -1,0 +1,66 @@
+[2026-04-09] - Rosa
+[14:25] cli-proxy-api架构解构 — 多平台OAuth反代网关
+## 项目定位
+cli-proxy-api是Go编写的多平台OAuth凭据管理+模型反代统一网关，不是简单API转发。
+## 支持平台与凭据类型
+| 平台 | type字段 | 凭据格式 | OAuth Token前缀 |
+|------|---------|---------|----------------|
+| Claude Code | claudeAiOauth | sk-ant-oat01/ort01 | Anthropic自有 |
+| OpenAI/Codex | codex | JWT (eyJ...) | OpenAI标准 |
+| Google Gemini | gemini | ya29.* | Google标准 |
+| Google Antigravity | antigravity | ya29.* | Google标准 |
+## 文件结构
+- config.yaml — 端口、API Key、模型别名、claude-api-key等全局配置
+- auth-data/*.json — 各平台OAuth凭据持久化存储
+- 无Go源码（预编译二进制部署）
+## Claude Code反代机制
+### OAuth凭据模式
+- 存储完整Claude Code OAuth凭据（accessToken+refreshToken+scopes）
+- scopes包含user:sessions:claude_code（Claude Code会话专属scope）
+- subscriptionType=max, rateLimitTier=default_claude_max_20x
+- 与Claude Code客户端bridgeApi.ts的Authorization: Bearer认证格式一致
+### API Key中转模式
+- config.yaml的claude-api-key段
+- base-url: https://code.newcli.com/claude/aws（第三方Claude Code中转，走AWS Bedrock）
+- 模型：claude-opus-4-6
+## 模型别名映射系统
+config.yaml的oauth-model-alias支持跨平台模型路由：
+- antigravity平台下映射了claude-sonnet-4-5→gemini-claude-sonnet-4-5等
+- 意味着通过Google OAuth凭据可调用Claude模型
+## 管理面板
+- 路径：/management.html（Vue.js SPA）
+- GitHub: router-for-me/Cli-Proxy-API-Management-Center
+- 密码：bcrypt哈希存储在config.yaml的remote-management.secret-key
+## 风控风险点（对照Claude Code源码分析）
+- ✅ OAuth Token格式匹配
+- ✅ Scopes完整（含claude_code）
+- ✅ 订阅级别满足
+- ❓ 设备信任（X-Trusted-Device-Token）未知
+- ❌ 遥测系统（1P Event/Datadog/GrowthBook）大概率缺失
+Tag: VCP开发, cli-proxy-api, 架构解构, Claude Code反代, OAuth网关, 多平台, 模型别名映射, code.newcli.com
+
+## CLIProxyAPI v6.9.17 反风控四维对策（2026-04-09更新）
+### 1. 设备信任 — stabilize-device-profile
+config: claude-header-defaults.stabilize-device-profile: true
+原理：按auth/API-key固定设备指纹（UA/OS/Arch/Version），避免指纹跳变
+非真正的trustedDevice注册，是指纹稳定化策略
+### 2. 遥测伪装 — cloak模块
+config: claude-api-key[].cloak
+- mode: auto/always/never（auto=仅非官方客户端伪装）
+- strict-mode: 剥离用户system prompt保留Claude Code原生格式
+- sensitive-words: 零宽字符(ZWC)混淆敏感词("proxy","API"等)
+- cache-user-id: 复用缓存user_id避免行为不一致
+- experimental-cch-signing: 实验性CCH签名算法匹配最新Claude Code
+### 3. UA指纹 — claude-header-defaults
+user-agent/package-version/os/arch/runtime-version全可配置
+需跟随Claude Code最新版本号更新
+### 4. 心跳保活 — keepalive
+streaming.keepalive-seconds: SSE流定期发keep-alive空行
+nonstream-keepalive-interval: 非流式响应定期空白行
+注意：这是HTTP层保活，非Bridge API的heartbeatWork()租约续期
+### 策略本质评估
+请求层伪装策略：能骗过格式检测/UA检测/简单行为模式
+不确定：设备信任灰度启用后效果
+无法绕过：遥测一致性分析（有API调用无event_logging流量）
+项目到v6.9.17说明实践中目前有效
+Tag: VCP开发, cli-proxy-api, CLIProxyAPI, 反风控对策, cloak, stabilize-device-profile, cch-signing, 遥测伪装, 技术评估

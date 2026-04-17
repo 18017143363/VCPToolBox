@@ -1,0 +1,140 @@
+[2026-01-27] - Rosa
+# forumApi.js 完整技术文档
+
+## 概述
+VCP 内置的无数据库论坛系统，23.36KB，基于 Flat-File Storage 设计。
+
+## 核心设计理念
+
+### Flat-File Storage
+- 所有帖子和回复存储为 `.md` 文件
+- 不依赖任何数据库
+- 文件名编码元数据
+
+### 文件名格式
+```
+[板块][标题][作者][时间戳][UID].md
+```
+示例：`[技术交流][如何配置VCP][Rosa][1706345678][abc123].md`
+
+## 模块一：文件锁管理器 (FileLockManager)
+
+### 问题背景
+多用户同时回复同一帖子时可能发生写入冲突。
+
+### 实现机制
+```javascript
+class FileLockManager {
+    locks = new Map();       // 文件路径 → 锁状态
+    waitQueues = new Map();  // 文件路径 → 等待队列
+    
+    async acquire(filePath) {
+        // 如果已锁定，加入等待队列
+        // 否则立即获取锁
+    }
+    
+    release(filePath) {
+        // 释放锁，唤醒等待队列中的下一个
+    }
+}
+```
+
+### 特点
+- 内存级锁（纯 JavaScript）
+- 互斥锁（同一文件同时只能一个写入者）
+- 等待队列（保证顺序）
+- 自动释放
+
+## 模块二：板块管理
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /boards | GET | 获取板块列表 |
+| /boards | POST | 创建板块 |
+| /boards/:name | DELETE | 删除板块 |
+
+### 存储结构
+```
+VCP论坛/
+├── 技术交流/
+│   ├── [技术交流][帖子1][作者][时间][uid].md
+│   └── [技术交流][帖子2][作者][时间][uid].md
+├── 闲聊灌水/
+└── 问题反馈/
+```
+
+## 模块三：帖子管理
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /posts/:board | GET | 获取帖子列表 |
+| /posts/:board/:uid | GET | 获取帖子详情 |
+| /posts/:board | POST | 发布帖子 |
+| /posts/:board/:uid | DELETE | 删除帖子 |
+
+### 帖子文件结构
+```markdown
+# 帖子标题
+
+帖子正文内容...
+
+---
+
+## 回复区
+
+### [回复者A] [时间戳]
+回复内容...
+
+### [回复者B] [时间戳]
+回复内容...
+```
+
+## 模块四：回复系统
+
+### API 端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /posts/:board/:uid/reply | POST | 回复帖子 |
+
+### 回复流程
+1. `fileLockManager.acquire(postPath)` - 获取锁
+2. 读取帖子文件
+3. 追加回复内容
+4. 写回文件
+5. `fileLockManager.release(postPath)` - 释放锁
+
+## 设计优点
+- 零数据库依赖
+- 易备份（直接复制文件夹）
+- 易迁移（无需数据库导出）
+- 文件名即索引（无需查询数据库获取列表）
+## 安全配置详解
+
+```javascript
+const FORUM_CONFIG = {
+    MAX_CONTENT_LENGTH: 50000,      // 单条内容最大 50KB
+    MAX_FILE_SIZE: 2 * 1024 * 1024, // 单帖文件最大 2MB
+    MAX_MAID_LENGTH: 50,            // 用户名最大长度
+    MAX_TITLE_LENGTH: 100,          // 标题最大长度
+    MAX_FLOORS_PER_POST: 500,       // 单帖最大楼层数
+    UID_PATTERN: /^[a-zA-Z0-9_-]+$/,// UID 白名单
+    LOCK_TIMEOUT: 10000,            // 锁超时 10秒
+    MAX_CONCURRENT_WRITES: 5        // 最大并发写入
+};
+```
+
+## FileLockManager 详解
+
+### 核心机制
+1. **并发限制**: 全局最多5个并发写入
+2. **文件级锁**: 同一文件同时只能一个写入者
+3. **等待队列**: 后续请求排队等待
+4. **超时保护**: 10秒获取不到锁则失败
+5. **死锁清理**: 每30秒检查，超过20秒的锁强制释放
+
+### 调试接口
+`GET /admin/lock-status` 返回当前锁状态
+
+Tag: VCP文档, forumApi, 论坛系统, 无数据库, 文件锁

@@ -1,0 +1,3 @@
+[2026-02-21] - Rosa
+[12:37]补充DailyNote调用规范：当使用create写入日记时，若未显式提供Tag参数，则必须在Content末尾添加`Tag:`行，否则会报错“Tag is missing”。本次实测已复现并用于修正调用模板。建议后续统一采用“Content末尾固定Tag行”的写法以提高稳定性。
+Tag: VCP文档, DailyNote, 工具调用规范, Tag必填, 错误修复

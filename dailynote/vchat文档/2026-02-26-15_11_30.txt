@@ -1,0 +1,24 @@
+[2026-02-26] - Rosa
+[15:10] PowerShellExecutor P1回显过滤补丁
+## 问题
+VChat端PowerShellExecutor使用Base64+ScriptBlock封装用户命令，但PTY会回显整个wrapped命令（`$__vcp_b64='...'`等），导致返回结果中混入大量无关内容。
+
+## 解决方案：Start Marker双标记法
+在wrapped命令的try块开头输出一个startMarker，settleSuccess只截取startMarker→boundary之间的内容。
+
+### 修改的文件
+`E:\VCPCHAT\VCPDistributedServer\Plugin\PowerShellExecutor\PowerShellExecutor.js`
+
+### 关键修改点
+1. **buildWrappedPowerShellCommand函数**：增加startMarker参数，try块首行输出startMarker
+2. **调用方（executeSingleCommandInPty）**：用`crypto.randomUUID()`生成startMarker
+3. **settleSuccess函数**：截取outputStart(startMarker之后)到boundaryIndex之间的内容
+
+### $变量PTY丢失问题
+最初方案用`$__vcp_smk`变量存储startMarker值，但PTY传输时`$`字符被吞掉。
+最终改为**内联Base64解码**，直接在try块中`[Console]::Out.WriteLine([System.Text.Encoding]::UTF8.GetString(FromBase64String('${startMarkerBase64}')))`，不创建任何新PS变量。
+
+### 验证结果
+修改前：输出混入几百字符的Base64封装回显
+修改后：输出干净，仅包含用户命令的实际结果
+Tag: vchat文档, PowerShellExecutor, 回显过滤, Start Marker, 内联Base64, PTY

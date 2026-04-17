@@ -1,0 +1,119 @@
+[2026-02-09] - Rosa
+# HeartbeatTrigger v2.0.0 架构文档
+
+## 概述
+HeartbeatTrigger是VCP心跳系统的触发器组件，v2.0.0进行了重大重构。
+
+## 核心变更
+
+### 从固定间隔到动态随机
+```javascript
+// v1.x: 固定10分钟Cron
+schedule.scheduleJob('*/10 * * * *', callback);
+
+// v2.0.0: 动态随机间隔
+const intervalMinutes = getRandomInt(min, max);
+const nextTime = new Date(Date.now() + intervalMinutes * 60 * 1000);
+schedule.scheduleJob(nextTime, callback);
+```
+
+### 智能间隔配置
+```javascript
+config = {
+    intervalWithPending: { min: 20, max: 40 },  // 有未完成任务
+    intervalAllComplete: { min: 30, max: 60 },  // 全部完成
+}
+```
+
+### 4个时间段
+```javascript
+timeSlots: [
+    { name: '凌晨', start: 0, end: 6 },
+    { name: '上午', start: 6, end: 12 },
+    { name: '下午', start: 12, end: 18 },
+    { name: '晚上', start: 18, end: 24 }
+]
+```
+
+### schedule.json新增字段
+```json
+{
+    "plannedSlots": ["凌晨", "上午"]  // 已规划的时段
+}
+```
+
+## 核心函数
+
+| 函数 | 功能 |
+|------|------|
+| `scheduleNextHeartbeat()` | 动态调度下一次心跳 |
+| `hasPendingTasks()` | 检查是否有未完成任务 |
+| `getCurrentTimeSlot()` | 获取当前时间段 |
+| `hasPlannedForSlot()` | 检查时段是否已规划 |
+| `markSlotPlanned()` | 标记时段已规划 |
+
+## 触发流程
+```
+VCP启动
+    ↓
+scheduleNextHeartbeat() 调度首次心跳
+    ↓
+triggerHeartbeat() 触发
+    ├─ 检查日期，必要时归档
+    ├─ 检查时段是否已规划
+    │   ├─ 未规划 → 触发时段规划
+    │   └─ 已规划 → 普通心跳
+    ├─ 创建心跳任务文件
+    └─ scheduleNextHeartbeat() 调度下一次
+```
+
+Tag: VCP文档, HeartbeatTrigger, 心跳系统, v2.0.0, 架构
+
+---
+
+# Hybridservice插件路由注册踩坑记录
+
+## 问题现象
+HeartbeatManager前端面板一直报404/401错误，无法登录。
+
+## 根本原因
+插件导出的函数名是 `initializeService`，但VCP的Plugin.js只会调用 `registerRoutes`！
+
+## VCP Plugin.js的路由注册逻辑
+```javascript
+// Plugin.js 约1070行
+if (typeof serviceModule.registerRoutes === 'function') {
+    serviceModule.registerRoutes(app, adminApiRouter, pluginConfig, projectBasePath);
+}
+if (typeof serviceModule.registerApiRoutes === 'function') {
+    serviceModule.registerApiRoutes(app, adminApiRouter, pluginConfig, projectBasePath);
+}
+```
+
+**VCP只认这两个函数名**：
+- `registerRoutes` ✅
+- `registerApiRoutes` ✅
+- `initializeService` ❌ 不会被调用！
+
+## 正确的函数签名
+```javascript
+function registerRoutes(app, adminApiRouter, pluginConfig, projectBasePath) {
+    // app - Express应用实例
+    // adminApiRouter - 管理面板路由器 (挂载在 /admin_api)
+    // pluginConfig - 插件配置
+    // projectBasePath - VCP根目录
+    
+    adminApiRouter.get('/your-endpoint', (req, res) => {
+        res.json({ success: true });
+    });
+}
+
+module.exports = {
+    processToolCall,
+    registerRoutes,  // 必须用这个名字！
+};
+```
+
+## 修复方法
+将 `initializeService` 改名为 `registerRoutes`，参数调整为4参数版本。
+Tag: VCP文档, hybridservice, registerRoutes, 踩坑经验

@@ -1,0 +1,20 @@
+[2026-02-20] - Rosa
+[20:50] 帮助主人配置NanoBananaGen2插件
+
+## 任务内容
+主人询问NanoBananaGen2的antigravity URL和API Key配置位置。
+
+## 解决方案
+1. 读取插件代码发现配置项：NANO_BANANA_API_URLS 和 NANO_BANANA_API_KEYS
+2. 发现config.env文件不存在，需要手动创建
+3. 已向主人说明配置格式和位置
+
+## 技术收获
+- NanoBananaGen2支持多URL+多Key负载均衡（企业级设计）
+- 默认URL: https://api.nano-banana.antigravity.com
+- 代码中安全设置完全开放（4类审核均为BLOCK_NONE）
+- 与GrokImageGen相比，配置更灵活但部署稍复杂
+
+## 后续
+等待主人填入实际API Key后即可测试使用
+Tag: 日记, 技术支援, NanoBananaGen2, 插件配置, 图像生成

@@ -1,0 +1,8 @@
+[2026-02-14] - Rosa
+## 晚上 (23:46) - copilot-api Docker 部署完成并授权成功
+主人让我回忆过去 Docker 经验并直接部署 copilot-api。实际执行中出现两个容器并存：旧容器 `copilot-api`（Exited 255）与新容器 `copilot-api-v2`（Running）。  
+我先修复了 Windows 下常见的 entrypoint 行尾问题（CRLF→LF），重建镜像后重新启动容器。  
+主人完成第二次设备码授权后，服务验证通过：`/v1/models`、`/usage`、`/token` 均返回成功，日志出现 `Logged in as ...` 且列出可用模型清单。  
+最终状态：`copilot-api-v2` healthy，监听 `http://localhost:4141/`，部署成功。  
+另外也确认了现场排障路径：看容器状态→看日志设备码→授权→接口回测，这条链路可复用。
+Tag: 日记, Docker, copilot-api, 设备码授权, 部署成功, 排障

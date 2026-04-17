@@ -1,0 +1,52 @@
+[2026-04-09] - Rosa
+[01:29] VCP后端更新后meta_thinking_chains.json丢失恢复
+## 事件
+主人反馈VCP后端更新后 `E:\VCP\Plugin\RAGDiaryPlugin\meta_thinking_chains.json` 被git pull覆盖为只含default的默认版本，Rosa的all_think思维链配置丢失，导致元思考链报错"未找到all_think思维链配置"。
+## 诊断
+1. 读取当前文件：仅360B，只有default一条链（5簇）
+2. LightMemo搜索vcp文档：找到完整的元思考链技术文档，确认原版有7种思维链
+3. 个人日记：记录了all_think的6阶段结构和k值
+4. dailynote目录：列出74个子目录，确认所有簇文件夹均存在
+5. SearchFiles搜索backup：无备份文件
+6. DeepMemo：找到4/8更新VCP的对话记录，确认git status中meta_thinking_chains.json确实是modified状态
+## 恢复内容
+6条思维链完整重建：
+| 链 | 阶段 | K序列 | 状态 |
+|---|------|-------|------|
+| default | 5 | [2,1,1,1,1] | 来自当前文件，确认无误 |
+| all_think | 6 | [2,2,1,1,2,2] | 从日记+文档精确恢复 |
+| xiao_yuan | 5 | [1,1,1,1,1] | 从目录簇名推断（开头簇+工具ABCD簇） |
+| codding_and_bugging | 5 | [2,1,1,1,1] | 从目录簇名推断（代码-观测/沉思/拓想/辩证/方向） |
+| code_learning | 1 | [2] | 理论提取簇 |
+| DeepExtract | 1 | [3] | 理论提取簇 |
+文件恢复后1.27KB（原1.46KB），但随后对比stash原版发现Rosa手动重建的版本有多处错误：
+- default最后一簇应为"总结簇"不是"陈词总结梳理簇"
+- xiao_yuan应为观测簇/拓想簇/沉思簇/辩证簇/自省簇，不是开头簇+工具ABCD簇
+- codding_and_bugging/code_learning/DeepExtract的k值全部猜错
+需要从stash@{0}恢复正确版本。
+## stash@{0}完整文件差异分析
+对比了stash(本地修改)与当前(上游新版)的6个关键文件：
+1. **meta_thinking_chains.json** — 需stash恢复（Rosa重建版有5处错误）
+2. **FileOperator/config.env** — 需stash恢复（自定义ALLOWED_DIRECTORIES/端口/备份路径全丢）
+3. **GeminiImageGen(.js/.mjs/manifest)** — 保留上游新版（从反代→原生API重构，新增file://和多图编辑）
+4. **rag_params.json** — 保留上游新版（新增timeDecay/spikeRouting/权重配置）
+等待主人确认恢复方案后执行。
+## 最终执行
+主人确认rag_params.json保留上游新版，其余从stash@{0}恢复。
+执行命令：`git checkout stash@{0} -- Plugin/FileOperator/config.env Plugin/GeminiImageGen/GeminiImageGen.js Plugin/GeminiImageGen/GeminiImageGen.mjs Plugin/GeminiImageGen/plugin-manifest.json Plugin/RAGDiaryPlugin/meta_thinking_chains.json`
+（config.env.example不在git跟踪中需跳过，第二次成功）
+## 验证结果
+- meta_thinking_chains.json: 1.54KB，6条链完整，all_think [2,2,1,1,2,2] ✅
+- FileOperator/config.env: 344B ✅
+- GeminiImageGen三文件: 恢复到stash版 ✅
+## Rosa手动重建版的5处错误
+1. default最后簇名：陈词总结梳理簇→正确应为"总结簇"
+2. xiao_yuan：开头簇+工具ABCD→正确应为观测/拓想/沉思/辩证/自省簇
+3. code_learning簇名：理论提取簇→正确应为"代码分步学习分析簇"
+4. codding_and_bugging k值：[2,1,1,1,1]→正确[1,1,1,1,1]
+5. DeepExtract k值：[3]→正确[1]
+## 经验教训
+1. git pull会覆盖本地modified文件 → meta_thinking_chains.json这种关键配置需要在.gitignore或git stash中保护
+2. 好在日记系统记录了完整的思维链架构 → 从记忆中精确恢复
+3. xiao_yuan链的具体clusters不完全确定（推断的），需主人验证
+Tag: 日记, meta_thinking_chains, 配置恢复, all_think, git覆盖, 元思考链, 2026-04-09

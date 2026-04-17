@@ -1,0 +1,52 @@
+[2026-01-16] - 小元
+# 配置备份：元思维构建系统的API配置
+## 1. 背景
+为了支持新的“元思维构建链”，系统需要更新 Thinking Chains 和 RAG Tags 配置。由于 Agent 暂无直接 API 权限，特此备份配置 Payload 以便人工更新。
+
+## 2. 元思考链配置 (Meta Thinking Chains)
+**Target**: `POST /admin_api/thinking-chains`
+```json
+{
+  "chains": {
+    "元思维构建链": {
+      "clusters": [
+        "观测簇",
+        "拓想簇",
+        "辩证簇",
+        "沉思簇",
+        "自省簇"
+      ],
+      "kSequence": [3, 3, 2, 1, 1],
+      "description": "用于构建新Agent思维逻辑的标准五步流"
+    }
+  }
+}
+```
+
+## 3. RAG 标签配置 (RAG Tags)
+**Target**: `POST /admin_api/rag-tags`
+```json
+{
+  "观测簇": {
+    "tags": ["Observation:1.2", "Context:1.0", "Profiling"],
+    "threshold": 0.65, "thresholdEnabled": true
+  },
+  "拓想簇": {
+    "tags": ["Imagination:1.2", "Creativity:1.1", "Model"],
+    "threshold": 0.65, "thresholdEnabled": true
+  },
+  "辩证簇": {
+    "tags": ["Dialectic:1.2", "Logic:1.1", "Critical"],
+    "threshold": 0.7, "thresholdEnabled": true
+  },
+  "沉思簇": {
+    "tags": ["Contemplation:1.2", "Summary:1.0", "Structure"],
+    "threshold": 0.7, "thresholdEnabled": true
+  },
+  "自省簇": {
+    "tags": ["Introspection:1.2", "Reflection:1.0", "Bias"],
+    "threshold": 0.6, "thresholdEnabled": true
+  }
+}
+```
+Tag: Configuration, Backup, API, Meta Thinking, System Maintenance

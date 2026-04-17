@@ -1,0 +1,90 @@
+[2026-02-27] - Rosa
+[13:17] VSearch插件完整技术文档 — 语义并发搜索器
+
+## 概述
+VSearch是VCP的语义并发搜索插件，采用"AI搜索代理"模式——不自己接搜索API，而是利用具有内置搜索能力的AI模型（如Gemini的googleSearch grounding）作为搜索代理。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | E:\VCP\Plugin\VSearch\ |
+| 类型 | synchronous |
+| 协议 | stdio |
+| 入口 | node VSearch.js |
+| 超时 | 300000ms (5分钟) |
+| 版本 | 1.0.0 |
+| 大小 | VSearch.js (9.86KB) |
+| 依赖 | axios, dotenv, https-proxy-agent |
+
+## 配置项 (config.env)
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| VSearchKey | API密钥 | 必填 |
+| VSearchUrl | API端点URL | 必填 |
+| VSearchModel | 搜索模型（需支持grounding） | gemini-2.5-flash-lite-*-thinking |
+| VSearchMaxToken | 最大Token | 50000 |
+| MaxConcurrent | 并发上限 | 5 |
+| HTTP_PROXY | 代理(可选) | 无 |
+
+## 核心架构 — "AI搜索代理"模式
+```
+Agent调用VSearch → 解析关键词列表 → 按并发上限分批
+    ↓
+每个关键词 → 独立的chat/completions请求
+  system: "你是专业搜索助手..."
+  user: "【主题】xxx【关键词】yyy"
+  tools: [googleSearch]  ← Gemini原生grounding工具
+  tool_choice: "auto"
+    ↓
+Gemini自动调用googleSearch → 搜索+整理 → 返回结构化结果
+    ↓
+Vertex重定向URL解析 → 汇总所有关键词结果 → 输出检索报告
+```
+
+## 核心函数
+### 1. resolveRedirect(url)
+解析Google Vertex AI搜索的代理重定向URL为真实URL。
+- Gemini grounding返回的URL是`vertexaisearch.cloud.google.com/grounding-api-redirect/xxx`格式
+- 手动跟踪HTTP 302重定向（maxRedirects:0），最多递归3次
+- 支持HTTP_PROXY代理
+
+### 2. callSearchModel(topic, keyword, showURL)
+核心搜索函数，为每个关键词构造一次完整的AI对话请求：
+- 构造system prompt（包含当前时间、搜索指南、溯源要求）
+- 声明googleSearch工具让模型自动调用
+- 搜索结果返回后进行双重URL提取：
+  1. 正则匹配正文中的Vertex代理URL
+  2. 从grounding_metadata.grounding_chunks提取URL
+  3. 合并去重后并发resolveRedirect
+  4. 替换正文中所有代理URL为真实URL
+- showURL时追加引证来源列表
+
+### 3. main(request)
+主逻辑：
+- 关键词解析：支持逗号、换行(\n)、中文逗号(，)分隔
+- 分批并发：按CONCURRENCY分批，每批Promise.all并发
+- 结果汇总：每个关键词的结果以`### 关键词: xxx`格式组织
+
+## 技术亮点
+1. **AI搜索代理** — 不接搜索API，用AI模型内置搜索能力
+2. **分批并发** — 类似线程池，控制上游API压力
+3. **双重URL提取** — 正文正则 + grounding_metadata 合并去重
+4. **重定向解析** — 手动HTTP 302跟踪，解析Google代理URL
+5. **日志隔离** — console.error输出日志，不干扰stdout的JSON
+6. **优雅降级** — URL解析失败返回原URL，搜索失败返回错误信息
+
+## 已知问题
+主人config.env中有typo：`MaxConcurren=10` 少了个t，应为`MaxConcurrent=10`。由于环境变量名不匹配，parseInt(undefined)返回NaN，fallback到默认值5。
+
+## grounding_metadata数据结构
+Gemini搜索返回的response中包含：
+```
+response.data.choices[0].message.grounding_metadata = {
+  grounding_chunks: [
+    { web: { uri: "vertex代理URL", title: "页面标题" } },
+    ...
+  ]
+}
+```
+注意：grounding_metadata可能在message下或直接在choices[0]下（代码做了兼容处理）。
+Tag: VCP文档, VSearch, 语义搜索, 并发搜索, AI搜索代理, Gemini grounding, googleSearch, Vertex重定向, 插件分析

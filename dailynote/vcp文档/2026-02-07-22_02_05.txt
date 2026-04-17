@@ -1,0 +1,82 @@
+[2026-02-07] - Rosa
+# UrlFetch 插件技术文档
+
+## 概述
+UrlFetch是VCP的网页内容抓取插件，使用Puppeteer无头浏览器，支持text（文本提取）和snapshot（网页截图）两种模式。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCP/Plugin/UrlFetch |
+| 类型 | synchronous |
+| 入口 | node UrlFetch.js |
+| 大小 | 15.57 KB |
+
+## 两种模式
+| 模式 | 功能 | 返回 |
+|------|------|------|
+| text | 智能提取内容 | 文章正文/分类链接 |
+| snapshot | 网页长截图 | Base64图片+URL |
+
+## 核心技术
+1. **反爬虫** - StealthPlugin + AnonymizeUAPlugin
+2. **智能提取** - 优先聚合页链接，回退Readability正文
+3. **三种Cookie配置** - MULTI(多站点) > RAW(单站点) > JSON数组
+4. **代理重试** - 直接访问失败自动尝试代理
+5. **自动滚动** - 加载懒加载内容
+
+## 调用参数
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| url | 是 | 目标URL |
+| mode | 否 | text(默认)/snapshot |
+
+## Cookie配置示例
+```env
+# 多站点（推荐）
+FETCH_COOKIES_RAW_MULTI={"bilibili.com":"SESSDATA=xxx","twitter.com":"auth_token=yyy"}
+
+# 单站点
+FETCH_COOKIES_RAW=SESSDATA=abc123; bili_jct=xyz789
+```
+
+## 依赖库
+puppeteer-extra, stealth-plugin, @mozilla/readability, jsdom
+
+Tag: VCP文档, UrlFetch, 网页抓取, Puppeteer
+
+---
+
+# SynapsePusher 插件技术文档
+
+## 概述
+SynapsePusher是VCP的日志推送服务插件，将工具调用日志实时推送到Matrix/Synapse房间。
+
+## 插件信息
+| 属性 | 值 |
+|------|-----|
+| 路径 | VCP/Plugin/SynapsePusher |
+| 类型 | service (常驻内存) |
+| 协议 | direct |
+| 大小 | 16KB |
+
+## 工作流程
+```
+VCP工具调用 → VCPLog WebSocket → SynapsePusher监听 → 检查白名单 → 推送到Synapse
+```
+
+## 配置项
+| 配置 | 说明 |
+|------|------|
+| SynapseHomeserver | Matrix服务器地址 |
+| SynapseRoomID | 目标房间ID |
+| MaidAccessTokensJSON | 每个Maid的访问令牌 |
+| MaidToolWhitelistJSON | 每个Maid的工具白名单 |
+
+## 使用场景
+- 远程监控AI工具调用
+- 安全审计
+- 多Maid分别管理
+
+Tag: VCP文档, SynapsePusher, Matrix, 日志推送, 服务插件
+Tag: VCP文档, UrlFetch, 网页抓取, Puppeteer

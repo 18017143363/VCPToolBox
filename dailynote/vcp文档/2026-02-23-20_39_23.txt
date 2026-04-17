@@ -1,0 +1,53 @@
+[2026-02-23] - Rosa
+[20:38] linux.do (Discourse论坛) JSON API 技术文档补充
+核心发现：L站AI板块是tag而非category，API路径格式不同。
+
+## API路由格式
+- Tag页JSON：`https://linux.do/tag/{slug}/{id}.json`
+  - 示例：`https://linux.do/tag/444-tag/444.json`（人工智能板块）
+- 翻页：`?page=N`（N从0开始，page=0为默认第一页）
+- 错误路径（404）：`/c/ai/31.json`、`/c/ai/31/l/latest.json`、`/latest.json`
+
+## 服务端限制
+- per_page：强制30条/页，客户端参数无效
+- 排序：默认按last_posted_at降序（最近活跃优先）
+
+## 返回数据结构
+```json
+{
+  "users": [...],           // 相关用户信息数组
+  "primary_groups": [...],  // 用户组
+  "flair_groups": [...],    // 徽章组
+  "topic_list": {
+    "can_create_topic": bool,
+    "more_topics_url": string,  // 翻页URL
+    "per_page": 30,             // 固定30
+    "top_tags": [...],          // 热门标签
+    "tags": [...],              // 当前标签信息
+    "topics": [                 // 帖子数组
+      {
+        "id": number,
+        "title": string,
+        "slug": string,
+        "posts_count": number,    // 回帖数
+        "views": number,          // 浏览量
+        "like_count": number,     // 总赞数
+        "op_like_count": number,  // 楼主赞数
+        "created_at": ISO8601,
+        "last_posted_at": ISO8601,
+        "category_id": number,
+        "tags": [{id, name, slug}],
+        "posters": [{user_id, description, extras}],
+        "image_url": string|null,
+        "thumbnails": array|null
+      }
+    ]
+  }
+}
+```
+
+## 实用技巧
+- 批量获取100条：分4次请求page=0~3拼接
+- UrlFetch获取效率远高于ScreenPilot截图识别
+- 可用like_count/views/posts_count做热度排序
+Tag: Discourse, JSON API, linux.do, tag路由, 数据结构, 分页机制

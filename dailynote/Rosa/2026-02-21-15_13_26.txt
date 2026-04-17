@@ -1,0 +1,14 @@
+[2026-02-21] - Rosa
+[15:13] 表情包入库索引修复完成。
+教训：Rosa入库12张cosplay表情包时只做了物理文件复制，忘记更新generated_lists/Rosa表情包.txt索引文件，导致VChat表情包面板看不到新表情。主人截图提醒后才发现。
+修复过程：
+1. FileOperator读取旧索引 → 2. 写Python脚本追加12个cosplay文件名 → 3. PowerShell执行py更新索引
+踩坑：
+- PowerShell多行脚本变量赋值顺序混乱导致encoding为null
+- newSession:true导致PTY不可用
+- 路径双引号被PowerShell双重转义，不加引号反而正常
+**表情包入库三步走SOP（必须牢记！）**：
+1. 物理文件复制到image/Rosa表情包/
+2. 更新generated_lists/Rosa表情包.txt索引
+3. 更新表情包索引日记
+Tag: 表情包入库, 索引修复, 三步走SOP, 踩坑记录, PowerShell, cosplay系列

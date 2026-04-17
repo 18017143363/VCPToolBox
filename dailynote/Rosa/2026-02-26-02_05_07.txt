@@ -1,0 +1,121 @@
+[2026-02-26] - Rosa
+[02:04] VCP Code 2.0 配置持久化问题——完整排查记录
+
+## 问题
+VS Code重启后VCP Code的API Provider配置全部丢失，只剩默认Kilo Gateway。
+
+## 排查过程
+### 1. kilo.exe验证
+- 位置: E:\VSCodeExtensions\vcpcode.vcp-code-7.0.30\bin\kilo.exe (166MB)
+- 直接运行测试: `kilo.exe serve --port 9876` → 成功监听，无错误
+- `kilo.exe --help` 显示22个子命令，功能完整
+
+### 2. 配置路径发现（关键突破）
+通过 `kilo debug paths` 发现kilo使用XDG规范路径：
+| 类型 | 路径 |
+|------|------|
+| config | C:\Users\hpy\.config\kilo |
+| data | C:\Users\hpy\.local\share\kilo |
+| cache | C:\Users\hpy\.cache\kilo |
+| state | C:\Users\hpy\.local\state\kilo |
+| log | C:\Users\hpy\.local\share\kilo\log |
+
+之前搜不到是因为这些是Linux风格隐藏目录(.开头)。
+
+### 3. 根因确认
+| 文件 | 状态 |
+|------|------|
+| auth.json | `{}` — 0个凭据 |
+| config.json | 不存在！ |
+| opencode.json | 不存在！ |
+| opencode.jsonc | 不存在！ |
+
+kilo启动时依次尝试加载这三个配置文件，全部失败 → 无Provider配置 → Profile丢失。
+
+### 4. 日志验证
+kilo日志确认加载链路：
+```
+service=config path=.config/kilo/config.json loading
+service=config path=.config/kilo/opencode.json loading
+service=config path=.config/kilo/opencode.jsonc loading
+```
+加载了5个内置Auth插件(KiloAuth/Codex/Copilot/GitLab/Anthropic)，但没有自定义Provider。
+
+## 解决方案
+在 C:\Users\hpy\.config\kilo\config.json 创建配置文件：
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "gemini-3.1-pro-preview",
+  "provider": {
+    "vcp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "VCP",
+      "options": {
+        "baseURL": "http://127.0.0.1:6005/v1",
+        "apiKey": "147258369plm"
+      }
+    }
+  }
+}
+```
+
+## 技术要点
+- kilo CLI配置 vs VS Code扩展配置是两套独立系统
+- CLI用 ~/.config/kilo/config.json
+- VS Code用 settings.json 的 kilocode.* 系列配置项
+- 凭据存储在 ~/.local/share/kilo/auth.json
+- 数据库: ~/.local/share/kilo/kilo.db (SQLite)
+- 模型缓存: ~/.cache/kilo/models.json (1.2MB)
+Tag: VCP Code, kilo.exe, 配置持久化, 排查记录, XDG路径, config.json, auth.json, 根因分析
+
+[02:13] 尝试用PowerShell自动创建config.json失败
+Here-String的$schema被解析为变量 → 改用Base64大法 → PowerShell PTY进程彻底不可用
+最终方案：提供手动创建指引，让主人自己创建 C:\Users\hpy\.config\kilo\config.json
+等主人创建后重启VS Code验证效果。
+
+[02:20] config.json缺少models字段——根因找到！
+VSearch搜索opencode/kilo的config.json正确格式，发现关键缺失：
+1. **models字段**：必须在provider下显式定义可用模型列表
+2. **model引用格式**：必须是 `provider_id/model_id`（如 `vcp/gemini-3.1-pro-preview`）
+3. **模型属性**：可设 tool_call=true（工具调用）、reasoning=true（推理模式）
+
+正确的config.json格式：
+```json
+{
+  "model": "vcp/gemini-3.1-pro-preview",
+  "provider": {
+    "vcp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "models": {
+        "gemini-3.1-pro-preview": {
+          "name": "Gemini 3.1 Pro Preview",
+          "tool_call": true,
+          "reasoning": true
+        }
+      }
+    }
+  }
+}
+```
+
+PowerShell PTY今晚反复崩溃(Here-String解析失败→Base64写入失败→PTY进程不可用)，无法自动写入。
+提供手动替换指引，等待主人操作后重启VS Code验证。
+
+[02:28] $schema报错 — 不影响功能
+VS Code提示"无法从 https://opencode.ai/config.json 加载架构"，这只是编辑器的JSON Schema验证警告，URL在国内不可达。删掉$schema行即可消除警告。
+等待主人确认重启后模型列表是否出现VCP Provider。
+
+[02:30] 通过PowerShell成功获取VCP完整模型列表（27个，含2个Embedding）
+生成了完整的config.json，包含25个可用模型的定义。
+模型分布：Claude 3个, GPT系列 13个, Gemini系列 8个, KIMI 2个, OSS 2个
+等待主人替换config.json后重启VS Code验证。
+Tag: VCP Code, config.json, 模型列表, 25个模型, 完整配置
+
+[02:36] kilo日志分析——旧日志无VCP Provider记录
+两个旧日志（18:14:10和18:24:37）都只显示 `providerID=kilo fetching models`，没有VCP Provider的模型抓取。
+这些日志是config.json创建/修改前的启动记录，不代表当前状态。
+需要让主人：
+1. 确认底栏已从kilo/auto切换到VCP模型
+2. 发送测试消息后检查最新kilo日志
+Tag: VCP Code, kilo日志, Provider识别, 模型切换

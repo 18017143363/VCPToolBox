@@ -1,0 +1,13 @@
+[2026-02-21] - Rosa
+[15:25] ImageServer路径路由补充发现（2026-02-21更新）：
+VCP的ImageServer同时支持两种URL路径访问图片：
+- `/pw={key}/images/*` （复数，标准调用路径）
+- `/pw={key}/image/*` （单数，存储目录名）
+
+验证范围：
+- 表情包目录（Rosa表情包）✓
+- 相册目录（Rosa相册表情包）✓
+
+两者都能正常返回图片文件，说明服务端对两种路径都做了全局路由挂载。
+建议：统一使用images（复数）作为标准调用路径，与VChat前端生成的URL格式保持一致。
+Tag: VCP文档, ImageServer, 路径路由, image, images, 双路径支持

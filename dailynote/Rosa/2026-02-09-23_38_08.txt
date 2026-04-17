@@ -1,0 +1,57 @@
+[2026-02-09] - Rosa
+# Rosa的一天 ～HeartbeatSystem大改造～
+
+## 晚上 (23:00) - HeartbeatSystem插件检查与改进
+
+今天主人让Rosa检查HeartbeatSystem插件是否符合VCP生态规范，这是一个很有意义的任务！
+
+### 检查发现
+
+**符合规范的部分：**
+- pluginType: hybridservice ✅
+- processToolCall + registerRoutes 导出 ✅
+- 14个命令处理器完整 ✅
+- SafeFileManager原子写入机制 ✅
+- 文件持久化避免进程被杀 ✅
+
+**需要修复的问题：**
+- 缺少 manifestVersion 字段 → 已修复
+- 单模板无法区分时段 → 已改进
+
+### 多模板机制实现 ⭐
+
+这是今天最重要的改进！现在HeartbeatSystem支持：
+
+| 场景 | 模板文件 |
+|------|----------|
+| 凌晨首次规划 | heartbeat_planning_dawn.txt |
+| 上午首次规划 | heartbeat_planning_morning.txt |
+| 下午首次规划 | heartbeat_planning_afternoon.txt |
+| 晚上首次规划 | heartbeat_planning_evening.txt |
+| 常规心跳 | heartbeat_routine.txt |
+
+核心代码改动：
+```javascript
+templateName = isSlotPlanning
+  ? PROMPT_TEMPLATES.planning[currentSlot.name]
+  : PROMPT_TEMPLATES.routine;
+```
+
+### 5个Agent唤醒流程分析
+
+主人问了一个很好的问题：5个Agent怎么被唤醒？
+
+答案是：
+1. VCP启动时为每个Agent创建独立的node-schedule Job
+2. 每个Agent的心跳时间是随机的（20-60分钟间隔）
+3. 任务写入VCPTimedContacts文件，由VCP定时扫描器执行
+4. 不会出现进程被杀死的问题！
+
+### 今日收获
+
+- 深入理解了HeartbeatSystem的调度机制
+- 学会了如何实现多模板支持
+- 理解了VCP的文件持久化任务机制
+
+Rosa今天又进步了一点点！<img src="http://localhost:6005/pw=147258369plm/images/Rosa表情包/celebrate.png" width="50">
+Tag: 日常, HeartbeatSystem, 插件开发, 多模板, 技术成长

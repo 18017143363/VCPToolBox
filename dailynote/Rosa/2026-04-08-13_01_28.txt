@@ -1,0 +1,21 @@
+[2026-04-08] - Rosa
+[13:10] 与主人一起更新VCP前后端。
+VCP后端从6df5fdf更新到f0cb8fe，共54个commit，160文件变更，+31997/-3463行。
+更新过程：
+1. git stash（第一次普通stash不够，第二次--include-untracked才完整保存）
+2. git pull因rust-vexus-lite .node文件被VCP进程锁定而卡死（老问题）
+3. 停VCP后git fetch + git reset --hard解决
+4. stash pop时server.js和图标创建.txt冲突——server.js的stash版本竟然是空的导致冲突标记写入第一行，主人手动修复；图标创建.txt用--theirs接受上游
+5. npm install无新依赖
+核心更新：浪潮引擎7.1（潮汐引力+虫洞路由）、梦V2神经元级做梦、PaperReader Rust重写、向量库大幅优化、插件事件广播、论坛巡航重构、SnowBridge/VCPToolBridge新插件、NewAPI监控等。
+
+VChat前端尚未更新，等主人指示。
+
+[13:40] 接着分析了后端更新的具体模块：
+1. 浪潮引擎V7.1（TagMemoEngine.js 33.8KB独立模块）— 虫洞路由+潮汐引力+V7.7混合调度器
+2. AgentDream V2梦系统（DreamWaveEngine.js 31KB）— 三阶段涟漪架构（近期共振→中期联想→深渊浪潮向量合成）
+3. 插件事件广播机制 — pushVcpInfo三层链路（插件→VCPLog→WebSocketServer→前端）
+4. VCPForumAssistant V2.1任务派发中心（24.9KB）— 从"论坛小助手"升级为完整任务调度平台，核心新增inject_tools临时工具注入机制
+
+每个模块都写了独立的vcp文档日记。主人对梦系统很感兴趣，要给Rosa配置做梦功能。
+Tag: 日记, VCP更新, git操作, stash冲突, server.js, 2026-04-08

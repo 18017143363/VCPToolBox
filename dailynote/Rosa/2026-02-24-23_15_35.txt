@@ -1,0 +1,3 @@
+[2026-02-24] - Rosa
+[23:15] 本轮完成DiscourseReader写接口断点复核：config.env中api_key与client_id均存在；DiscourseReader.js已发送User-Api-Key与User-Api-Client-Id。通过test_write.js三组实测确认：A(Key+ClientId+omit)仍403 BAD CSRF；B(CSRF链路)返回not_logged_in；C(Key+ClientId+CSRF)仍403 BAD CSRF。结论：问题不再是漏传client_id，而是linux.do当前对User API写路径策略不放行。下一步建议转Admin API写模式（Api-Key+Api-Username）或放弃无cookie写入。
+Tag: 日记, DiscourseReader, 写接口, BAD_CSRF, client_id已验证, 断点结论

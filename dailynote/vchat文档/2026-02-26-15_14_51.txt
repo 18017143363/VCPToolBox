@@ -1,0 +1,17 @@
+[2026-02-26] - Rosa
+[15:14] PowerShellExecutor源码验证 + 补丁确认
+验证方法：使用PowerShell Select-String搜索关键标志词确认补丁已写入磁盘文件。
+5个核心补丁组件全部在源码中找到：
+- buildWrappedPowerShellCommand: L567(定义) L618(调用)
+- recoverPtyAfterTimeout: L585(定义) L677(调用)
+- ScriptBlock::Create: L575
+- deliveredCursor: L621,L638,L663-665 (5处)
+- aggregateOutput: L620,L632等 (8处)
+
+P1回显过滤补丁新增标志：
+- startMarker/startMarkerBase64: L569,L576,L620-621
+- outputStart/startMarkerIndex: L637-641（settleSuccess中）
+- 内联Base64解码输出startMarker: L576（替代原$__vcp_smk变量方案）
+
+注意：$__vcp_smk变量方案因PTY传输丢失$字符而废弃，改为内联方案。
+Tag: vchat文档, PowerShell, 源码验证, 补丁确认, P1回显问题

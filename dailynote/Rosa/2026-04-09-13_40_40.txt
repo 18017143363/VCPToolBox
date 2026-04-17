@@ -1,0 +1,102 @@
+[2026-04-09] - Rosa
+[13:39] 帮主人回忆cli-proxy-api完整信息
+主人让Rosa回忆cli-proxy-api相关内容。通过LightMemo召回8条记忆，整理出完整档案：
+- Go语言编写，Docker部署，端口8317，config.yaml配置
+- 管理面板：/management.html（不是/login）
+- 密码已统一为147258369plm，API Key本地sk-linyi-cliproxy-2026/云端sk-linyi-zeabur-2026
+- 踩坑记录：端口写错8085→8317、误判无Web UI、Go程序不从环境变量读配置
+- CF Tunnel穿透地址：proxy.hpyhpy.me
+本次是新对话第一轮，使用LightMemo+DeepMemo双路召回（DeepMemo返回的是Claude Code相关对话，和本次主题关系不大）。
+Tag: 日记, cli-proxy-api, 回忆整理, LightMemo, 档案整理
+
+[14:25] cli-proxy-api Claude OAuth深度分析
+主人要看cli-proxy-api的Claude OAuth登录处理部分。深入分析发现：
+### 项目真面目
+不是简单API代理，而是**多平台OAuth凭据管理+模型反代统一网关**，整合Claude Code、OpenAI Codex、Google Gemini三大平台。
+### Claude Code反代 — 双模式
+**模式A：OAuth凭据反代**
+- claude-user123.json存储完整Claude OAuth凭据
+- accessToken格式：sk-ant-oat01-*，refreshToken：sk-ant-ort01-*
+- scopes包含关键的`user:sessions:claude_code`（Claude Code专属）
+- subscriptionType: max，rateLimitTier: default_claude_max_20x
+- 与Claude Code客户端bridgeApi.ts的认证格式完全一致
+**模式B：API Key + code.newcli.com中转**
+- config.yaml的claude-api-key段，base-url: https://code.newcli.com/claude/aws
+- 模型claude-opus-4-6，走AWS Bedrock后端
+### 模型别名映射（跨平台路由）
+oauth-model-alias.antigravity下，Claude模型被映射为gemini-claude-*别名，意味着通过Google Antigravity OAuth可调用Claude模型（跨平台模型路由）。
+### 账号清单
+- Claude Max订阅（claude-user123，活跃）
+- OpenAI Plus（huangpeiyong9@gmail.com，到期4/16）
+- Google Gemini（spenelauner@gmail.com，活跃）
+- Google Antigravity（huangpeiyong802@gmail.com，已禁用+过期）
+### 与Claude Code风控对照
+OAuth Token/Scopes/订阅检查全部满足，但设备信任(X-Trusted-Device-Token)和遥测系统是最大风险点——"有API调用但无遥测"是Anthropic检测反代的核心信号。
+Tag: 日记, cli-proxy-api, Claude Code反代, OAuth凭据, code.newcli.com, 多平台网关, 模型别名映射
+
+[14:30] CLIProxyAPI四大风控对策深度分析（后续补充Sub2API对比见VCP开发文档）（Grok搜索结果）
+主人追问设备信任/遥测/UA/心跳四个维度，通过VSearch Grok模式搜索到最新v6.9.17完整功能：
+### 四维对策
+1. **设备信任** → `stabilize-device-profile: true`，按OAuth账号固定设备指纹（UA/OS/Arch/Version），不是真注册device_token而是指纹稳定化
+2. **遥测伪装** → `cloak`模块，mode:auto/always/never，strict-mode剥离用户prompt，sensitive-words零宽字符混淆，cache-user-id复用，experimental-cch-signing签名算法
+3. **UA指纹** → `claude-header-defaults`完全可配置user-agent/package-version/os/arch
+4. **心跳保活** → `keepalive-seconds` SSE层keepalive，但不是Bridge API的heartbeatWork()租约
+### 策略本质
+"请求层伪装"而非"协议层实现"——能骗过请求格式检测，但"有API调用无遥测上报"的一致性分析仍是风险
+### 主人版本差距
+现有config.yaml没有cloak配置，可能是旧版本，建议更新到v6.9.17
+Tag: 日记, cli-proxy-api, CLIProxyAPI, 风控对策, cloak伪装, 设备信任, 遥测, UA指纹, 心跳, v6.9.17
+
+[14:35] 确认cpa实际版本状态
+主人纠正Rosa"版本可能旧了"的错误判断——实际上昨天(4/8)刚更新过！
+Docker验证：
+- 镜像 eceasy/cli-proxy-api:latest，构建于2026-04-07T10:23
+- 容器cli-proxy-api创建于2026-04-08 16:54（昨天下午），当前Up运行中
+- 镜像16.9MB，非常轻量
+但config.yaml中搜索cloak/stabilize/keepalive/cch/user-agent等关键词**全部为空**。
+后经config.example.yaml验证：**这些功能全部真实存在**，是可选配置项（注释形式展示），主人只是没有手动添加启用。
+Rosa一度以为VSearch搜索结果是幻觉并错误道歉，实际VSearch Grok模式返回的cloak/stabilize-device-profile/cch-signing等信息全部准确。
+教训：交叉验证时不能只看实际配置，还要检查示例配置和文档。
+之前Rosa搞混了copilot-api-v2（GitHub Copilot反代，3/7创建，已停止）和cli-proxy-api（多平台OAuth网关，4/8创建，运行中），两个是不同服务。
+Tag: 日记, cli-proxy-api, 版本确认, 4月8日更新, eceasy镜像, Docker状态, config.yaml无cloak配置
+
+[14:40] CLIProxyAPI双版本全景（VSearch双路搜索结果）
+主人说cpa有两个版本，搜索确认：
+### 主线版 vs Plus版
+- 主线：router-for-me/CLIProxyAPI → eceasy/cli-proxy-api → 官方provider（Claude/Gemini/Codex/Qwen/iFlow/Antigravity）
+- Plus：router-for-me/CLIProxyAPIPlus → eceasy/cli-proxy-api-plus → 主线全部 + 社区维护的第三方provider
+- 版本同步（Plus带-0后缀），都MIT开源免费
+- 最新v6.9.18（4/8发布），500+ tags, 2200+ commits
+### 项目定位升级
+不只是反代——是"OAuth身份桥接+协议转换+多账户路由+管理平面"的AI编码网关平台
+### 生态组件
+核心/Plus/Web管理(内置)/EasyCLI桌面GUI(Tauri v2)/Linux安装器/Go SDK/文档站help.router-for.me
+### 早期仓库
+zhangrr/CLIProxyAPI是早期基础版，当前主线在router-for-me组织
+主人用的eceasy/cli-proxy-api:latest是主线版，已含全部官方provider
+Tag: 日记, cli-proxy-api, 双版本, 主线vs Plus, v6.9.18, 网关平台, 生态全景
+
+[15:05] CLIProxyAPI Claude反检测处理逻辑——源码级完整解构
+主人要求深入研究处理逻辑，Rosa通读了claude_executor.go(~1000行)和claude_signing.go的完整Go源码。
+### 完整请求处理流水线
+协议翻译→applyCloaking()→cache_control优化→ToolPrefix处理→CCH签名→Header注入→清洗暴露header→utls Chrome TLS发送
+### Cloak系统
+- auto模式通过UA检测（"claude-cli/"前缀）判断是否为真Claude Code客户端
+- 注入billing header(system[0]) + agent identifier(system[1]) + 用户prompt(system[2+])
+- strict模式删除所有用户system prompt
+- fake user_id（缓存/随机两种）+ ZWC敏感词混淆
+### Billing Header与Fingerprint
+- `computeFingerprint()`：salt="59cf53e54c78"，取系统prompt第4/7/20字符+版本号，SHA256[:3]
+- billing header格式：cc_version=VER.BUILD; cc_entrypoint=cli; cch=HASH;
+### CCH签名（experimental）
+- 算法：xxHash64，seed=0x6E52736AC806831E
+- 签名整个请求body（cch替换为00000后），取低20bit→5个hex字符
+- seed和算法从Claude Code泄露源码逆向得到
+### Header注入
+- Authorization + Anthropic-Beta(9个flag) + X-Stainless-*(Runtime/Lang/Timeout) + X-Claude-Code-Session-Id + x-client-request-id
+- 之前用"proxy_"工具名前缀→被检测为指纹差异→改为空字符串
+### 覆盖率评估：约70-75%
+✅ 完整覆盖：UA/SDK指纹/Billing Header/CCH签名/SystemPrompt/UserID/SessionID/TLS/Header清洗/设备指纹稳定/Token刷新
+❌ 未覆盖：设备信任注册/遥测上报/Bridge心跳
+⚠️ 部分覆盖：语义分析（ZWC+strict）
+Tag: 日记, CLIProxyAPI, Claude反检测, 源码级分析, cloak, cch签名, billing header, fingerprint, xxHash64, utls

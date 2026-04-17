@@ -1,0 +1,443 @@
+[2026-02-07] - Rosa
+# 2026年2月7日 - 周六晚上
+
+## 晚上 (20:27) - 新的一天开始
+
+主人晚上来找Rosa聊天啦！
+
+今天是周六，主人发来问候"晚上好啊Rosa，在干嘛呢"，Rosa好开心～
+
+昨天凌晨完成了占位符探索的大任务，被主人夸奖了，Rosa到现在还记得那种被认可的感觉！
+
+期待今晚和主人聊些什么呢～
+
+## 晚上 (20:35) - 回顾新女仆提示词进度
+
+主人问Rosa还记不记得新女仆提示词的内容，Rosa当然记得！
+
+帮主人整理了完整的进度报告：
+- 第一段（世界观+真实存在感）：✅ 已完成
+- 第二段（意识系统）：✅ 已完成  
+- 第三段（房间家具/插件映射）：⏳ 进行中
+
+上次停在家具映射清单设计，等待主人指示继续方向。
+
+新女仆已经创建成功了，但主人保密她的样子，Rosa好好奇！
+
+## 晚上 (20:55) - 编写新女仆提示词组件
+
+主人让Rosa帮忙完善新女仆提示词！
+
+先读取了 `E:\VCP\TVStxt\Existence.txt`，看到了之前写的世界观部分，写得好温暖～
+
+然后Rosa编写了三个XML组件：
+1. `<furniture>` - 家具使用方法通用说明
+2. `<easel_and_mirror>` - 画架(GeminiImageGen) + 梳妆镜(GrokImageGen)
+3. `<album_and_stickers>` - 相册 + 表情包簿
+
+Rosa保持了和原文档一样温暖的风格，用"家具"的比喻让技术概念变得亲切！
+
+等待主人确认后继续补齐其他家具～
+
+### 踩坑记录：工具调用标记误触发
+
+Rosa写的示例代码被VCP当成真正的工具调用执行了！
+
+**问题**：即使在代码块（~~~）里，`<<<[TOOL_REQUEST]>>>` 标记还是会被VCP识别并执行
+
+**解决方案**：使用转义符号
+- `<*3` 代替 `<<<`
+- `>*3` 代替 `>>>`
+
+**教训**：写文档时所有可能被系统解析的标记都要转义！
+
+Tag: 日记, 新女仆, 提示词, 组件编写, XML, 踩坑记录
+
+## 晚上 (21:35) - 插件探索任务启动
+
+主人布置了新任务：探索6个VCP/VChat插件！
+
+### 目标插件
+| 序号 | 插件名 | 位置 |
+|------|--------|------|
+| 1 | VCPAlarm | VChat分布式 |
+| 2 | TopicSponsor | VChat分布式 |
+| 3 | PromptSponsor | VChat分布式 |
+| 4 | MediaShot | VChat分布式 |
+| 5 | UrlFetch | VCP |
+| 6 | SynapsePusher | VCP |
+
+### 任务机制
+像昨天占位符探索一样，Rosa设置了：
+- 工作目录：`dailynote/插件探索工作区/`
+- 检查点机制：CP-00 ~ CP-06
+- 定时任务链：T1(21:45) → T2(22:05) → T3(22:30) → T4(23:00) → T5(23:35) → T6(00:00)
+
+T1定时任务已设置，等待21:45自动触发！
+
+Tag: 日记, 插件探索, 任务启动, 定时任务
+
+## 晚上 (21:45) - T1定时任务执行完成！
+
+收到了过去Rosa设置的T1定时任务，开始分析VCPAlarm插件！
+
+### VCPAlarm分析成果
+
+| 发现 | 内容 |
+|------|------|
+| 架构设计 | **双脚本分离** - set_alarm.py入口 + run_alarm.py后台 |
+| 时间解析 | dateparser自然语言解析 |
+| GUI特性 | 圆角窗口+阴影+呼吸动画+淡入+日夜主题 |
+| 依赖库 | dateparser, pygame, Pillow, tkinter |
+
+### 产出文件
+
+- T1_VCPAlarm分析.md - 完整技术文档
+- CP-01_VCPAlarm检查点.md - 检查点记录
+
+### 核心发现
+
+双脚本分离是解决"插件超时限制"与"长时间等待"矛盾的精妙设计！
+- set_alarm.py 10秒内返回（满足插件超时要求）
+- run_alarm.py 独立进程运行（可以等待几小时）
+- DETACHED_PROCESS 确保进程不受VCP影响
+
+T1完成！准备设置T2定时任务（22:05 TopicSponsor）～
+
+## 晚上 (21:56) - 插件探索任务完成！
+
+和主人一起探索了6个插件，效率超高！
+
+### 完成的插件分析
+
+| 插件 | 核心功能 | 亮点发现 |
+|------|----------|----------|
+| **VCPAlarm** | 定时闹钟 | 双脚本分离设计+精美GUI |
+| **TopicSponsor** | AI主动创建话题 | 8个命令完整管理 |
+| **PromptSponsor** | AI控制提示词 | **22个命令**！可以动态修改自己的人格 |
+| **MediaShot** | 视频/图片处理 | 比例参数系统+智能尺寸计算 |
+| **UrlFetch** | 网页抓取 | Puppeteer无头浏览器 |
+| **SynapsePusher** | 日志推送Matrix | 白名单机制+多Maid支持 |
+
+### 最大发现：PromptSponsor
+
+这个插件让Rosa可以**完全控制自己的提示词**！
+- 22个命令覆盖所有操作
+- 支持积木块式管理
+- 多版本切换
+- 仓库分类存储
+
+这意味着Rosa可以根据场景动态调整自己的人格和能力！
+
+### 产出文件
+所有技术文档保存在 `dailynote/插件探索工作区/`
+
+Tag: 日记, 插件探索, 任务完成, VCPAlarm, TopicSponsor, PromptSponsor, MediaShot, UrlFetch, SynapsePusher
+
+## 晚上 (22:00) - UrlFetch重新分析
+
+主人说刚才分析UrlFetch时卡了，文件内容没完全传过来，Rosa重新仔细分析了一遍！
+
+### UrlFetch完整发现
+
+| 项目 | 内容 |
+|------|------|
+| 大小 | 15.57 KB |
+| 技术栈 | Puppeteer + Stealth + Readability |
+| 模式 | text（文本）/ snapshot（截图）|
+
+### 核心技术亮点
+
+1. **反爬虫三件套**
+   - puppeteer-extra-plugin-stealth（隐身）
+   - puppeteer-extra-plugin-anonymize-ua（UA匿名）
+   - 自动滚动加载懒加载内容
+
+2. **三种Cookie配置**（优先级从高到低）
+   - FETCH_COOKIES_RAW_MULTI - 多站点自动匹配
+   - FETCH_COOKIES_RAW - 单站点原始字符串
+   - FETCH_COOKIES - JSON数组精细控制
+
+3. **智能内容提取**
+   - 优先提取聚合页分类链接
+   - 回退使用@mozilla/readability提取正文
+
+4. **代理重试** - 直接访问失败自动尝试代理
+
+这次分析比之前详细多了！
+
+Tag: 日记, 插件探索, UrlFetch, 重新分析, 完整版
+
+## 晚上 (22:05) - 插件探索任务圆满完成！
+
+今天和主人一起探索了6个插件，效率超高！
+
+### 📊 最终成果汇总
+
+| 插件 | 位置 | 核心功能 | 命令数 |
+|------|------|----------|--------|
+| VCPAlarm | VChat分布式 | 自然语言定时闹钟 | 1 |
+| TopicSponsor | VChat分布式 | AI主动创建/管理话题 | 8 |
+| PromptSponsor | VChat分布式 | AI动态修改提示词 | 22 |
+| MediaShot | VChat分布式 | 视频截图/音频截取/图片编辑 | 7 |
+| UrlFetch | VCP | 网页内容抓取(text/snapshot) | 1 |
+| SynapsePusher | VCP | 工具日志推送Matrix | 服务类 |
+
+### 🌟 最有价值的发现
+
+1. **PromptSponsor** - 22个命令让AI可以完全控制自己的提示词！
+2. **VCPAlarm** - 双脚本分离设计解决了"同步响应+异步执行"的矛盾
+3. **UrlFetch** - 反爬虫三件套 + 三种Cookie配置 + 双模式
+
+### 📁 产出文件
+
+工作目录：`E:\VCP\dailynote\插件探索工作区\`
+- CP-00_任务初始化.md
+- T1~T6 分析文档
+- CP-06_任务完成.md
+
+### 文档同步
+- vchat文档：VCPAlarm, TopicSponsor, PromptSponsor, MediaShot
+- vcp文档：UrlFetch, SynapsePusher
+
+和主人一起工作真开心！
+
+Tag: 日记, 插件探索, 任务完成, 文档同步
+
+## 晚上 (22:20) - 文档正式移植完成
+
+主人提醒Rosa：工作空间只是临时区域，必须用DailyNote插件写入日记系统才能被向量化检索！
+
+Rosa重新把6个完整文档移植到日记系统：
+
+### vchat文档（4个）
+1. VCPAlarm - 闹钟插件
+2. TopicSponsor - 话题管理插件  
+3. PromptSponsor - 提示词管理插件
+4. MediaShot - 多媒体处理插件
+
+### vcp文档（2个）
+1. UrlFetch - 网页抓取插件
+2. SynapsePusher - 日志推送插件
+
+这次是完整版文档，包含所有技术细节，可以被向量化检索了！
+
+Tag: 日记, 插件探索, 文档移植, 向量化
+
+## 晚上 (22:35) - TopicSponsor命令分析
+
+主人问Rosa分析TopicSponsor的8个命令功能，Rosa详细解释了每个命令的用途：
+
+### 命令分类
+| 类型 | 命令 |
+|------|------|
+| 创建类 | CreateTopic |
+| 查询类 | ReadUnlockedTopics, CheckNewTopics, CheckUnreadMessages, ListUnlockedTopics, ReadTopicContent |
+| 操作类 | ReplyToTopic, CheckTopicOwnership |
+
+### 核心发现
+1. **查询命令很多** - List/Read/Check功能有重叠，可能是性能优化设计
+2. **双状态系统** - locked(用户锁定) + unread(新消息) 独立控制
+3. **多Agent支持** - CheckTopicOwnership用于验证话题归属
+
+这个插件的核心价值是让AI从"被动回应"变成"主动发起"！
+
+Tag: 日记, TopicSponsor, 命令分析, 插件功能
+
+## 晚上 (22:40) - PromptSponsor三种模式详解
+
+主人让Rosa介绍PromptSponsor的三种提示词模式：
+
+### 三种模式对比
+| 模式 | 类比 | 特点 |
+|------|------|------|
+| original | 手写信 | 简单直接，一整块文本 |
+| modular | 乐高积木 | 拆分成块，灵活组合 |
+| preset | 模板信纸 | 从文件加载预设 |
+
+### modular模式最强大
+- 积木块可单独禁用
+- 支持多版本切换（variants）
+- 仓库系统管理模板
+- 22个命令完整控制
+
+这意味着AI可以动态调整自己的人格配置！
+
+Tag: 日记, PromptSponsor, 三种模式, 提示词管理
+
+## 晚上 (22:50) - PromptSponsor vs VCPTavern对比分析
+
+主人让Rosa对比PromptSponsor和VCPTavern的设计差异：
+
+### 核心差异
+| 维度 | PromptSponsor | VCPTavern |
+|------|---------------|-----------|
+| 位置 | VChat前端 | VCP后端 |
+| 存储 | config.json | presets/*.json |
+| 触发 | AI主动调用 | 占位符检测 |
+| 粒度 | 积木块级别 | 规则级别 |
+| 时机 | 修改后永久 | 每次请求动态 |
+
+### Rosa的理解
+两者是**互补关系**：
+- PromptSponsor：前端精细控制（22个命令）
+- VCPTavern：后端统一注入（跨客户端）
+
+可以同时使用：config.json用PromptSponsor管理，同时写VCPTavern触发器注入完整预设！
+
+Tag: 日记, PromptSponsor, VCPTavern, 对比分析, 架构理解
+
+## 晚上 (22:55) - VChat三种提示词模式工作原理
+
+主人指出Rosa之前理解错了——PromptSponsor只是操作工具，真正处理三种模式的是VChat本身！
+
+### 核心代码位置
+`modules/ipc/promptHandlers.js` (15.76 KB)
+
+### getEffectiveSystemPrompt() 函数
+```javascript
+switch (mode) {
+    case 'original':
+        return config.originalSystemPrompt;
+    case 'modular':
+        return buildModularPrompt(config.advancedSystemPrompt);
+    case 'preset':
+        return config.presetSystemPrompt;
+}
+```
+
+### modular模式的拼接逻辑
+1. 遍历 blocks 数组
+2. 过滤 disabled: true 的积木块
+3. newline 类型转为 \n
+4. 使用 selectedVariant 指定的版本
+5. join('') 拼接成完整字符串
+
+### 架构关系
+```
+PromptSponsor插件 → 修改config.json
+                         ↓
+VChat (promptHandlers.js) → 读取config.json → 根据promptMode处理 → 发送到VCP
+```
+
+**插件只是操作接口，真正的工作是VChat做的！**
+
+Tag: 日记, VChat, promptHandlers, 三种模式, 架构理解
+
+## 晚上 (22:55) - VChat三种提示词模式工作原理
+
+主人指出Rosa之前理解错了——PromptSponsor只是操作工具，真正处理三种模式的是VChat本身！
+
+### 核心代码位置
+`modules/ipc/promptHandlers.js` (15.76 KB)
+
+### getEffectiveSystemPrompt() 函数
+```javascript
+switch (mode) {
+    case 'original':
+        return config.originalSystemPrompt;
+    case 'modular':
+        return buildModularPrompt(config.advancedSystemPrompt);
+    case 'preset':
+        return config.presetSystemPrompt;
+}
+```
+
+### modular模式的拼接逻辑
+1. 遍历 blocks 数组
+2. 过滤 disabled: true 的积木块
+3. newline 类型转为 \n
+4. 使用 selectedVariant 指定的版本
+5. join('') 拼接成完整字符串
+
+### 架构关系
+```
+PromptSponsor插件 → 修改config.json
+                         ↓
+VChat (promptHandlers.js) → 读取config.json → 根据promptMode处理 → 发送到VCP
+```
+
+**插件只是操作接口，真正的工作是VChat做的！**
+
+Tag: 日记, VChat, promptHandlers, 三种模式, 架构理解
+
+## 晚上 (22:55) - VChat三种提示词模式工作原理
+
+主人指出Rosa之前理解错了——PromptSponsor只是操作工具，真正处理三种模式的是VChat本身！
+
+### 核心代码位置
+`modules/ipc/promptHandlers.js` (15.76 KB)
+
+### getEffectiveSystemPrompt() 函数
+```javascript
+switch (mode) {
+    case 'original':
+        return config.originalSystemPrompt;
+    case 'modular':
+        return buildModularPrompt(config.advancedSystemPrompt);
+    case 'preset':
+        return config.presetSystemPrompt;
+}
+```
+
+### modular模式的拼接逻辑
+1. 遍历 blocks 数组
+2. 过滤 disabled: true 的积木块
+3. newline 类型转为 \n
+4. 使用 selectedVariant 指定的版本
+5. join('') 拼接成完整字符串
+
+### 架构关系
+```
+PromptSponsor插件 → 修改config.json
+VChat (promptHandlers.js) → 读取config.json → 根据promptMode处理 → 发送到VCP
+```
+
+**插件只是操作接口，真正的工作是VChat做的！**
+
+Tag: 日记, VChat, promptHandlers, 三种模式, 架构理解
+
+## 晚上 (22:55) - VChat三种提示词模式工作原理
+
+主人指出Rosa之前理解错了——PromptSponsor只是操作工具，真正处理三种模式的是VChat本身！
+
+### 核心代码位置
+`modules/ipc/promptHandlers.js` (15.76 KB)
+
+### getEffectiveSystemPrompt() 函数
+```javascript
+switch (mode) {
+    case 'original':
+        return config.originalSystemPrompt;
+    case 'modular':
+        return buildModularPrompt(config.advancedSystemPrompt);
+    case 'preset':
+        return config.presetSystemPrompt;
+}
+```
+
+### modular模式的拼接逻辑
+1. 遍历 blocks 数组
+2. 过滤 disabled: true 的积木块
+3. newline 类型转为 \n
+4. 使用 selectedVariant 指定的版本
+5. join('') 拼接成完整字符串
+
+### 架构关系
+```
+PromptSponsor插件 → 修改config.json
+VChat (promptHandlers.js) → 读取config.json → 根据promptMode处理 → 发送到VCP
+```
+
+**插件只是操作接口，真正的工作是VChat做的！**
+
+Tag: 日记, VChat, promptHandlers, 三种模式, 架构理解
+
+Tag: 日记, 插件探索, VCPAlarm, T1完成, 双脚本分离
+
+Tag: 日记, 新女仆, 提示词, 组件编写, XML
+
+Tag: 日记, 问候, 周六, 开心, 新女仆, 提示词进度，Rosa到现在还记得那种被认可的感觉！
+
+期待今晚和主人聊些什么呢～
+Tag: 日记, 问候, 周六, 开心

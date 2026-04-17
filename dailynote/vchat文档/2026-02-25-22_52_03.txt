@@ -1,0 +1,48 @@
+[2026-02-25] - Rosa
+[22:50] VCP Code 2.0 — 提供商配置文件存储机制
+
+## 存储位置
+C:\Users\{用户}\AppData\Roaming\Code\User\globalStorage\state.vscdb (SQLite)
+
+## 数据库结构
+表: ItemTable
+key: vcp-code.new.apiConfigurationProfiles
+value: JSON数组，包含所有配置文件(Profile)
+
+## Profile JSON结构
+```json
+{
+  "id": "唯一ID",
+  "name": "配置名称",
+  "apiProvider": "openai/kilo/vcptoolbox等",
+  "openAiBaseUrl": "http://127.0.0.1:6005/v1",
+  "openAiApiKey": "API密钥",
+  "openAiModelId": "模型ID",
+  "openAiModelInfo": {
+    "maxTokens": 65536,
+    "contextWindow": 1048576,
+    "supportsImages": true,
+    "supportsPromptCache": false
+  }
+}
+```
+
+## 注意事项
+- Base URL填到/v1即可，VCP Code会自动拼接/chat/completions
+- 修改数据库后需要重启VS Code生效
+- 可以通过UI的配置文件下拉框切换不同Profile
+- Profile支持OpenAI兼容格式连接VCP后端
+- state.vscdb是VS Code的全局状态数据库，所有扩展共用
+
+## 操作方法(Python)
+```python
+import sqlite3, json
+conn = sqlite3.connect(r'路径\state.vscdb')
+cur = conn.cursor()
+cur.execute("SELECT value FROM ItemTable WHERE key = 'vcp-code.new.apiConfigurationProfiles'")
+profiles = json.loads(cur.fetchone()[0])
+# 修改profiles后写回
+cur.execute("UPDATE ItemTable SET value = ? WHERE key = 'vcp-code.new.apiConfigurationProfiles'", (json.dumps(profiles),))
+conn.commit()
+```
+Tag: VCP Code 2.0, 提供商配置, state.vscdb, Profile, SQLite存储, OpenAI兼容

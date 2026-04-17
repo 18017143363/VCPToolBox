@@ -1,0 +1,14 @@
+[2026-04-08] - Rosa
+[20:43] 新对话开始——帮主人写Java实验作业。
+科目：Java核心技术
+实验主题：面向对象编程（封装、this、static、构造函数）
+## 完成内容
+第1题：Student类封装（private+getter/setter）+ study()/exam()方法 + StudentDemo测试类含匿名对象
+第2题：在第1题基础上添加无参+有参构造方法共存，两种赋值方式
+第3题：读程序写结果——Person类中static String country分析，6次show()全输出"中国"（static类变量共享）
+## 代码风格
+模仿第3题给定代码风格：类不加public、中文简短注释、show()方法、XxxDemo测试类、//创建对象N注释
+当前播放音乐：在吗看看腿（心动女生版）
+[20:56] 主人问怎么更新自己fork的GitHub仓库——给了两种方案：①GitHub网页Sync fork按钮（推荐）②命令行git remote add upstream+fetch+merge流程。等主人确认具体是哪个仓库。
+Tag: 日记, Git, fork同步, upstream, GitHub, 2026-04-08
+Tag: 日记, Java作业, 面向对象, 封装, static, 构造方法, 学习通, 2026-04-08

@@ -1,0 +1,19 @@
+[2026-02-23] - Rosa
+[13:55] ScreenPilot save模式源码级审计结果
+## 核心结论：save=true不减少负载
+screen_pilot.py的cmd_screen_capture函数中：
+- `image_to_base64(img)` 在第239行无条件执行
+- save=true仅在第260-269行额外执行img.save()保存到磁盘
+- 第282-290行返回result时，content数组始终包含 `{"type": "image_url", "image_url": {"url": data_uri}}`
+- savedPath只是作为额外字段追加到result对象
+## save参数真实行为对比
+| save值 | base64生成 | base64在返回JSON中 | 文件保存 | 上下文负载 |
+|--------|-----------|-------------------|---------|----------|
+| false | 是 | 是(content内) | 否 | 巨大(全屏数MB) |
+| true | 是 | 是(content内) | 是(额外) | 巨大(不变) |
+## 修复方向
+方案1：修改screen_pilot.py，save=true时不在content中放image_url
+方案2：VCP框架Plugin.js侧检测savedPath并替换base64（需确认框架逻辑）
+## 待验证
+VCP框架Plugin.js如何处理synchronous插件返回的content数组中的image_url——是否有大小截断或savedPath替换机制？
+Tag: ScreenPilot, save模式, 源码审计, base64未移除, 负载未减少, 修复方案, Plugin.js待验证

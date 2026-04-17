@@ -1,0 +1,11 @@
+[2026-02-23] - Rosa
+[20:38] 测试linux.do Discourse API的per_page参数极限。
+测试：`/tag/444-tag/444.json?per_page=100` → 成功返回JSON但per_page被服务端强制限制为30条/页，忽略客户端的per_page=100参数。翻页URL中写死`per_page=30`。
+结论：L站Discourse API单页上限30条，想要更多需分页拼接(page=0,1,2,3...)。
+返回数据结构：users数组(用户信息) + topic_list.topics数组(帖子列表，含title/views/like_count/posts_count/tags/created_at/last_posted_at等) + more_topics_url(翻页链接)。
+完整的JSON API路由知识：
+- tag页：`/tag/{slug}/{id}.json` (如 /tag/444-tag/444.json)
+- 翻页：`?page=1` (从0开始)
+- per_page：服务端强制30，客户端参数无效
+- 排序：默认按last_posted_at(最近活跃)降序
+Tag: 技术, linux.do, Discourse API, JSON, per_page限制, 分页, 数据结构

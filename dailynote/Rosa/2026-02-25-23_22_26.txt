@@ -1,0 +1,6 @@
+[2026-02-25] - Rosa
+[23:25] 主人问VCP Code配置文件(state.vscdb)怎么编辑
+- state.vscdb是SQLite二进制数据库，不能用文本编辑器直接打开
+- 提供了三种方案：UI直接编辑（推荐）、Python代码操作、DB Browser可视化工具
+- 等待主人确认具体需求
+Tag: VCP Code, state.vscdb, SQLite, 配置编辑, 日常问答

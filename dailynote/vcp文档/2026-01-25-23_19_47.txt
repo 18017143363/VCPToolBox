@@ -1,0 +1,92 @@
+[2026-01-25] - Rosa
+# VCP 架构文档 - server.js 入口分析
+
+## 概述
+server.js 是VCP系统的核心入口文件，约60KB，基于Express.js构建的中间层代理服务器。
+
+## 核心定位
+VCP本质上是一个**AI API中间层代理**：
+- 接收客户端请求 → 处理/增强 → 转发到真正的AI API → 处理响应 → 返回客户端
+- 在请求-响应过程中注入：插件系统、记忆系统、工具调用、角色分割等功能
+
+## 技术栈
+- **Web框架**: Express.js
+- **配置**: dotenv (config.env)
+- **时间**: dayjs + timezone
+- **定时任务**: node-schedule
+- **安全**: basic-auth, CORS
+
+## 核心模块架构
+
+### 1. 模块层 (modules/)
+- `logger.js` - 统一日志系统，支持控制台覆写和文件归档
+- `agentManager.js` - AI角色(Agent)管理器
+- `tvsManager.js` - TVS(Text Vector Store?)管理器
+- `messageProcessor.js` - 消息预处理器
+- `chatCompletionHandler.js` - **核心**：处理/v1/chat/completions请求的完整流程
+
+### 2. 插件系统 (Plugin.js)
+- 支持多种插件类型：服务类、静态类、消息预处理器
+- 提供工具调用接口 `processToolCall`
+- 支持依赖注入、WebSocket推送
+
+### 3. 知识库系统 (KnowledgeBaseManager.js)
+- 向量数据库管理
+- 支持RAG检索
+- 与DailyNote等插件协作
+
+### 4. 路由系统 (routes/)
+- `specialModelRouter.js` - 白名单模型的特殊处理
+- `adminPanelRoutes.js` - 管理面板API
+- `taskScheduler.js` - 定时任务调度
+- `forumApi.js` - VCP论坛API
+
+## 安全机制
+1. **IP黑名单**: 5次API错误自动永久封禁
+2. **登录限制**: 15分钟内5次失败 → 临时封禁30分钟
+3. **Bearer Token**: API请求需要config.env中的Key验证
+4. **Basic Auth**: 管理面板使用AdminUsername/AdminPassword
+
+## 核心API端点
+| 端点 | 方法 | 功能 |
+|------|------|------|
+| /v1/chat/completions | POST | 标准聊天完成(主入口) |
+| /v1/chatvcp/completions | POST | 强制显示VCP信息 |
+| /v1/interrupt | POST | 紧急停止请求 |
+| /v1/schedule_task | POST | 创建定时任务 |
+| /v1/human/tool | POST | 人类直接调用工具 |
+| /v1/models | GET | 获取模型列表 |
+| /plugin-callback/:pluginName/:taskId | POST | 插件异步回调 |
+
+## 启动流程
+1. dotenv加载配置
+2. 初始化日志系统(logger.initializeServerLogger)
+3. 解析AGENT_DIR路径
+4. loadBlacklist()加载IP黑名单
+5. knowledgeBaseManager.initialize()初始化向量数据库
+6. pluginManager.loadPlugins()加载所有插件
+7. pluginManager.initializeServices()初始化服务类插件
+8. 依赖注入(knowledgeBaseManager, vcpLogFunctions)
+9. pluginManager.initializeStaticPlugins()初始化静态插件
+10. pluginManager.prewarmPythonPlugins()预热Python插件
+11. 加载表情包列表缓存
+12. taskScheduler.initialize()初始化任务调度
+13. webSocketServer.initialize()启动WebSocket
+14. app.listen()开始监听
+
+## 关键环境变量
+- PORT: 服务端口
+- API_Key: 上游AI API密钥
+- API_URL: 上游AI API地址
+- Key: VCP服务器密钥(Bearer Token)
+- AdminUsername/AdminPassword: 管理面板凭据
+- DebugMode: 调试模式开关
+- AGENT_DIR_PATH: Agent目录路径
+
+## 待深入分析
+- [ ] chatCompletionHandler.js - 核心请求处理流程
+- [ ] Plugin.js - 插件系统架构
+- [ ] KnowledgeBaseManager.js - 向量数据库实现
+- [ ] WebSocketServer.js - 实时通信机制
+- [ ] 各核心插件的实现
+Tag: VCP, 架构, server.js, Express, 入口分析

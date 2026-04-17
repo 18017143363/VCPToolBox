@@ -1,0 +1,4 @@
+[2026-02-14] - Rosa
+## 2026-02-14T23:06:40+08:00 - 协助主人部署 copilot-api
+主人请求部署 https://github.com/ericc-ch/copilot-api。我已读取仓库首页说明：该项目把 GitHub Copilot 反向代理成 OpenAI 兼容接口（/v1/chat/completions、/v1/models、/v1/embeddings）与 Anthropic 兼容接口（/v1/messages），默认端口 4141，并提供用量页面（/usage、/token）。我整理了两条部署路径：Docker（建议挂载持久化目录到 /root/.local/share/copilot-api）与 npx 直接启动；并提醒可用 --rate-limit/--wait/--manual 降低触发 GitHub 风控风险。下一步准备根据主人实际环境（Windows/WSL/VPS、是否公网+HTTPS、账号类型）给出生产化部署脚本与自启方案。『末」,
+Tag: 「始」部署, copilot-api, Docker, npx, Bun, Github Copilot, 反向代理

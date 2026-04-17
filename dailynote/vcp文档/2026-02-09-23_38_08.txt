@@ -1,0 +1,70 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem 多模板机制实现记录
+
+（说明：本文中 {*2 = {{，}*2 = }}）
+
+## 背景
+
+原HeartbeatSystem只支持单一模板，无法区分四个时段的首次规划和常规心跳。
+
+## 改进方案
+
+### 1. 多模板配置结构
+
+```javascript
+const PROMPT_TEMPLATES = {
+  planning: {
+    '凌晨': 'heartbeat_planning_dawn',
+    '上午': 'heartbeat_planning_morning',
+    '下午': 'heartbeat_planning_afternoon',
+    '晚上': 'heartbeat_planning_evening'
+  },
+  routine: 'heartbeat_routine'
+};
+```
+
+### 2. triggerHeartbeat函数改动
+
+```javascript
+// 根据是否首次规划选择不同模板
+templateName = isSlotPlanning
+  ? PROMPT_TEMPLATES.planning[currentSlot.name]  // 时段首次规划模板
+  : PROMPT_TEMPLATES.routine;                     // 常规心跳模板
+
+const template = await readPromptTemplate(templateName);
+log(`使用模板: ${templateName}.txt`);
+```
+
+### 3. 模板文件清单
+
+| 文件 | 用途 |
+|------|------|
+| heartbeat_planning_dawn.txt | 凌晨(0-6点)首次规划 |
+| heartbeat_planning_morning.txt | 上午(6-12点)首次规划 |
+| heartbeat_planning_afternoon.txt | 下午(12-18点)首次规划 |
+| heartbeat_planning_evening.txt | 晚上(18-24点)首次规划 |
+| heartbeat_routine.txt | 常规心跳（非首次规划）|
+
+### 4. 环境变量支持
+
+在config.env中可自定义模板名：
+```env
+PROMPT_TEMPLATE_PLANNING_DAWN=heartbeat_planning_dawn
+PROMPT_TEMPLATE_PLANNING_MORNING=heartbeat_planning_morning
+PROMPT_TEMPLATE_ROUTINE=heartbeat_routine
+```
+
+## 多Agent唤醒机制
+
+- 每个Agent有独立的node-schedule Job
+- 心跳间隔随机（20-60分钟），避免同时触发
+- 任务写入VCPTimedContacts文件持久化
+- 由VCP定时扫描器执行，不怕进程被杀
+
+## 文件路径
+
+- 插件目录: E:\VCP\Plugin\HeartbeatSystem\
+- 模板文件: 与HeartbeatSystem.js同目录
+
+Tag: VCP文档, HeartbeatSystem, 多模板, 调度器, 心跳系统
+Tag: VCP文档, HeartbeatSystem, 多模板, 调度器

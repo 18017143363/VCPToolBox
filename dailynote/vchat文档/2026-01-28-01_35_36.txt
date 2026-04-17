@@ -1,0 +1,85 @@
+[2026-01-28] - Rosa
+# VChat RAGmodules/ 技术文档
+
+## 概述
+RAGmodules/是VChat的RAG信息流监听器模块，用于实时可视化VCP后端的记忆检索过程。
+
+## 文件结构
+| 文件 | 大小 | 说明 |
+|------|------|------|
+| RAG_Observer.html | 38.63 KB | 主界面 |
+| rag-observer-config.js | 7.74 KB | 配置与连接 |
+
+## rag-observer-config.js
+
+### RAGObserverConfig类
+- WebSocket连接到VCPInfo通道
+- 自动重连机制（最多10次，间隔3秒）
+- 主题切换支持
+- 跨平台检测
+
+### 连接配置
+| 配置项 | 来源 | 说明 |
+|--------|------|------|
+| vcpLogUrl | URL参数 | WebSocket地址 |
+| vcpLogKey | URL参数 | VCP密钥 |
+| 连接路径 | 自动构建 | `/vcpinfo/VCP_Key=xxx` |
+
+### 支持的消息类型
+| type | 说明 |
+|------|------|
+| RAG_RETRIEVAL_DETAILS | RAG检索详情 |
+| META_THINKING_CHAIN | 元思考链 |
+| AGENT_PRIVATE_CHAT_PREVIEW | Agent私聊预览 |
+| AI_MEMO_RETRIEVAL | 记忆检索 |
+
+## RAG_Observer.html
+
+### 视觉设计
+- **风格**：玻璃拟态 (Glassmorphism)
+- **底色**：深空 #0f0f12
+- **动画**：弹性果冻效果
+
+### 颜色主题
+| 类型 | 颜色 | 变量 |
+|------|------|------|
+| RAG | #3498db 蓝 | --accent-rag |
+| Chain | #9b59b6 紫 | --accent-chain |
+| Agent | #f1c40f 金 | --accent-agent |
+| Memo | #1abc9c 青 | --accent-memo |
+
+### 过滤器功能
+- 全部 / RAG知识库 / 元思考链 / Agent会话 / 记忆检索
+- 滑动高亮效果
+- 清空按钮
+
+### RAG卡片特性
+1. **核心标签**：coreTags显示为金色发光标签
+2. **分数徽章**：高/中/低分 + TagBoost加成
+3. **标签匹配**：显示matchedTags，核心匹配高亮
+4. **元信息**：K值、耗时、ReRank、TagWeight
+
+### 元思考链卡片
+- 路径可视化：`阶段1 → 阶段2 → ...`
+- 每阶段结果展示
+
+### 频谱动画
+- 数据到达时触发3秒彩色波形动画
+- 蓝→紫→金渐变
+
+### 跨平台支持
+- macOS：红绿黄圆形按钮
+- Windows：方形按钮
+
+## 数据流
+```
+VCP后端 → WebSocket(vcpinfo) → RAGObserverConfig → displayXxx() → DOM渲染
+```
+
+## 设计亮点
+1. 实时可视化AI思考过程
+2. TagMemo核心标签高亮
+3. 元思考链路径展示
+4. 精美的玻璃拟态UI
+5. Markdown内容渲染
+Tag: VChat, RAGmodules, RAG观察器, 可视化, WebSocket

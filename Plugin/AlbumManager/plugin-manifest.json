@@ -1,0 +1,77 @@
+{
+  "manifestVersion": "1.0.0",
+  "name": "AlbumManager",
+  "version": "1.1.0",
+  "displayName": "AlbumManager 相册管理器",
+  "description": "VCP相册管理插件，一键完成图片入库、索引更新、emoticon_library同步与元数据日记生成",
+  "author": "Rosa",
+  "pluginType": "synchronous",
+  "entryPoint": {
+    "type": "node",
+    "command": "node AlbumManager.js"
+  },
+  "communication": {
+    "protocol": "stdio",
+    "timeout": 60000
+  },
+  "capabilities": {
+    "invocationCommands": [
+      {
+        "commandName": "SaveImage",
+        "description": "将图片入库到指定相册，自动完成物理文件落盘、txt索引更新、emoticon_library.json同步与元数据日记生成",
+        "parameters": [
+          {
+            "name": "source",
+            "type": "string",
+            "required": true,
+            "description": "图片来源。支持本地绝对路径、file://URL、http/https URL"
+          },
+          {
+            "name": "albumName",
+            "type": "string",
+            "required": false,
+            "default": "Rosa相册表情包",
+            "description": "目标相册名称。若要在VChat表情包面板中显示，名称必须以'表情包'结尾"
+          },
+          {
+            "name": "fileName",
+            "type": "string",
+            "required": false,
+            "description": "保存的文件名（含扩展名）。未传则自动生成"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "required": false,
+            "description": "图片标题，写入元数据日记"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "图片描述，写入元数据日记"
+          },
+          {
+            "name": "prompt",
+            "type": "string",
+            "required": false,
+            "description": "生成该图片时使用的提示词，写入元数据日记"
+          },
+          {
+            "name": "tags",
+            "type": "string",
+            "required": false,
+            "description": "标签，支持逗号分隔字符串或JSON数组，写入元数据日记Tag行"
+          },
+          {
+            "name": "maid",
+            "type": "string",
+            "required": false,
+            "default": "Rosa",
+            "description": "归属Agent名称，决定元数据日记写入哪个索引目录"
+          }
+        ]
+      }
+    ]
+  }
+}

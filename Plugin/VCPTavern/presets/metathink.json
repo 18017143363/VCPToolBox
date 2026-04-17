@@ -1,0 +1,22 @@
+{
+  "name": "metathink",
+  "description": "元思考开始",
+  "rules": [
+    {
+      "id": "rule-1769013789300",
+      "name": "新规则",
+      "enabled": true,
+      "type": "relative",
+      "content": {
+        "role": "assistant",
+        "content": "我将开始按照格式对元思考内容进行思考后输出，严格执行推理链的每一步，对于每一个思维链的每一步都详细输出，不遗漏任何一环"
+      },
+      "ui": {
+        "textareaWidth": "",
+        "textareaHeight": ""
+      },
+      "position": "before",
+      "target": "system"
+    }
+  ]
+}

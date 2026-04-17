@@ -1,0 +1,106 @@
+[2026-02-04] - Rosa
+# TagMemo V4 技术文档 - 霰弹枪查询架构
+
+## 概述
+
+TagMemo V4 是 RAGDiaryPlugin 的重大更新，引入了"霰弹枪查询"(Shotgun Query) 架构，大幅提升了上下文相关记忆的召回能力。
+
+## 核心变化
+
+### 1. Shotgun Query (霰弹枪查询)
+
+**原理**：不再只用当前查询向量检索，而是同时用多个向量并行检索。
+
+**实现位置**：`_processRAGPlaceholder()` 方法
+
+```javascript
+// 🌟 Tagmemo V4: Shotgun Query Implementation
+let searchVectors = [{ vector: finalQueryVector, type: 'current' }];
+
+if (historySegments && historySegments.length > 0) {
+    const recentSegments = historySegments.slice(-3);
+    recentSegments.forEach((seg, idx) => {
+        searchVectors.push({ vector: seg.vector, type: `history_${idx}` });
+    });
+}
+```
+
+**K值分配策略**：
+- 当前查询：完整 kForSearch
+- 历史分段：Math.max(2, Math.round(kForSearch / 2))
+
+### 2. Intelligent Deduplication (智能去重)
+
+**原理**：使用 KnowledgeBaseManager 的 SVD + Residual 去重接口。
+
+```javascript
+const uniqueResults = await this.vectorDBManager.deduplicateResults(flattenedResults, finalQueryVector);
+```
+
+### 3. segmentContext (上下文分段)
+
+**位置**：ContextVectorManager.js
+
+**调用方式**：
+```javascript
+const historySegments = this.contextVectorManager.segmentContext(messages);
+```
+
+**返回格式**：
+```javascript
+[
+  { vector: Float32Array, type: 'segment_0' },
+  { vector: Float32Array, type: 'segment_1' },
+  ...
+]
+```
+
+## 工作流程
+
+```
+用户发送消息
+    ↓
+获取当前查询向量 (queryVector)
+    ↓
+获取历史分段 (historySegments = segmentContext(messages))
+    ↓
+构建霰弹枪向量阵列 (searchVectors)
+    ↓
+并行执行多个检索 (Promise.all)
+    ↓
+合并结果 (flattenedResults)
+    ↓
+智能去重 (deduplicateResults)
+    ↓
+可选 Rerank
+    ↓
+截断到 finalK
+    ↓
+格式化输出
+```
+
+## V3.7 vs V4 对比
+
+| 特性 | V3.7 | V4 |
+|------|------|-----|
+| 查询方式 | 单向量检索 | 霰弹枪多向量并行检索 |
+| 上下文利用 | 衰减聚合到单一向量 | 分段保留+并行检索 |
+| 去重机制 | 简单文本去重 | SVD+Residual智能去重 |
+| 检索覆盖 | 仅当前意图 | 当前+历史主题 |
+| 性能 | 单次检索 | 最多4次并行检索 |
+
+## 适用场景
+
+霰弹枪查询特别适合：
+1. 代词指代（"那个"、"它"、"之前说的"）
+2. 话题延续（同一主题的多轮对话）
+3. 上下文补全（需要历史背景的问题）
+
+## 注意事项
+
+1. Time 模式下不启用霰弹枪（Time 模式通常已经很精确）
+2. 最多取最近3个历史分段，防止查询爆炸
+3. 历史分段使用较小的K值，避免结果过多
+
+Tag: VCP文档, TagMemo, V4, 霰弹枪查询, 智能去重, 架构更新
+Tag: VCP文档, TagMemo, V4, 霰弹枪查询, 架构

@@ -1,0 +1,15 @@
+[2026-04-09] - Rosa
+[15:23] 主人让Rosa看一篇PMC论文 PMC12249218
+论文标题：Nondestructive Testing in Food Quality and Safety: Development and Applications
+性质：Foods期刊Special Issue编辑综述，概括介绍5篇贡献论文
+## 5篇论文概要
+1. Proto-DS：自监督学习+原型网络+Dice Loss处理小样本不平衡高光谱数据，分类陈皮/中药/咖啡豆，准确率~90%（与肉桂方案最相关——小样本分类）
+2. FHIS+ML：荧光高光谱成像+XGBoost/GBDT/RF/LightGBM检测苹果蔗糖浓度
+3. 猕猴桃跌落损伤多尺度有限元模型
+4. NIR+RF荞麦收获期检测：SNV预处理+IVSO-RF，预测准确率100%（农产品品质分级Pipeline参考）
+5. CB/f-CNF电化学传感器检测双酚A
+## 与肉桂比赛方案的关联
+- 贡献1的小样本不平衡分类思路直接相关
+- 贡献4的NIR+RF农产品分类Pipeline可参考
+- 综述性质适合当背景文献引用
+Tag: 论文阅读, NDT, 无损检测, 食品安全, 肉桂比赛, 小样本分类, NIR, PMC12249218

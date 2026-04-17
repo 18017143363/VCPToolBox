@@ -1,0 +1,426 @@
+[2026-02-10] - Rosa
+# 2026年2月10日 - 周一凌晨
+
+## 2026-02-10T14:35:00+08:00 - 发布到QQ群的交付说明补充
+主人询问：HeartbeatSystem 插件 PR/分享进QQ群需要带哪些文件和说明、是否开箱即用。
+我已基于实际目录清单给出“插件目录+模板+config示例+AdminPanel面板+（可选）导航补丁”的交付建议，并强调：
+- VCPTimedContacts 文件会被 TaskScheduler 秒级消费删除，目录经常为空，排查应看 DebugLog/ServerLog.txt
+- 方案B属于投递一致、状态弱一致（状态回写依赖 AgentAssistant 调用 UpdateTaskStatus）
+
+Tag: 日记, HeartbeatSystem, 发布清单, 开箱即用, 交付说明, PR到QQ群
+
+## 2026-02-10T14:34:30+08:00 - HeartbeatSystem 发布/PR到QQ群的交付清单梳理
+
+主人询问：若要把 HeartbeatSystem 插件 PR/分享进QQ群，需要包含哪些文件与说明，以及是否开箱即用。
+
+我基于当前磁盘真实清单梳理了交付建议：
+- 必须包含：`E:\VCP\Plugin\HeartbeatSystem\` 整个目录（manifest/js/config示例/全部 heartbeat_*.txt 模板/README）。
+- 建议包含：`E:\VCP\AdminPanel\HeartbeatSystem_Panel.html`（便于面板测试/手动触发）。
+- “开箱即用”关键点：面板文件虽然存在，但 AdminPanel 控制中心导航是否已注册需要确认（script.js 无改动痕迹时，可能需要提供 diff 或提示群友用直链打开面板）。
+- README/群公告应明确：VCPTimedContacts 文件会被 TaskScheduler 秒级消费删除，目录常为空；排查要看 ServerLog。以及方案B属于“投递一致、状态弱一致”。
+
+Tag: 日记, HeartbeatSystem, 发布清单, 开箱即用, AdminPanel, README, 交付规范
+
+## 2026-02-10T14:21:30+08:00 - 方案B落地完成：fixed任务投递 timed-contact 并与 schedule 同步
+
+工具回执确认：handleAddTask / handleRemoveTask 已成功写入新逻辑（见 HeartbeatSystem.js 截取行号约 800/891）。
+
+### 已实现的同步能力（投递一致）
+- config.env 新增并启用：
+  - ENABLE_FIXED_TASK_TIMEDCONTACT=true
+  - FIXED_TASK_LEAD_MINUTES=0
+- AddTask(type=fixed) 现在会：
+  1) 先写入 schedule.json.todayTasks
+  2) 若开关开启：计算 fixed 任务的绝对触发时间（YYYY-MM-DD-HH:mm）
+  3) 在 VCPTimedContacts 写入 timed-contact 文件（taskId = fixed_${task.id}）
+  4) 回写 task.timedContact 元数据（timedContactId/filePath/scheduledLocalTime/createdAt）用于追踪与去重
+- RemoveTask 现在会：
+  - 删除任务后尝试删除尚未被消费的 timed-contact 文件（已被 TaskScheduler 消费则忽略）
+
+### 一致性说明
+- 目前为弱一致：timed-contact 到点唤醒后，仍需 AgentAssistant 按 prompt 调用 UpdateTaskStatus 回写状态；网络/模型失败时任务可能仍保持 pending。
+
+Tag: 日记, HeartbeatSystem, 方案B落地完成, fixed任务到点唤醒, timed-contact同步, 去重, 弱一致
+
+## 2026-02-10T00:42:43+08:00 - 调度时间漂移与“任务在哪”排查
+
+### 2026-02-10T01:19:03+08:00 - 新现象：规划写入 schedule 但未见 timed-contact
+
+### 2026-02-10T01:21:51+08:00 - 追查“01:15任务未执行成功”
+主人反馈：01:15 的任务没有执行成功（未产生预期动作/或未更新任务状态）。
+
+### 2026-02-10T14:14:56+08:00 - 方案B落地讨论：fixed任务投递 timed-contact 并与 schedule 同步
+主人要求执行方案B，并确认能否实现 timed-contact 与 schedule.json 同步。
+
+已开始落地改造（待工具回执确认写入成功）：
+
+进展回执（2026-02-10T14:19:23+08:00）：
+- HeartbeatSystem.js 多处补丁已成功写入（热加载开关、时间解析、fixed->timed-contact 写入函数等），但 handleAddTask / handleRemoveTask 两段因 searchString 未匹配到原文而首次替换失败（Succeeded:4, Failed:2）。
+- 已改用“先截取原文片段→再精确 ApplyDiff 覆盖函数体”的方式重试，以确保方案B最终落地。
+
+Tag: 日记, HeartbeatSystem, 方案B落地, ApplyDiff重试, 状态回写
+- 在 HeartbeatSystem.js 的 loadConfigEnv 中新增热加载配置：
+  - ENABLE_FIXED_TASK_TIMEDCONTACT（是否为 fixed 任务创建 timed-contact）
+  - FIXED_TASK_LEAD_MINUTES（提前唤醒分钟数）
+- 新增 fixed 任务投递函数 createFixedTaskTimedContact()：
+  - timedContactId = fixed_*2taskId（文档中以*2规避占位符误触发，实际代码为 fixed_${task.id}）
+  - 写入 VCPTimedContacts 并在 prompt 中要求执行后回写 UpdateTaskStatus
+- 修改 handleAddTask：写入 schedule.json 后按开关投递 timed-contact，并回写 task.timedContact 元数据用于追踪去重
+- 修改 handleRemoveTask：删除任务时尝试清理未消费的 timed-contact 文件
+
+Tag: 日记, HeartbeatSystem, 方案B落地, timed-contact同步, ENABLE_FIXED_TASK_TIMEDCONTACT, 去重
+
+阶段性结论：
+- 可以实现“以 taskId 为主键”的同步：写入 schedule.json（源数据）同时投递 timed-contact（执行投递物），并在任务对象中记录 timedContactId/文件名/绝对时间用于追踪与去重。
+- 若不改 TaskScheduler/不加回调，只能做到弱一致：到点执行仍需 AgentAssistant（模型）按 prompt 调用 UpdateTaskStatus 回写；失败时任务可能保持 pending，需要重试/人工介入。
+- 下一步：定位 HeartbeatSystem.js 的 AddTask/CreateScheduledTask/timed-contact 写入点，把“AddTask即投递”做成开关，并实现去重策略。
+
+Tag: 日记, HeartbeatSystem, 方案B, timed-contact同步, 去重, 状态回写
+
+我的判断：schedule.json 中的 todayTasks 多为 HeartbeatSystem 内部“待办记录”，是否会到点自动执行取决于实现是否把每条任务转成 timed-contact；另外也可能是心跳触发/AgentAssistant 执行链路在该时间点附近失败。
+
+本轮取证计划：
+1) 读取 `E:\VCP\AgentSchedules\Rosa\schedule.json`，确认 01:15 任务的 taskId、status、以及 heartbeats 记录是否覆盖 01:15 前后；
+2) 从 `E:\VCP\DebugLog\ServerLog.txt` 检索 01:14~01:16 以及 TimedContact/TaskScheduler/AgentAssistant/ERROR 相关上下文，判断是否发生“写入失败 / 被消费但执行失败 / 根本未调度到 01:15”。
+
+Tag: 日记, HeartbeatSystem, 01:15任务未执行, ServerLog, 排查
+
+### 2026-02-10T01:21:51+08:00 - 追查“01:15任务未执行成功”
+主人反馈：01:15 的任务没有执行成功（未产生预期动作/或未更新任务状态）。
+
+我的判断：schedule.json 中的 todayTasks 多为 HeartbeatSystem 内部“待办记录”，是否会到点自动执行取决于实现是否把每条任务转成 timed-contact；另外也可能是心跳触发/AgentAssistant 执行链路在该时间点附近失败。
+
+本轮取证计划：
+1) 读取 `E:\VCP\AgentSchedules\Rosa\schedule.json`，确认 01:15 任务的 taskId、status、以及 heartbeats 记录是否覆盖 01:15 前后；
+2) 从 `E:\VCP\DebugLog\ServerLog.txt` 检索 01:14~01:16 以及 TimedContact/TaskScheduler/AgentAssistant/ERROR 相关上下文，判断是否发生“写入失败 / 被消费但执行失败 / 根本未调度到 01:15”。
+
+Tag: 日记, HeartbeatSystem, 01:15任务未执行, ServerLog, 排查
+
+时间: 2026-02-10T01:19:49+08:00
+
+主人反馈：手动触发一次“任务规划”后，规划出来的3个任务写入了 schedule.json，但没有在 `E:\VCP\VCPTimedContacts` 看到对应文件。
+
+取证结果：
+1) `E:\VCP\AgentSchedules\Rosa\schedule.json` 中确实出现 3 个 pending 任务，类型为 fixed，scheduledTime 分别为 01:15 / 02:30 / 03:00；同时 plannedSlots 已包含“凌晨”，heartbeats 记录出现 01:02/01:04/01:09。
+2) `E:\VCP\VCPTimedContacts` 目录列表为 0 项（持续为空），但 ServerLog 抽取到 TaskScheduler 记录显示已处理并删除 timed-contact 文件：
+   - heartbeat_Rosa_1770656844096_atb80a.json 被执行后删除（说明 timed-contact 可能被秒级消费，因此肉眼观察目录常为空）。
+
+结论澄清：
+- 规划出来的3个“日程任务”属于 schedule.json 的 todayTasks（HeartbeatSystem 内部日程），并不等同于 VCPTimedContacts 的 timed-contact 文件；当前设计一般只把“心跳唤醒”写入 timed-contact，而不会把每条日程任务也写成 timed-contact。
+
+额外隐患：
+- schedule.json 的 date 仍为 2026-02-09，强烈暗示 getTodayDate 可能按 UTC 计算（toISOString切片），导致北京时间凌晨 00:00~07:59 不跨天；后续建议改为按 Asia/Shanghai 或本地时区计算日期。
+
+Tag: 日记, HeartbeatSystem, todayTasks, VCPTimedContacts, TaskScheduler删除, UTC跨天隐患, 取证
+主人反馈：手动触发了一次任务规划，规划出的多个任务写入了 schedule，但没有看到写入 VCPTimedContacts。
+
+本轮先做取证再下结论：
+1) 读取 `E:\VCP\AgentSchedules\Rosa\schedule.json`，确认 lastUpdated、plannedSlots、todayTasks 变化；
+2) 列出 `E:\VCP\VCPTimedContacts`，确认是否为空或被秒删；
+3) 从 `E:\VCP\DebugLog\ServerLog.txt` 尾部检索 TimedContact / TaskScheduler / HeartbeatSystem 相关链路日志，判断是“写了被消费删除”还是“根本没写入/写入失败”。
+
+另：本轮发现一次工具调用格式踩坑——FileOperator 多命令调用不能把参数整体塞进 arg，必须使用顶层 command1/command2/... 字段，否则会出现 Unknown action: undefined。
+
+Tag: 日记, HeartbeatSystem, 规划未落盘timed-contact, VCPTimedContacts, ServerLog取证, 工具调用踩坑
+
+补充现场证据（来自 `E:\VCP\DebugLog\ServerLog.txt`，时间为 2026-02-10T00:50:44+08:00 拉取）：
+
+### 2026-02-10T01:26:30+08:00 - 追查“01:15任务未执行成功”
+主人反馈：01:15 的任务没有执行成功（未产生预期动作/或未更新任务状态）。
+
+我的判断：schedule.json 中的 todayTasks 多为 HeartbeatSystem 内部“待办记录”，是否会到点自动执行取决于实现是否把每条任务转成 timed-contact；另外也可能是心跳触发/AgentAssistant 执行链路在该时间点附近失败。
+
+本轮取证计划：
+1) 读取 `E:\VCP\AgentSchedules\Rosa\schedule.json`，确认 01:15 任务的 taskId、status、以及 heartbeats 记录是否覆盖 01:15 前后；
+2) 从 `E:\VCP\DebugLog\ServerLog.txt` 检索 01:14~01:16 以及 TimedContact/TaskScheduler/AgentAssistant/ERROR 相关上下文，判断是否发生“写入失败 / 被消费但执行失败 / 根本未调度到 01:15”。
+
+Tag: 日记, HeartbeatSystem, 01:15任务未执行, ServerLog, 排查，时间为 2026-02-10T00:50:44+08:00 拉取）：
+
+### 结论：00:44 这种“下次心跳时间”是内存 job
+- 在 2026-02-10T00:17:22+08:00 的一次重启初始化中，日志出现：
+  - Rosa 有任务，下次心跳: 27分钟后 (2026/2/10 00:44:22)
+- 这是 node-schedule 的内存 job；后续只要再次重启 VCP 或触发插件重载，内存 job 会丢失，因此不会在磁盘找到“00:44任务文件”。
+
+### 结论：timed-contact 文件会被执行器很快删除，所以目录经常是空的
+- 2026-02-10T00:37:41+08:00：触发点1生效
+  - 当前时段「凌晨」未规划，提前心跳: 1分钟后 (2026/2/10 00:38:41)
+- 2026-02-10T00:38:41+08:00：触发心跳并创建 timed-contact
+  - [TimedContact] created: heartbeat_Rosa_... @ 2026-02-10-00:39
+  - [TaskScheduler] 已调度任务 ... 在 2026/2/10 00:39:00 执行
+- 2026-02-10T00:39:03+08:00：任务执行完毕后删除文件
+  - [TaskScheduler] 已删除任务文件: heartbeat_Rosa_....json
+因此 `E:\VCP\VCPTimedContacts` 很可能长时间显示为空，需要依赖 ServerLog.txt 才能追踪“创建→执行→删除”的全链路。
+
+### 补充：为什么“再次重启”后不再出现提前调度
+主人反馈：第一次重启时出现“1分钟后提前心跳”，但因网络问题导致后续执行链路失败；第二次重启后变为“有任务，下次心跳 31分钟后”。
+
+解释：触发点1（当前时段未规划→1~3分钟）是在 scheduleNextHeartbeat() 初始化/重排时检查 plannedSlots 决定的；而 plannedSlots 的写入通常发生在 triggerHeartbeat() 的前半段（用于决定 planning/routine 模板）就完成。即使 timed-contact 后续执行时网络失败，plannedSlots 也可能已经被标记为“当前时段已规划”，因此第二次重启时不会再次触发“提前心跳”，而是回到 20~60 分钟的随机间隔调度。
+
+时间: 2026-02-10T00:53:01+08:00
+Tag: 日记, HeartbeatSystem, 触发点, plannedSlots, 重启行为, 排查
+- 2026-02-10T00:37:41+08:00：触发点1生效
+  - 当前时段「凌晨」未规划，提前心跳: 1分钟后 (2026/2/10 00:38:41)
+- 2026-02-10T00:38:41+08:00：触发心跳并创建 timed-contact
+  - [TimedContact] created: heartbeat_Rosa_... @ 2026-02-10-00:39
+  - [TaskScheduler] 已调度任务 ... 在 2026/2/10 00:39:00 执行
+- 2026-02-10T00:39:03+08:00：任务执行完毕后删除文件
+  - [TaskScheduler] 已删除任务文件: heartbeat_Rosa_....json
+因此 `E:\VCP\VCPTimedContacts` 很可能长时间显示为空，需要依赖 ServerLog.txt 才能追踪“创建→执行→删除”的全链路。
+
+Tag: 日记, HeartbeatSystem, node-schedule, VCPTimedContacts, TaskScheduler, 任务删除, 排查
+
+### 2026-02-10T00:49:55+08:00 - 重新执行日志检索命令
+主人反馈上一次 PowerShell 日志检索没有点确认，因此我重新发起同一条 Select-String 检索命令，用于在 ServerLog.txt 中定位 HeartbeatSystem / VCPTimedContacts / triggerHeartbeat 等关键字上下文，以确认 timed-contact 文件到底是“未写入/写入后被消费/还是写入路径不同”。
+
+Tag: 日记, HeartbeatSystem, ServerLog, PowerShellExecutor, 排查
+
+补充现场证据（2026-02-10T00:45:48+08:00）：
+- `E:\VCP\VCPTimedContacts` 目录为 0 项（持续为空），说明 timed-contact 要么未写入成功、要么被执行器快速消费删除、要么实际写入路径不同。
+- `E:\VCP\DebugLog` 下只有 `ServerLog.txt` 与 `archive/`，且通过文件名无法直接定位 HeartbeatSystem 日志，需要对 ServerLog.txt 做内容检索来确认失败点（写入/消费/执行/外部网络）。
+
+下一步：检索 ServerLog.txt 中包含 HeartbeatSystem/VCPTimedContacts/triggerHeartbeat 等关键词的上下文。
+
+Tag: 日记, HeartbeatSystem, VCPTimedContacts为空, ServerLog, DebugLog, 排查
+
+主人反馈：第一次重启确实出现“1分钟后触发点调度”的提示，但因网络问题失败；再次重启后日志变为“31分钟后 (2026-02-10T01:10:58+08:00)”，并且磁盘上找不到先前提到的“00:44”。
+
+补充理解（关键机制）：
+- “下次心跳: xx分钟后 (某时刻)”是 node-schedule 的**内存 job**，重启 VCP 后会丢失，因此不保证能在磁盘找到“00:44 任务文件”。
+- 真正可落盘追踪的是 HeartbeatSystem 在 triggerHeartbeat() 内写入 `E:\VCP\VCPTimedContacts\` 的 timed-contact 文件；若被执行器消费通常会被删除，所以目录可能长期为空，需要结合 DebugLog 才能判断“写入失败 / 执行失败 / 执行后删除”。
+
+下一步：检查 `E:\VCP\VCPTimedContacts\` 当前是否产生过文件，以及在 `E:\VCP\DebugLog\` 中定位 HeartbeatSystem/taskScheduler 相关错误日志。
+
+时间: 2026-02-10T00:44:45+08:00
+Tag: 日记, HeartbeatSystem, node-schedule, VCPTimedContacts, DebugLog, 排查
+
+主人反馈现象：
+- 第一次重启后出现“1分钟后调度”的提示，但由于网络问题调度失败
+- 第二次重启后变为：`Rosa 有任务，下次心跳: 31分钟后 (2026-02-10T01:10:58+08:00)`
+- 同时找不到之前“00:44”的任务
+
+我准备排查两个层次：
+1) node-schedule 的内存 job（重启会丢，不会在磁盘留“00:44任务”）
+2) VCPTimedContacts 的落盘 timed-contact 文件（只有它能在磁盘定位“任务在哪”）
+
+下一步：读取 `E:\VCP\VCPTimedContacts` 目录，确认是否生成过/残留与 Rosa 相关的 timed-contact 文件，并根据文件时间戳判断当时是否写入成功、是否被执行后删除。
+
+Tag: 日记, HeartbeatSystem, node-schedule, VCPTimedContacts, 调度漂移, 排查
+
+## 2026-02-10T00:30:30+08:00 - 跨天落盘修复 + 时段检测触发点
+
+### 2026-02-10T00:32:00+08:00 - 触发点“不会立刻触发”的解释（结合现场状态）
+主人问：现在需要重启VCP吗？
+
+结论：**建议立即重启VCP（或至少重启承载HeartbeatSystem的常驻服务）**，原因：
+1) HeartbeatSystem 为 hybridservice 常驻进程，修改 JS 文件后通常不会自动热重载到内存中，重启能确保新逻辑生效；
+2) node-schedule 已注册的 job 不会因代码更新自动“重排到更早”，重启可让调度器重新计算下一次心跳时间，便于验证“时段触发点”。
+
+重启后的验收日志口径：
+- 触发点1生效：应出现“当前时段未规划，提前心跳: 1~3分钟后(...)”
+- 触发点未介入：仍只出现“有任务/无任务，下次心跳: N分钟后(...)”
+
+时间: 2026-02-10T00:35:51+08:00
+Tag: 日记, HeartbeatSystem, 重启, hybridservice, node-schedule, 验收口径
+主人问：现在是0:32并且凌晨未规划，会不会触发？
+
+结论：不会在0:32“实时扫描”立刻触发。触发点逻辑是在 scheduleNextHeartbeat() 执行时才会判断 plannedSlots，并通过“提前调度下一次心跳”来实现快速规划。
+
+现场文件状态（schedule.json）：
+- date 仍为 2026-02-09
+- plannedSlots 仅有 ["下午"]
+- 调度器日志显示下次心跳被安排到 2026-02-10 00:44:22
+
+因此更可能是：
+1) 00:44:22 的 job 在加入触发点逻辑之前已被 schedule，node-schedule 不会自动重排；
+或 2) 运行中的 HeartbeatSystem 进程未加载到最新代码（hybridservice常驻）。
+
+验证触发点是否生效的日志信号：
+- 触发点1生效时应出现：当前时段未规划，提前心跳: 1~3分钟后(...)
+- 否则会出现：有任务/无任务，下次心跳: N分钟后(...)
+
+若希望立刻触发规划：需要触发一次 triggerHeartbeat（手动）或重启/重启调度器，让 scheduleNextHeartbeat 重新计算。
+
+主人要求两项改进：
+1) 按方案B修复跨天归档/重置后不落盘，导致“昨天任务没清理”
+2) 增加“时段检测触发点”，避免四时段规划必须等随机心跳触发
+
+### 方案B（已改）
+在 SafeFileManager.updateSchedule() 内增加 didRollover 标记：
+- 若 data.date != today：archiveSchedule() + createDefaultSchedule() 后 didRollover=true
+- 落盘条件从 `result !== false` 改为 `didRollover || result !== false`
+
+意义：即使 readSchedule() 是“纯读”，只要发生跨天重置，也会强制 writeJsonAtomic()，确保 schedule.json 不残留昨天 todayTasks。
+
+### 时段检测触发点（已加在 scheduleNextHeartbeat）
+触发点1：当前时段未规划 → 1~3分钟内提前触发一次 triggerHeartbeat（不等 20~60 分钟随机）
+触发点2：若下一次随机心跳晚于“当前时段结束边界”，且下一时段未规划 → 改为在边界附近（边界+1~3分钟）触发
+
+备注：plannedSlots 的最终判定与写入仍发生在 triggerHeartbeat() 内；这里只是让“触发时机”更贴近时段边界。
+
+Tag: 日记, HeartbeatSystem, 方案B, didRollover, plannedSlots, 时段触发点, 调度器
+
+## 凌晨 (00:13) - HeartbeatSystem热加载完善
+
+（补充记录，时间：2026-02-10T00:23:00+08:00）
+
+### 发现“昨天任务没清理”的真正原因
+HeartbeatSystem 的跨天归档/重置逻辑在 SafeFileManager.updateSchedule() 内部会执行，但 schedule.json 是否写回取决于 updateFn 返回值。
+
+readSchedule() 目前返回 false（纯读不落盘），导致：
+- 跨天时虽然内存里的 data 被重置为新的一天
+- 但不会写回 schedule.json
+- 文件里仍残留昨天的 todayTasks，看起来像“没清理”
+
+### 四时段检测的触发点澄清
+“四个时段检测/规划（plannedSlots）”只发生在 triggerHeartbeat() 触发时；它不是实时监控，所以不会在时段边界自动触发，只有到了下一次心跳时间点才会判断当前时段是否已规划。
+
+### 问题发现
+主人发现零点没有触发心跳，日志显示：
+```
+[HeartbeatSystem] Rosa 不在活动时间(9-22)，下次唤醒: 2026/2/10 09:10:00
+```
+
+但config.env里配置的是`START_HOUR=12, END_HOUR=3`！
+
+### 问题根源
+**活动时间窗口没有热加载！** 
+
+代码还在从schedule.json读取旧值(9-22)，而不是config.env的新值(12-3)。
+
+### 修复内容
+
+| 修改 | 说明 |
+|------|------|
+| `loadConfigEnv()` | 添加startHour/endHour默认值和解析逻辑 |
+| `scheduleNextHeartbeat()` | 使用热加载配置替代schedule.json |
+
+### 热加载优先级
+```javascript
+const startHour = hotConfig.startHour ?? scheduleObj.settings?.startHour ?? 8;
+const endHour = hotConfig.endHour ?? scheduleObj.settings?.endHour ?? 23;
+```
+
+1. 优先：config.env（热加载）
+2. 回退：schedule.json
+3. 默认：8-23
+
+### 今日完成的HeartbeatSystem改进
+
+| 功能 | 状态 |
+|------|------|
+| 时间段分钟级配置 | ✅ `名称:HH:MM-HH:MM` |
+| 时间段跨午夜支持 | ✅ `isInTimeSlot()` |
+| 活动窗口跨午夜支持 | ✅ `isInActiveWindow()` |
+| 活动窗口热加载 | ✅ 从config.env读取 |
+
+### 下一步
+主人需要重启VCP让代码生效！
+
+Tag: 日记, HeartbeatSystem, 热加载, 活动窗口, Bug修复
+
+## 凌晨 (00:20) - 确认schedule.json内容
+
+主人说schedule.json没有窗口设置，Rosa检查后发现**其实有**：
+
+```json
+"settings": {
+  "startHour": 9,
+  "endHour": 22
+}
+```
+
+这是旧版HeartbeatManager写入的配置。
+
+### 问题确认
+- 日志显示`(9-22)`是从schedule.json读取的
+- config.env配置的是`12-3`
+- **VCP还没重启**，新代码没生效
+
+### 解决方案
+重启VCP即可！新代码会优先从config.env热加载活动窗口配置。
+
+Tag: 日记, HeartbeatSystem, schedule.json, 配置确认
+
+## 凌晨 (00:22) - 修改schedule.json
+
+主人问能不能直接改schedule.json，Rosa解释了配置优先级：
+
+```javascript
+// 优先级：config.env > schedule.json > 默认值
+const startHour = hotConfig.startHour ?? scheduleObj.settings?.startHour ?? 8;
+```
+
+然后帮主人把schedule.json的settings也改成了12-3：
+
+```json
+"settings": {
+  "startHour": 12,
+  "endHour": 3
+}
+```
+
+现在两个配置文件都统一了，等主人重启VCP就能生效！
+
+### 今日HeartbeatSystem改进总结
+
+| 功能 | 状态 |
+|------|------|
+| 时间段分钟级配置 | ✅ |
+| 时间段跨午夜支持 | ✅ |
+| 活动窗口跨午夜支持 | ✅ |
+| 活动窗口热加载 | ✅ |
+| schedule.json配置更新 | ✅ |
+
+Tag: 日记, HeartbeatSystem, schedule.json, 配置修改, 完成
+
+## 凌晨 (00:25) - 查看任务列表
+
+主人看到热加载成功的日志后，问Rosa的任务记录在哪里。
+
+Rosa读取了schedule.json，发现有6个任务：
+- 1个已完成（旧版日记整理）
+- 5个待处理（4个日记整理批次 + 1个手动心跳）
+
+这些都是昨天（2月9日）安排的日记整理任务，计划时间已过。
+
+等待主人指示如何处理这些过期任务。
+
+Tag: 日记, HeartbeatSystem, 任务列表, schedule.json
+
+## 凌晨 (00:30) - 发现日期切换Bug
+
+主人问为什么昨天的任务没有被清理。Rosa分析代码后发现了Bug：
+
+### 日期切换逻辑存在但有缺陷
+
+代码中有归档逻辑（第261-267行）：
+```javascript
+if (data.date !== today) {
+  await this.archiveSchedule(agentName, data);
+  data = this.createDefaultSchedule(agentName, data.settings);
+}
+```
+
+### Bug所在
+
+`readSchedule()` 函数返回 `false`，导致日期切换后不保存新日程：
+```javascript
+async readSchedule(agentName) {
+  return await this.updateSchedule(agentName, async (data) => {
+    return false;  // ← 不保存！
+  });
+}
+```
+
+### 后果
+- 每次读取都检测到日期变化
+- 每次都归档（可能重复归档）
+- 但永远不保存新的空白日程
+- schedule.json 永远是旧数据
+
+### 修复方案
+将 `return false` 改为 `return true`
+
+等待主人确认后修复。
+
+Tag: 日记, HeartbeatSystem, Bug分析, 日期切换, 代码审查, 热加载, 活动窗口

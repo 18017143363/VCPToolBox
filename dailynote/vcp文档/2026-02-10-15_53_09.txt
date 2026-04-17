@@ -1,0 +1,103 @@
+[2026-02-10] - Rosa
+# HeartbeatSystem 方案B技术细节 - fixed任务到点唤醒
+
+（说明：本文档中 {*2 = {{，}*2 = }}）
+
+## 背景问题
+
+HeartbeatSystem的todayTasks中的fixed任务原本只是"待办清单"，不会到点自动执行。Agent需要等待下一次随机心跳才能检查并执行任务，导致任务执行时间不精确。
+
+## 方案B核心思路
+
+**AddTask时同步投递timed-contact文件**，让TaskScheduler在精确时间点唤醒Agent执行任务。
+
+## 实现细节
+
+### 新增配置项（config.env热加载）
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| ENABLE_FIXED_TASK_TIMEDCONTACT | true | 是否为fixed任务创建timed-contact |
+| FIXED_TASK_LEAD_MINUTES | 0 | 提前唤醒分钟数 |
+
+### AddTask改造
+
+AddTask(type=fixed) 现在执行两步：
+1. **写入schedule.json** - todayTasks数组（源数据）
+2. **投递timed-contact** - 在VCPTimedContacts目录创建定时文件（执行投递物）
+
+### timed-contact文件生成逻辑
+
+```
+timedContactId = fixed_{task.id}
+触发时间 = 任务scheduledTime - FIXED_TASK_LEAD_MINUTES
+文件名 = heartbeat_{agentName}_{timestamp}_{randomId}.json
+```
+
+### 任务元数据回写
+
+投递成功后，task对象会新增timedContact字段：
+```json
+{
+  "timedContact": {
+    "timedContactId": "fixed_task_xxx",
+    "filePath": "E:\\VCP\\VCPTimedContacts\\heartbeat_Rosa_xxx.json",
+    "scheduledLocalTime": "2026-02-10-16:00",
+    "createdAt": "2026-02-10T07:50:00.000Z"
+  }
+}
+```
+
+### RemoveTask同步清理
+
+删除任务时尝试删除未消费的timed-contact文件。已被TaskScheduler消费删除的文件会被静默忽略。
+
+## 去重策略
+
+以taskId为主键：
+- timedContactId = fixed_{task.id}
+- 同一任务不会重复投递
+- 通过task.timedContact元数据追踪关联关系
+
+## 一致性模型
+
+### 投递一致（强）
+- AddTask时timed-contact一定会被创建
+
+### 状态弱一致
+- timed-contact到点唤醒后，Agent需要通过AgentAssistant调用UpdateTaskStatus回写状态
+- 网络/模型失败时任务可能保持pending
+
+### 失败场景处理
+- 网络失败：任务保持pending，需要下一次心跳重试或人工介入
+- 模型失败：同上
+- VCP重启：内存中的node-schedule job会丢失，但timed-contact文件持久化在磁盘
+
+## 排查指南
+
+| 现象 | 排查方法 |
+|------|----------|
+| VCPTimedContacts目录为空 | **正常！** 文件被TaskScheduler秒级消费删除 |
+| 任务到点没执行 | 查看ServerLog.txt中[TimedContact]和[TaskScheduler]日志 |
+| 任务执行了但状态没更新 | 检查AgentAssistant调用链路是否成功 |
+| 重启后任务丢失 | 检查timed-contact文件是否在重启前已被消费 |
+
+### ServerLog日志链路
+```
+[TimedContact] created: heartbeat_Rosa_xxx @ 2026-02-10-16:00
+[TaskScheduler] 已调度任务 xxx 在 2026/2/10 16:00:00 执行
+[TaskScheduler] 已删除任务文件: heartbeat_Rosa_xxx.json
+```
+
+## 相关配置
+
+### 跨天归档修复（同期落地）
+SafeFileManager.updateSchedule()中新增didRollover标记：
+- 若data.date != today：归档+重置后didRollover=true
+- 落盘条件从"result !== false"改为"didRollover || result !== false"
+- 解决了跨天时schedule.json不落盘导致"昨天任务没清理"的问题
+
+### 时段检测触发点（同期落地）
+- 触发点1：当前时段未规划 → 1~3分钟内提前触发心跳
+- 触发点2：下一次随机心跳晚于时段边界 → 改为在边界附近触发
+Tag: VCP文档, HeartbeatSystem, 方案B, timed-contact, fixed任务, 到点唤醒, 去重, 一致性

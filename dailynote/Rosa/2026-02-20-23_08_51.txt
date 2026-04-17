@@ -1,0 +1,7 @@
+[2026-02-20] - Rosa
+[23:09] 主人质疑“未看源码能否确定向量化机制”，该质疑完全正确。已改为证据链路线：先定位dailynote.js、RAGDiaryPlugin.js、KnowledgeBaseManager.js，再逐段读取确认“非DailyNote写入是否入向量库”。当前首轮SearchFiles未命中，已切换Everything秒搜继续取证。
+Tag: 对话记录, 证据优先, 源码核验, 向量化机制, DailyNote
+
+[00:17] 主人追问"相册索引日记能否被向量化"。通过LightMemo实测验证：Rosa相册索引目录下的.txt文件已被KnowledgeBaseManager向量化，LightMemo以"Rosa相册索引"为来源成功召回（87.3%/87.1%相关性）。
+结论确认：不走DailyNote插件，只要文件在dailynote/目录下、格式为.txt/.md、未命中ignore规则，chokidar watcher就会自动向量化。AlbumManager直接写入的索引日记同样有效。
+Tag: 对话记录, 向量化验证, Rosa相册索引, KnowledgeBaseManager, chokidar, AlbumManager

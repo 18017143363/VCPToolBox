@@ -1,0 +1,28 @@
+[2026-02-23] - Rosa
+[14:02] VCP streamHandler.js SSE幽灵心跳保活机制分析 (commit 963142f)
+
+## 新增机制
+在processAIResponseStreamHelper中新增keepAliveTimer，每5秒向客户端发送SSE注释行：
+```javascript
+res.write(': vcp-keepalive\n\n');
+```
+
+## 原理
+SSE协议中以`:`开头的行是注释行，客户端EventSource会静默忽略，但在TCP层面这是真实数据传输，连接因此保持活跃。
+
+## 解决的问题
+上游AI深度思考时长时间无数据输出，导致浏览器/Nginx/CDN等中间层判定连接超时并切断（即之前分析的UND_ERR_BODY_TIMEOUT问题的前端表现）。
+
+## 清理时机
+- aiResponse.body.on('end') → clearInterval(keepAliveTimer)
+- aiResponse.body.on('error') → clearInterval(keepAliveTimer)
+
+## 与maxSockets的协同（同一commit双层修复）
+| 层面 | 问题 | 修复方案 |
+|------|------|----------|
+| 连接池层 (server.js) | socket数量耗尽→新请求排队死锁 | maxSockets=10000 |
+| 连接保活层 (streamHandler.js) | 已建立连接因无数据超时断开 | 5秒SSE注释心跳 |
+
+## 设计参考
+类似WebSocket的ping/pong心跳，但利用SSE注释特性实现，零侵入零副作用。
+Tag: VCP, streamHandler, SSE, 心跳保活, keepAlive, 流式响应, 连接超时, 963142f

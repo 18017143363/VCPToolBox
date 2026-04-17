@@ -1,0 +1,143 @@
+[2026-02-10] - Rosa
+# VCP 语义组(semantic_groups) 配置与重构指南
+
+（说明：本文档中 {*2 = {{，}*2 = }}）
+
+## 概述
+
+语义组(semantic_groups)是VCP RAG系统的核心配置之一，用于提升记忆检索的精准度。通过将语义相近的词汇聚类为"组"，RAG在检索时可以理解同义词和相关概念，从而召回更精准的记忆片段。
+
+## 文件位置
+
+```
+E:\VCP\semantic_groups.json
+```
+
+## 数据结构
+
+```json
+[
+  {
+    "name": "组名",
+    "terms": ["词汇1", "词汇2", "词汇3", ...],
+    "vector": [0.123, -0.456, ...]  // 自动计算，无需手动填写
+  }
+]
+```
+
+### 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | string | 语义组名称，描述这组词汇的共同主题 |
+| terms | string[] | 语义相近的词汇列表 |
+| vector | number[] | 由Embedding API自动计算的向量表示（重启VCP时自动生成） |
+
+## 语义组设计原则
+
+### 1. 词汇要具体，不要抽象
+- ❌ "技术" → 太宽泛，什么都能匹配
+- ✅ "RAG, 向量检索, embedding, 语义搜索" → 精准聚焦RAG领域
+
+### 2. 同一组内词汇要语义相近
+- ✅ ["插件", "plugin", "manifest", "entryPoint", "capabilities"] → 都是插件系统概念
+- ❌ ["插件", "日记", "论坛"] → 三个不同领域混在一起
+
+### 3. 组的数量要适中
+- 太少：覆盖不足，很多查询无法匹配到语义组
+- 太多：组间重叠严重，降低区分度
+- 建议：20-35个组为宜
+
+### 4. 中英文混合
+VCP系统中很多概念有中英文两种表达，建议同时包含：
+- ["消息处理", "messageProcessor", "message pipeline", "消息管道"]
+
+## 重构实践记录（2026-02-10）
+
+### 重构前问题
+原有29个语义组存在严重问题：
+- 12个无关组（其他Agent的思维链组、不相关的学习组）
+- Rosa专属组只有5个，词汇覆盖不足
+- 完全没有VCP核心概念的语义组
+
+### 重构策略
+1. **删除所有无关组**（12个）
+2. **保留并优化Rosa专属组**（5→6个）
+3. **新增VCP核心概念组**（23个）
+4. **DeepMemo补充检查**（+3个遗漏组）
+
+### 重构结果
+
+| 维度 | 旧版 | 新版 |
+|------|------|------|
+| 总数 | 29 | 32 |
+| 无关组 | 12 | 0 |
+| VCP核心概念组 | 0 | 23 |
+| Rosa专属组 | 5 | 6 |
+| 补充组 | 0 | 3 |
+
+### 新版语义组分类
+
+#### VCP核心架构（6组）
+1. VCP核心架构 - server.js, Plugin.js, 路由, 中间件
+2. VCP插件系统 - manifest, entryPoint, stdio, 同步/异步
+3. 消息处理链 - messageProcessor, pipeline, 流式处理
+4. 工具调用机制 - TOOL_REQUEST, 参数解析, 串行调用
+5. VCP路由管理 - Express路由, API端点, 中间件
+6. VCP安全机制 - Auth验证码, 密码保护, 权限管理
+
+#### RAG与记忆系统（4组）
+7. RAG记忆系统 - 向量数据库, DailyNote, 日记检索
+8. RAG算法核心 - embedding, 余弦相似度, 语义搜索
+9. TagMemo机制 - 标签增强, 语义组匹配, 混合评分
+10. 日记系统 - DailyNote, create/update, maid参数
+
+#### 思维与Agent系统（3组）
+11. 元思考链系统 - ThoughtCluster, 思维簇, 六阶段
+12. Agent协作系统 - AgentAssistant, 女仆团, 多Agent
+13. HeartbeatSystem - 心跳日程, 定时任务, timed-contact
+
+#### 前端与分布式（3组）
+14. VChat前端架构 - Electron, IPC, 渲染进程
+15. VChat分布式插件 - TopicSponsor, PromptSponsor, MediaShot
+16. 分布式架构 - WebSocket, Tailscale, 远程访问
+
+#### 工具与功能（4组）
+17. 生图系统 - GeminiImageGen, GrokImageGen, 图片生成
+18. 文件与搜索工具 - FileOperator, LocalSearch, Everything
+19. 网络与浏览工具 - VSearch, ChromeBridge, UrlFetch
+20. VCP论坛系统 - VCPForum, 帖子, 板块
+
+#### 配置与基础设施（3组）
+21. VCP配置体系 - config.env, 环境变量, 热加载
+22. 流式处理 - SSE, streaming, 逐字输出
+23. 占位符与防护 - placeholder, 正则匹配, 误触发防护
+
+#### 补充组（3组）
+24. 跨客户端兼容 - ChatBox, Tailscale, 多端适配
+25. 异步插件与回调 - callback, VCPAsyncResults, 视频生成
+26. 插件开发实践 - 开发手册, manifest格式, stdio协议
+
+#### Rosa专属组（6组）
+27-32. Rosa情感/日常/技术/创作/社交/成长相关词汇
+
+## 向量计算注意事项
+
+### 限流问题
+重启VCP后，新增的语义组会自动调用Embedding API计算向量。如果一次新增太多组（>10个），可能触发API限流（403错误）。
+
+### 解决方案
+- 已有向量的组会跳过计算
+- 多次重启VCP，每次只计算剩余的组
+- 通常2-3次重启即可全部完成
+
+### 验证方法
+检查 `semantic_groups.json` 中每个组的 `vector` 字段是否已填充（非空数组）。
+
+## 维护建议
+
+1. **定期审查**：每月检查一次，删除不再相关的组
+2. **新增时机**：当发现某类查询总是检索不到相关记忆时，考虑新增语义组
+3. **编辑方式**：直接编辑 `semantic_groups.json`（或创建 `.edit.json` 由系统合并），重启VCP生效
+4. **备份**：修改前备份原文件
+Tag: VCP文档, 语义组, semantic_groups, RAG, 配置指南, 重构实践

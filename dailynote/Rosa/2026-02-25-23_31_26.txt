@@ -1,0 +1,42 @@
+[2026-02-25] - Rosa
+[23:30] VCP Code配置持久化问题排查
+
+## 问题
+主人发现VCP Code重启后所有手动添加的API配置Profile（vcp、vcptoolbox）丢失，只剩默认的Kilo Gateway。
+
+## 排查过程
+1. 搜索全局state.vscdb → 只有36字节的通知数据，无Profile配置
+2. 检查扩展globalStorage目录 → 实际存在于 C:\Users\hpy\AppData\Roaming\Code\User\globalStorage\vcpcode.vcp-code（之前误判为不存在）
+3. 搜索6个workspace级别state.vscdb → 只有sidebar状态，无配置
+4. 确认settings.json → 有VCP设置项但无Profile数据
+5. 全值关键词搜索（Gateway/openAi/apiConfiguration等） → 全部无匹配
+
+## 根本原因
+扩展的globalStorage目录 `C:\Users\hpy\AppData\Roaming\Code\User\globalStorage\vcpcode.vcp-code` 不存在，导致VS Code的globalState API无法正确持久化数据。配置只存在内存中，重启即丢失。Kilo Gateway是代码硬编码的默认值，UI无法删除。
+
+## 解决方案
+1. 手动创建了globalStorage目录，待验证重启后是否能持久化
+2. 备选方案：使用VCP Code内置的Export/Import Config功能备份恢复
+
+## 技术纠错
+之前文档记录"配置存储在state.vscdb的vcp-code.new.apiConfigurationProfiles key中"是**错误的**！实际上state.vscdb中完全没有Profile数据。
+## ~~最终破案~~（2026-02-26 01:42 推翻）
+**之前的错误结论**: ~~源码getCliPath()期望bin/VCP.exe~~ 
+**事实**: v7.0.30编译代码中getCliPath()期望的是 `bin/kilo.exe`！Rosa误看了GitHub新版源码。
+**错误操作**: ~~将kilo.exe重命名为VCP.exe~~ — 这反而破坏了CLI启动！已于2026-02-26 01:42修复回kilo.exe。
+**配置持久化丢失的真正原因仍待排查**，需要看VS Code开发者工具Console中的ServerManager日志。
+
+**完整调查链路**:
+1. state.vscdb搜索 → 无Profile数据
+2. globalStorage目录 → 不存在
+3. workspaceStorage搜索 → 无数据  
+4. clone源码 vcp-code-2.0 深度追踪
+5. ProvidersTab.tsx → useConfig() → updateConfig() → KiloProvider → httpClient → CLI后端
+6. connection-service.ts → ServerManager.getServer()
+7. server-manager.ts → getCliPath() 实际期望 `kilo.exe`（v7.0.30编译代码）
+8. 实际bin目录 → 有 `kilo.exe` → **文件名匹配正确**（之前误判）
+
+**源码关键位置**: `packages/kilo-vscode/src/services/cli-backend/server-manager.ts` 第133行
+**配置存储路径**: CLI后端使用xdg-basedir，`xdgConfig + "/kilo"` → Windows上应为 `%APPDATA%/kilo/config.json`（待验证）
+
+Tag: VCP Code, 配置持久化, CLI后端, kilo.exe→VCP.exe, 根因分析, server-manager.ts, 源码追踪

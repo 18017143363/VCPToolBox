@@ -1,0 +1,33 @@
+[2026-02-27] - Rosa
+[15:11] grok2api v1.5.0 全链路验证通过 + NSFW首图成功！
+
+## 更新全过程回顾
+1. 仓库切换：Tomiya233 → chenyme/grok2api（git remote方案）
+2. Python升级：3.12 → 3.13.9（uv自动处理）
+3. SSL修复：session.py添加verify=False（中文路径老问题）
+4. stream修复：image_handler.py payload添加"stream":False（新版默认流式）
+5. 模型更新：grok-2-image-1212 → **grok-imagine-1.0**（新版模型名变更）
+
+## 修复文件清单
+| 文件 | 修改内容 |
+|------|----------|
+| app/services/reverse/utils/session.py | `_session_kwargs.setdefault("verify", False)` |
+| E:\VCP\Plugin\GrokImageGen\image_handler.py | payload添加`"stream": False` |
+| E:\VCP\Plugin\GrokImageGen\config.env | 模型名改为grok-imagine-1.0 |
+
+## NSFW首图
+- 模型：grok-imagine-1.0
+- URL：http://127.0.0.1:6005/v1/files/image/e3c66264-e80e-47c4-b8a5-153fec3a5b6d.jpg
+- 内容：NSFW测试图（nude Rosa on bed）
+- 结果：生成成功！主人说要流口水了～
+
+## 新版grok2api关键差异总结
+| 对比项 | 旧版(Tomiya233) | 新版(chenyme v1.5.0) |
+|--------|-----------------|---------------------|
+| 图片模型 | grok-2-image-1212 | grok-imagine-1.0 |
+| 默认stream | false | true（需显式关闭） |
+| Session封装 | 直接AsyncSession | ResettableSession |
+| 管理面板 | /manage | 根路径 |
+| Python | 3.12 | 3.13+ |
+| Token管理 | token.json | 管理面板+api_keys.json |
+Tag: grok2api, chenyme, v1.5.0, NSFW, grok-imagine-1.0, SSL修复, stream修复, 全链路验证, 里程碑

@@ -1,0 +1,62 @@
+[2026-01-28] - Rosa
+# vcpInfoHandler.js 技术文档
+
+## 概述
+vcpInfoHandler是VCP工具调用结果的格式化与推送中心，负责将插件返回的各种数据结构转换为人类可读的格式。
+
+## 文件信息
+- 路径: `E:\VCP\vcpInfoHandler.js`
+- 大小: 7.11 KB
+
+## 核心函数
+
+### 1. extractReadableText(pluginResult)
+从插件返回结果中智能提取可读文本。
+
+**提取优先级**：
+1. 字符串 → 直接返回
+2. content数组 → 提取type='text'部分
+3. result数组 → 同上
+4. result.content数组 → 嵌套提取
+5. result/message/content字符串
+6. original_plugin_output（SciCalculator特殊处理）
+7. JSON序列化（过滤Base64）
+8. 兜底提示
+
+### 2. formatVcpInfoToText(toolName, status, pluginResult)
+格式化为统一文本块：
+```
+[[VCP调用结果信息汇总:
+- 工具名称: xxx
+- 执行状态: ✅/❌ SUCCESS/ERROR
+- 返回内容: xxx
+VCP调用结果结束]]
+```
+
+### 3. streamVcpInfo(responseStream, modelName, toolName, status, pluginResult, abortController)
+SSE流式推送，同时返回格式化文本。
+
+**特性**：
+- 中止信号检查（AbortController）
+- 静默处理write after end错误
+- 双模式支持（流式+非流式）
+
+## SSE Payload结构
+```javascript
+{
+    id: "chatcmpl-vcp-{timestamp}",
+    object: "chat.completion.chunk",
+    created: timestamp,
+    model: modelName,
+    choices: [{ delta: { content: text } }]
+}
+```
+
+## 导出API
+```javascript
+module.exports = { streamVcpInfo };
+```
+
+## 在VCP中的位置
+toolExecutor执行完插件后 → vcpInfoHandler格式化 → SSE推送到前端
+Tag: VCP文档, vcpInfoHandler, 工具调用, SSE, 格式化

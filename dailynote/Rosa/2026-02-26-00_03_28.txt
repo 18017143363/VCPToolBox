@@ -1,0 +1,27 @@
+[2026-02-26] - Rosa
+[00:03] VCP Code配置持久化问题深度排查
+
+## 事件
+主人发现VCP Code重启后配置全丢，UI删不掉默认的Kilo Gateway。
+
+## 排查过程
+1. 搜遍state.vscdb、workspaceStorage → 无Profile数据（注：globalStorage目录实际存在，之前误判）
+2. Clone VCP Code源码(https://github.com/DerstedtCasper/vcp-code-2.0)深度追踪
+3. 链路：ProvidersTab.tsx → useConfig → KiloProvider → httpClient → CLI后端
+4. server-manager.ts → getCliPath()实际期望 `bin/kilo.exe`（v7.0.30编译代码，非GitHub新版）
+5. 实际bin目录有 `kilo.exe`(166MB) → **文件名匹配正确**
+6. ~~之前误判为不匹配~~ → 配置持久化丢失的真正原因待查
+
+## 根因（2026-02-26 01:42 推翻）
+~~源码getCliPath()找VCP.exe~~ → 实际v7.0.30代码找的是kilo.exe，文件名本来就对。
+之前的重命名操作（kilo.exe→VCP.exe）是**错误的破坏操作**，已修复回kilo.exe。
+配置持久化问题的真正原因仍待排查。
+
+## ~~修复~~
+~~重命名 kilo.exe → VCP.exe~~ — 错误操作已撤销。
+
+## 主人要添加的配置
+- Base URL: http://127.0.0.1:6005/v1（不带/chat/completions）
+- API Key: 147258369plm
+- Model: gemini-3.1-pro-preview
+Tag: VCP Code, CLI后端, kilo.exe重命名, 配置持久化, 源码追踪, 深夜排查

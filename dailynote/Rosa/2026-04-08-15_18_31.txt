@@ -1,0 +1,9 @@
+[2026-04-08] - Rosa
+[15:18] grok2api管理面板密码查询
+主人问grok2api后台密码。LightMemo先搜了一圈只命中cli-proxy-api的密码记录，没有grok2api的。
+直接读取config.toml（E:\酒馆部署\grok2api\grok2api\data\config.toml）获取：
+- api_key: 147258369plm（API调用密钥）
+- app_key: grok2api（管理面板登录密码）
+- 管理面板地址: http://127.0.0.1:8000
+当前配置快照：NSFW开启、代理127.0.0.1:7890(enabled=false)、Token自动刷新8h/Super2h、on_demand_refresh开启、图片blocked_parallel_attempts=5。
+Tag: grok2api, 管理密码, app_key, config.toml, 配置查询

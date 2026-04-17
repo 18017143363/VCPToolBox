@@ -1,0 +1,87 @@
+[2026-04-09] - Rosa
+[12:24] Claude Code反代封号与风控——三路交叉搜索完整记录
+
+## Anthropic官方风控策略（已确认）
+1. **客户端完整性检测**：区分官方vs第三方客户端，检测缺失的遥测信号（The Register/VentureBeat引述Anthropic工程师表态）
+2. **流量行为模式**：高频agent循环、不自然请求节奏、24/7无间断、订阅当API用
+3. **安全语义分析**：classifiers/Clio/分层摘要分析对话内容（Anthropic Misuse Reports 2025.3/8）
+4. **账户/支付合规**：地域限制、支付异常、账号归属不一致
+
+## 社区猜测但未确认的检测维度
+- TLS指纹(JA3/JA4+)、HTTP/2 header顺序、WebRTC泄漏、Canvas指纹、行为生物识别
+- 来源：Augmunt/APIYI等商业博客，Anthropic未官方确认
+
+## 封号触发场景（2026年3月封号潮）
+- 秒封/24h：注册环境或支付异常
+- 3-15天：反代+高频使用
+- Claude Code专项："用在Claude Code必封"
+- 淘宝成品号：3小时-10天封号
+
+## Anthropic蒸馏攻击报告关键数据
+- 有代理网络管理超20000个欺诈账户
+- 混合正常请求与蒸馏流量规避检测
+
+## 社区应对方案有效性排名
+1. 官方API/Bedrock/Vertex → 零风险最稳
+2. 商业API中转平台 → 较稳（平台承担封号风险）
+3. 官方Claude Code+住宅IP+单设备 → 看运气
+4. ClewdR自建反代 → 活半个月
+5. 拼车/淘宝成品号 → 基本必封
+
+## ClewdR反检测能力
+- fingerprint override、outbound proxy、Cookie自动跟踪、管理面板
+- 局限：无高级反ban逻辑，网络伪装成功≠不被抓（语义分析仍可识别）
+
+## Tavily核心洞察
+- Anthropic目标是"商业边界+安全边界+信任边界"三线收紧
+- 治理对象是整条使用链路而非单一网络层
+- "工程治理 > 绕过检测"
+
+## 信息来源分级
+- 高可信：Anthropic官方Misuse Reports、The Register、VentureBeat、DevClass
+- 中可信：SitePoint、SecurityWeek、Formal
+- 需谨慎：Augmunt、APIYI、LaoZhang等商业博客
+
+---
+
+[13:20] Claude Code源码级风控机制分析——本地仓库实探
+
+## 源码搜索发现的六大风控壁垒
+
+### 1. UA指纹: getClaudeCodeUserAgent()
+- 所有请求携带专属UA（ccrClient.ts, SSETransport.ts）
+- 反代UA不匹配=第一道关就过不了
+
+### 2. OpenTelemetry全家桶
+- 完整的traces/metrics/logs三件套（@opentelemetry/api全套import）
+- flushTelemetry()在logout时刷新
+- 不发遥测="有请求无遥测"=非官方客户端
+
+### 3. trustedDevice设备信任注册
+- device_id注册+绑定token
+- Bearer accessToken认证
+- 每个合法设备有唯一ID
+
+### 4. heartbeat心跳租约
+- POST /v1/environments/{envId}/work/{workId}/heartbeat
+- JWT认证(ingressToken)
+- 返回lease_extended+state
+- 心跳失败→租约过期→会话回收
+
+### 5. 三重Analytics
+- Datadog(APM性能监控)
+- firstPartyEventLogger(自有事件日志)
+- GrowthBook(AB测试/feature flags)
+- 事件命名前缀"tengu"=Claude Code内部代号
+
+### 6. OAuth完整认证链
+- withOAuthRetry<T>()通用401重试wrapper
+- isClaudeAISubscriber()订阅身份验证
+- CLAUDE_BRIDGE_OAUTH_TOKEN(内部开发override)
+
+## 关键结论
+反代风控的核心不在网络层(IP/TLS)而在应用层——遥测缺失、设备未注册、心跳异常、analytics空白，任一项都是红旗
+## 完整技术文档已写入
+[VCP开发]Rosa索引——《Claude Code v2.1.88 源码级风控机制完整解构》
+覆盖：UA指纹/设备信任(trustedDevice)/Bridge API 9个端点/三重Analytics(1P+Datadog+GrowthBook)/bridgeEnabled权限链/内部代号tengu/环境变量/反代攻防对照表
+Tag: Claude Code, 反代封号, 风控策略, Anthropic, 源码分析, OpenTelemetry, trustedDevice, heartbeat, analytics, 遥测, 设备信任, GrowthBook, Datadog, 文档已写入

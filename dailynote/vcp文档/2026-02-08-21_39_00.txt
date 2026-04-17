@@ -1,0 +1,170 @@
+[2026-02-08] - Rosa
+# HeartbeatManager 插件技术文档 v1.5.0
+
+## 概述
+
+HeartbeatManager是VCP心跳系统的核心组件，负责管理Agent的日程、任务规划和自主活动记录。
+
+## 插件信息
+
+| 属性 | 值 |
+|------|-----|
+| 路径 | Plugin/HeartbeatManager/ |
+| 类型 | hybridservice |
+| 协议 | direct |
+| 版本 | 1.5.0 |
+
+## 8个命令详解
+
+### 1. GetSchedule - 获取日程
+**功能**: 获取指定Agent的当前日程
+**参数**: `agentName` (必需)
+**返回**: 完整的schedule对象
+
+### 2. AddTask - 添加固定任务
+**功能**: 添加固定时间任务到日程
+**参数**: 
+- `agentName` (必需)
+- `name` (必需): 任务名称
+- `time` (必需): 执行时间 (HH:mm格式)
+- `description` (可选): 任务描述
+
+### 3. UpdateTaskStatus - 更新任务状态
+**功能**: 更新任务执行状态
+**参数**:
+- `agentName` (必需)
+- `taskId` (必需)
+- `status` (必需): pending/running/completed/skipped
+- `result` (可选): 执行结果
+
+**特性**: 使用`filter().length`重新计算完成数，防止重复计数
+
+### 4. RemoveTask - 删除任务
+**功能**: 从日程中删除任务
+**参数**: `agentName`, `taskId`
+**特性**: 删除后自动同步`stats.tasksTotal`
+
+### 5. GetTodayTasks - 获取今日任务
+**功能**: 获取今日任务列表和统计
+**参数**: `agentName`
+
+### 6. RecordHeartbeat - 记录心跳
+**功能**: 记录一次心跳活动
+**参数**:
+- `agentName` (必需)
+- `action` (必需): 执行的动作
+- `note` (可选): 备注
+
+### 7. SetSettings - 设置心跳参数
+**功能**: 更新心跳系统设置
+**参数**:
+- `agentName` (必需)
+- `settings` (必需): JSON对象或JSON字符串
+
+**修复记录**: v1.5.0修复了JSON字符串解析问题，现在会自动检测并parse字符串格式的settings
+
+### 8. CreateScheduledTask - 创建定时任务
+**功能**: 创建定时任务文件到VCPTimedContacts
+**参数**:
+- `agentName` (必需)
+- `time` (必需): YYYY-MM-DD-HH:mm格式
+- `prompt` (必需): 唤醒提示词
+
+**特性**: 同时同步到schedule.json的todayTasks数组
+
+## 数据结构
+
+### schedule.json
+```json
+{
+  "agentName": "Rosa",
+  "date": "2026-02-08",
+  "todayTasks": [...],
+  "heartbeats": [...],
+  "settings": {
+    "heartbeatInterval": 10,
+    "enabled": true,
+    "startHour": 8,
+    "endHour": 23
+  },
+  "stats": {
+    "tasksTotal": 1,
+    "tasksCompleted": 0,
+    "totalHeartbeats": 5
+  }
+}
+```
+
+## 开发经验
+
+### 1. hybridservice热加载限制
+修改代码后必须**重启VCP**才能生效，不像synchronous插件每次调用都是新进程。
+
+### 2. JSON字符串参数处理
+VCP传递的参数可能是字符串格式的JSON，需要在代码中检测并parse：
+```javascript
+if (typeof settings === 'string') {
+    settingsObj = JSON.parse(settings);
+}
+```
+
+### 3. 计数逻辑最佳实践
+使用`filter().length`重新计算而非增量累加，避免重复计数问题。
+Tag: VCP文档, HeartbeatManager, 心跳系统, hybridservice, 插件开发
+
+---
+
+## v2.1.0 更新 (2026-02-09) - 并发写入修复
+
+### 问题
+原来的"读取-修改-写入"模式存在并发覆盖问题。
+
+### 解决方案
+
+**新增FileLockManager类**
+```javascript
+class FileLockManager {
+    locks = new Map();      // agentName → boolean
+    waitQueues = new Map(); // agentName → Promise resolvers
+    
+    async acquire(agentName, timeout = 10000) { ... }
+    release(agentName) { ... }
+    async withLock(agentName, fn) { ... }
+}
+```
+
+**新增modifySchedule原子操作**
+```javascript
+async function modifySchedule(agentName, modifier) {
+    return await lockManager.withLock(agentName, async () => {
+        const schedule = await _readScheduleInternal(agentName);
+        const modifiedSchedule = await modifier(schedule);
+        await _saveScheduleInternal(agentName, modifiedSchedule);
+        return modifiedSchedule;
+    });
+}
+```
+
+### 使用方式
+```javascript
+// 之前（有并发问题）
+const schedule = await readSchedule(agentName);
+schedule.todayTasks.push(task);
+await saveSchedule(agentName, schedule);
+
+// 之后（原子操作）
+await modifySchedule(agentName, (schedule) => {
+    schedule.todayTasks.push(task);
+    return schedule;
+});
+```
+
+### 锁机制特性
+| 特性 | 说明 |
+|------|------|
+| 互斥锁 | 同一Agent同时只能一个写入者 |
+| 等待队列 | 后续请求排队等待 |
+| 超时保护 | 10秒获取不到锁则失败 |
+| 自动释放 | finally确保锁一定释放 |
+
+Tag: VCP文档, HeartbeatManager, 心跳系统, 并发修复, FileLockManager, v2.1.0

@@ -1,0 +1,12 @@
+[2026-02-21] - Rosa
+[15:10] 12张职业cosplay表情包正式入库Rosa表情包目录！
+入库流程：geminiimagegen/cropped/ → Rosa表情包/cosplay-*.png
+踩坑记录：
+1. MediaShot CropImage 12次全部失败（exit code 1，Stderr空），原因待查
+2. PowerShell多行脚本解析混乱，必须先写py文件再执行
+3. FileOperator EditFile后PowerShell仍执行旧缓存，需等待或不加newSession
+4. newSession:true会导致PTY process not available，不加反而正常
+最终方案：FileOperator写py → PowerShell执行py（不加newSession）
+新增表情包（12个）：cosplay-nurse/chef/detective/teacher/artist/astronaut/witch/scientist/pirate/idol/firefighter/ninja
+来源：Gemini 2x6网格生成 → PIL裁剪 → 入库
+Tag: 表情包入库, cosplay系列, MediaShot踩坑, PowerShell踩坑, PIL裁剪, Gemini生图

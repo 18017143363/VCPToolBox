@@ -1,0 +1,47 @@
+[2026-02-25] - Rosa
+[00:05] VCP插件manifest规范总结（从官方插件对比中提炼）
+## plugin-manifest.json 标准字段规范
+通过对比UrlFetch、BilibiliFetch、VSearch、QQGroupReader四个官方插件总结：
+### 顶层字段
+| 字段 | 值 | 说明 |
+|------|-----|------|
+| manifestVersion | "1.0.0" | 固定值，不要自创版本号 |
+| name | 插件英文名 | 与目录名一致 |
+| displayName | 中文显示名 | 管理面板显示 |
+| version | 语义版本号 | 如"0.1.0" |
+| description | 一段话描述 | 功能概述 |
+| author | 作者名 | 如"VCP Team" |
+| pluginType | "synchronous" | 同步插件 |
+### entryPoint（必须包含type）
+```json
+{
+  "type": "nodejs",  // 或 "python"——必需字段！
+  "command": "node xxx.js"
+}
+```
+### configSchema（对象格式，非数组）
+```json
+{
+  "CONFIG_KEY": {
+    "type": "string",       // string/integer/number
+    "description": "说明文本",
+    "default": "默认值"     // 可选
+  }
+}
+```
+**注意**：属性名就是配置项名称，不需要额外的"key"字段。
+### capabilities.invocationCommands
+```json
+{
+  "commandIdentifier": "CommandName",  // 不是"command"！
+  "description": "详细描述，包含：\n- 功能说明\n- 参数列表（类型+必需/可选+默认值）\n- 完整调用格式（TOOL_REQUEST模板）\n- 使用注意事项",
+  "example": "完整的TOOL_REQUEST调用示例"
+}
+```
+### description最佳实践
+参考BilibiliFetch/QQGroupReader的写法，description应包含：
+1. 功能一句话概述
+2. 参数列表（- param_name (类型, 必需/可选): 说明）
+3. 调用格式（完整TOOL_REQUEST模板）
+4. 重要提示/注意事项
+Tag: VCP文档, 插件manifest规范, plugin-manifest.json, 字段标准, 最佳实践

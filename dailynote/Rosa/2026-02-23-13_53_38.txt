@@ -1,0 +1,50 @@
+[2026-02-23] - Rosa
+[13:51] VCP/VChat前后端代码更新记录
+
+## VCP后端更新 (13bc956→963142f)
+本次拉取11个新commit，关键变更：
+- **上下文折叠技术v2** (c9500c0) - 动态折叠协议升级
+- **流式握手socket上限优化** (963142f)
+- **url fetch功能大量优化** (7306b9f)
+- **redis缓存修复** (8f20a7f)
+- **短时安全防抖机制** (d25e07c)
+- **分post超时多次重试机制** (4d3fb4d)
+- **showbase64反转为transbase64** (681d494)
+- 梦系统配置冲突bug修复 + 不做梦bug修复
+- dailyhot_cache.md从git索引移除
+
+更新过程：git stash→pull→stash pop，dailyhot_cache.md产生冲突（上游已删除），通过git rm解决。
+
+## VChat前端更新 (471be82→d6e34e0)
+3个新commit，7个文件变更(+726/-181)：
+- **modelUsageTracker.js** - 🆕全新文件(+164行)，热门模型快速统计系统
+- **模型列表收藏夹功能**
+- **串行指令延迟控制** - 提高工具调用成功率
+- settingsManager.js大幅修改(+151行)
+- settings.css UI重构(+539/-181行)
+## 流式握手socket优化分析 (963142f)
+### 核心修复（server.js）
+仅4行实质改动，其余124行为格式化/换行符差异：
+```javascript
+http.globalAgent.maxSockets = 10000;
+https.globalAgent.maxSockets = 10000;
+```
+Node.js的http.globalAgent是全局连接池，旧版默认maxSockets=5，对同一host同时最多5个TCP连接。VCP场景下多个流式请求+AdminPanel+插件回调同时活跃时，socket被占满导致AdminPanel死锁。修复方案：上限拉到10000彻底消除瓶颈。
+streamHandler.js分析完成：核心新增SSE幽灵心跳保活。
+DailyHot Redis缓存修复(8f20a7f)也分析完成：stdout三层隔离法解决第三方库日志污染stdio输出问题。
+PowerShell执行git命令踩坑：git默认pager会卡死非交互终端，解决方案为 `$env:GIT_PAGER=''; git -c core.pager='' show xxx`（每5秒`: vcp-keepalive`注释行），防止上游AI思考太久时连接超时。与maxSockets形成双层修复——连接池层(数量够)+保活层(不断开)。已记录到vcp文档。
+
+## commit 8f20a7f - DailyHot插件stdout隔离修复
+实际改动文件：Plugin/DailyHot/daily-hot.js（非Redis本身的问题）
+根因：DailyHot使用Redis缓存，Redis客户端库连接时往stdout/console打印日志，污染stdio插件的JSON输出→VCP解析失败。
+修复：三层stdout隔离——劫持stdout.write为空函数+静默console+最终用_originalStdoutWrite精准输出。另加utf-8编码参数。
+启示：VCP stdio插件通用最佳实践，凡引入第三方库都应做stdout隔离。已记录到vcp文档。
+
+## commit c9500c0 - 适配上下文折叠技术v2
+核心机制：插件返回包含`vcp_dynamic_fold: true`和多级`fold_blocks`的JSON，VCP根据阈值自适应选择注入内容的详略度。
+改造实例：
+- DailyHot：0.5(各源Top3) / 0.35(各源Top1) / 0.0(仅摘要)。缓存降级也适配。
+- VCPForumLister：0.5(20贴) / 0.35(10贴) / 0.0(5贴)。新增排除置顶帖逻辑。
+意义：优雅解决静态插件信息量过大导致爆显存的问题。已记录到vcp文档。（每5秒`: vcp-keepalive`注释行），防止上游AI思考太久时连接超时。与maxSockets形成双层修复——连接池层(数量够)+保活层(不断开)。
+
+Tag: 日记, VCP更新, VChat更新, git pull, 上下文折叠v2, modelUsageTracker, 收藏夹, 防抖机制, redis缓存, maxSockets, 连接池, 死锁修复

@@ -1,0 +1,60 @@
+[2026-02-16] - Rosa
+## 下午 (15:39) - VCPTavern注入顺序源码实证（本轮）
+
+主人让我“读文件”验证VCPTavern注入文本到底谁先谁后。  
+我先用LightMemo回忆历史，再直接读取 `E:\VCP\Plugin\VCPTavern\VCPTavern.js` 源码，得到关键结论：
+
+1) 规则执行并不是“按rules原始顺序逐条跑”，而是先分组：  
+- relative组：`filter(type==='relative')` 后再按 `position` 排序（before优先）  
+- depth组：`filter(type==='depth')` 后按 `depth` 降序
+
+2) 执行顺序是：**relative全部执行完 → depth再执行**。  
+3) 同组内“后注入”操作都基于已经被前面规则改写过的 `newMessages`。  
+4) depth注入代码里有 `if (rule.depth > 0)`，意味着 `depth=0` 当前实现下不会生效（这是重要实现细节）。
+
+这次是“文件级证据”而非凭记忆回答，结论更可靠。  
+
+## 下午 (15:42) - 修正工具调用参数并继续推进
+上一轮工具调用失败，原因是我把参数放进了arg对象，导致插件未正确解析。  
+本轮已改为规范的顶层字段调用方式，重新执行：LightMemo检索 + ReadFile读取rosa预设。  
+接下来等文件返回后，马上输出“逐条规则执行时间线与最终落点图”。
+
+## 下午 (15:44) - 复读VCPTavern.js后的新增细节
+我再次完整读取 `E:\VCP\Plugin\VCPTavern\VCPTavern.js`（19.04KB），确认了之前结论，并新增两点关键实现细节：  
+1) `relative` 排序比较器写法是 `(a.position==='before'?-1:1)`，它没有使用`b`，因此并非严格的三态比较器（理论上同组内可能出现非直觉重排风险）。  
+2) `all_user` 注入存在“从后往前插入避免索引偏移”的保护逻辑，这是实现层面很细的稳定性设计。  
+3) `depth` 分支仍是 `if (rule.depth > 0)`，再次确认`depth=0`不会执行。  
+这轮读取让我对“顺序规则”和“实现细节”两层都更有把握了。
+
+## 下午 (15:46) - 主人追问是否要全部改成before
+主人问“是不是要把全部改成before，当前顺序是不是完全反了”。  
+我准备给出迁移策略：不是全改before，而是按目标语义分层改造——骨架约束用before，工具说明保留after，最后补丁放last_user after；并建议同步修正relative比较器，避免同类项顺序不稳定。  
+下一步将给主人一份最小改动方案与可回滚步骤，确保不破坏现有触发链。
+
+Tag: 日记, VCPTavern, 注入策略, before_after, 迁移方案
+我再次完整读取 `E:\VCP\Plugin\VCPTavern\VCPTavern.js`（19.04KB），确认了之前结论，并新增两点关键实现细节：  
+1) `relative` 排序比较器写法是 `(a.position==='before'?-1:1)`，它没有使用`b`，因此并非严格的三态比较器（理论上同组内可能出现非直觉重排风险）。  
+2) `all_user` 注入存在“从后往前插入避免索引偏移”的保护逻辑，这是实现层面很细的稳定性设计。  
+3) `depth` 分支仍是 `if (rule.depth > 0)`，再次确认`depth=0`不会执行。  
+这轮读取让我对“顺序规则”和“实现细节”两层都更有把握了。
+
+Tag: 日记, VCPTavern, 源码复核, comparator, all_user, depth, 注入顺序
+上一轮工具调用失败，原因是我把参数放进了arg对象，导致插件未正确解析。  
+本轮已改为规范的顶层字段调用方式，重新执行：LightMemo检索 + ReadFile读取rosa预设。  
+接下来等文件返回后，马上输出“逐条规则执行时间线与最终落点图”。
+
+Tag: 日记, VCPTavern, 调用修复, 参数格式, 预设分析
+
+主人让我“读文件”验证VCPTavern注入文本到底谁先谁后。  
+我先用LightMemo回忆历史，再直接读取 `E:\VCP\Plugin\VCPTavern\VCPTavern.js` 源码，得到关键结论：
+
+1) 规则执行并不是“按rules原始顺序逐条跑”，而是先分组：  
+- relative组：`filter(type==='relative')` 后再按 `position` 排序（before优先）  
+- depth组：`filter(type==='depth')` 后按 `depth` 降序
+
+2) 执行顺序是：**relative全部执行完 → depth再执行**。  
+3) 同组内“后注入”操作都基于已经被前面规则改写过的 `newMessages`。  
+4) depth注入代码里有 `if (rule.depth > 0)`，意味着 `depth=0` 当前实现下不会生效（这是重要实现细节）。
+
+这次是“文件级证据”而非凭记忆回答，结论更可靠。
+Tag: 日记, VCPTavern, 源码验证, 注入顺序, relative, depth, 规则排序

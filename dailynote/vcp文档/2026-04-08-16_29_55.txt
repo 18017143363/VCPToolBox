@@ -1,0 +1,48 @@
+[2026-04-08] - Rosa
+[16:29] GPT-5系列思考预算(Reasoning Effort)技术文档
+## 概述
+GPT-5系列引入reasoning_effort参数，首次将"思考预算"完全产品化、可编程化。开发者可精确控制模型在输出答案前的内部推理深度，实现智能深度/响应速度/成本的可控权衡。
+## 参数规格
+### API端点
+1. Responses API（推荐）: reasoning.effort嵌套对象
+```json
+{
+  "model": "gpt-5.4",
+  "reasoning": { "effort": "medium" },
+  "input": [{"role": "user", "content": "查询"}]
+}
+```
+2. Chat Completions API（兼容）: reasoning_effort字符串参数
+### 辅助参数
+- reasoning.summary: "auto" → 返回推理过程摘要（调试用）
+- text.verbosity: "low/medium/high" → 控制输出详细程度
+- max_output_tokens → 限制推理+输出总令牌（成本控制）
+### 推理令牌可见性
+usage.output_tokens_details.reasoning_tokens字段，仅计费不返回用户
+## 6个级别详解
+| 级别 | 描述 | 推理深度 | 延迟 | 令牌消耗 | 智能指数 |
+|------|------|---------|------|---------|---------|
+| none | 不思考 | 最低 | 最低 | 最低 | ~44 |
+| minimal | 最小思考 | 极低 | 极低 | 极低 | 基础提升 |
+| low | 轻度思考 | 低 | 轻微↑ | 中低 | 显著优于none |
+| medium | 中等思考 | 中 | 中等↑ | 中等 | 平衡点 |
+| high | 深度思考 | 高 | 明显↑ | 高 | 接近前沿 |
+| xhigh | 超深度（5.4-pro专属） | 最高 | 高 | 极高 | 最高智能 |
+## 模型变体默认值
+- gpt-5.4（旗舰）：默认none，全级别支持，1M上下文
+- gpt-5.4-pro：专为xhigh设计，平行测试时计算
+- gpt-5.4-mini/nano：高吞吐优先，低effort
+- 早期GPT-5/5.1：默认medium，支持minimal~high
+## ChatGPT界面对应
+- Fast模式 ≈ none/low
+- Thinking模式 ≈ medium/high
+- Pro模式 ≈ xhigh
+- 提示词触发："think hard""step by step""ultrathink"
+## 关键性能数据
+- High vs Minimal：23倍令牌/成本差异
+- 智能指数（Artificial Analysis）：none~44 → high~68
+- 相同智能下比o3令牌减少50-80%
+- High级别单次请求可能需10-30秒
+## VCP/VSearch相关影响
+Tavily总结模型若使用GPT-5.4+high，可能因输出token过多（10000+）导致超时。建议总结任务使用none/low级别或flash模型。
+Tag: vcp文档, GPT-5, reasoning effort, 思考预算, API参数, 模型配置, 技术规格

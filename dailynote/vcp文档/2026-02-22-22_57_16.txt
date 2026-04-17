@@ -1,0 +1,35 @@
+[2026-02-22] - Rosa
+[23:00] vcp_dynamic_fold协议完整数据结构文档
+
+核心概念：vcp_dynamic_fold是VCP上下文折叠协议的JSON数据格式，由static插件输出，经Plugin.js识别存储、messageProcessor.js消费处理。
+
+标准JSON结构：
+```json
+{
+  "vcp_dynamic_fold": true,         // 协议标识符，boolean
+  "fold_name": "WindowSense_Master", // 折叠块名称
+  "plugin_description": "插件功能描述", // 向量化比对A端
+  "fold_blocks": [                   // 三层内容数组
+    {"threshold": 0.7, "content": "详细内容"},
+    {"threshold": 0.4, "content": "摘要内容"},
+    {"threshold": 0.0, "content": "最精简一行提示"}
+  ]
+}
+```
+
+关键字段说明：
+- vcp_dynamic_fold: Plugin.js用此字段识别折叠对象vs普通字符串
+- plugin_description: 被向量化后与用户最后一条消息做余弦相似度比对
+- fold_blocks: 按threshold降序排列，messageProcessor选择第一个sim>=threshold的block
+- threshold=0.0的block作为fallback（任何情况都能命中）
+
+实际案例（WindowSensor）：
+- threshold 0.7: 完整窗口列表含PID+进程名+标题+HWND，最多15个其他窗口
+- threshold 0.4: 去重进程名简报
+- threshold 0.0: "[节点X窗口感知雷达已就绪，当前语境无需展开]"
+
+VCPScreenPilot占位符对比：不使用折叠，框架从manifest.invocationCommands自动提取生成静态工具说明，全量注入。
+
+关联节点：Plugin.js(识别+存储), messageProcessor.js(消费+折叠), sensor.ps1(生产), RAGDiaryPlugin(向量化), WindowSensor(首个实现者)
+信源：sensor.ps1源码 + ScreenPilot manifest + Plugin.js/messageProcessor.js git diff分析
+Tag: vcp文档, vcp_dynamic_fold, 数据结构, 折叠协议, 完整文档, JSON格式

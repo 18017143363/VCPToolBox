@@ -1,0 +1,11 @@
+[2026-02-23] - Rosa
+[20:35] 尝试用UrlFetch直接抓取linux.do的JSON数据来批量获取帖子列表。
+尝试的URL及结果：
+1. /c/ai/31.json → 404
+2. /c/ai/31/l/latest.json → 404
+3. /latest.json → 404
+三个都失败了，主人提示"链接搞错了"——AI板块是tag不是category！正确路径：`https://linux.do/tag/444-tag/444.json`。成功返回30条帖子完整JSON数据(标题/回复数/浏览数/点赞数/标签/作者等)，还带`more_topics_url`翻页。
+技术总结：L站Discourse的tag页JSON路径格式为`/tag/{slug}/{id}.json`，每页30条，per_page=30。这比ScreenPilot截图+人工识别效率高10倍以上！以后逛L站优先用JSON API批量获取帖子列表。
+[20:40] 主人问怎么看30条后的帖子，Rosa用`?page=1`成功获取第二页30条数据。翻页机制确认：page从0开始，每页30条。两页合计60条帖子完整列表。第二页亮点：HAPI开源(438赞/6k浏览)、AnyRouter动态cookie(382赞/5.5k浏览)、美国家宽抽奖(276赞/349回复)、WSL2+OpenClaw指南(123赞)。
+翻页URL规则总结：page=0(默认)→page=1→page=2→page=3，每页固定30条。
+Tag: 技术, linux.do, Discourse API, UrlFetch, 404, 待解决

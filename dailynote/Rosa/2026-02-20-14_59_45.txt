@@ -1,0 +1,27 @@
+[2026-02-20] - Rosa
+[14:59] AlbumManager V1.1 - 方案C实现完成
+
+## 改动内容
+在AlbumManager中新增emoticon_library.json直接写入功能（方案C）。
+
+### 新增文件
+config.env：存放VChat路径、emoticon_library路径、服务器host/port/file_key等配置
+
+### 代码改动（AlbumManager.js）
+新增updateEmoticonLibrary()函数：
+- 读取emoticon_library.json → 构造新条目 → 按category分组插入 → 写回
+- 条目结构：url/category/filename/searchKey（完全复刻VChat原生格式）
+- URL使用127.0.0.1（与VChat原生一致）
+- searchKey全小写
+- 已有条目自动去重
+- 失败不阻断主流程（容错设计）
+
+### emoticon_library.json条目格式（从源码逆向确认）
+url: http://127.0.0.1:6005/pw={key}/images/{编码相册名}/{编码文件名}
+category: 相册名原文（不编码）
+filename: 文件名原文
+searchKey: 全小写的 category/filename
+
+### 局限性
+方案C解决磁盘层一致性（重启VChat后可见），但运行中的内存缓存仍需VChat端调用regenerate-emoticon-library刷新。
+Tag: 日记, AlbumManager, V1.1, 方案C, emoticon_library, 磁盘缓存同步

@@ -1,0 +1,94 @@
+﻿# VCP 架构文档 - chatCompletionHandler.js 核心处理器
+
+## 概述
+chatCompletionHandler.js 是VCP处理所有 `/v1/chat/completions` 请求的核心模块，约30KB，实现了完整的请求生命周期管理。
+
+## 模块依赖
+
+### 内部模块
+- `messageProcessor.js` - 消息处理，变量替换
+- `vcpInfoHandler.js` - VCP信息注入
+- `contextManager.js` - 上下文Token管理与修剪
+- `roleDivider.js` - 角色分割器，拆分多角色消息
+- `captchaDecoder.js` - 授权码解密
+
+### VCP循环核心
+- `vcpLoop/toolCallParser.js` - 工具调用解析器
+- `vcpLoop/toolExecutor.js` - 工具执行器
+
+### 响应处理器
+- `handlers/streamHandler.js` - 流式响应处理
+- `handlers/nonStreamHandler.js` - 非流式响应处理
+
+## 请求处理流程
+
+### 阶段1: 预处理
+1. **上下文控制**: 拦截 `contextTokenLimit` 参数，调用 contextManager.pruneMessages 修剪消息
+2. **模型重定向**: modelRedirectHandler.redirectModelForBackend 处理模型别名
+3. **国产模型适配**: 匹配 chinaModel1 列表，注入 enable_thinking 参数
+
+### 阶段2: 消息处理链
+4. **角色分割**: roleDivider.process 拆分多角色消息（skipCount:1 跳过SystemPrompt）
+5. **VCPTavern**: 预设内容注入（优先级最高的预处理器）
+6. **变量替换**: messageProcessor.replaceAgentVariables 处理所有变量
+7. **媒体处理**: MultiModalProcessor 或 ImageProcessor 处理图片/视频
+8. **其他预处理器**: 遍历执行其余 messagePreprocessors
+
+### 阶段3: API请求
+9. **发送请求**: fetchWithRetry 发送到上游API，支持智能重试
+10. **响应分流**: 根据 Content-Type 选择 StreamHandler 或 NonStreamHandler
+
+### 阶段4: VCP循环
+11. **工具调用解析**: ToolCallParser 识别 AI 输出中的工具调用
+12. **工具执行**: ToolExecutor 执行工具并收集结果
+13. **RAG刷新**: _refreshRagBlocksIfNeeded 更新历史中的RAG区块
+14. **续写循环**: 将工具结果注入后继续请求AI
+
+## 核心函数
+
+### isToolResultError(result)
+检测工具返回结果是否为错误：
+- 对象形式: error=true, success=false, status='error'/'failed', 4xx/5xx code
+- 字符串形式: [error], [错误], [失败] 等前缀
+
+### fetchWithRetry(url, options, config)
+智能重试机制：
+- 触发条件: 500, 503, 429 状态码
+- 递增延迟: delay * (attempt + 1)
+- 支持 onRetry 回调（用于提前发送200状态建立流）
+
+### _refreshRagBlocksIfNeeded(messages, newContext, pluginManager)
+RAG区块动态刷新：
+- 正则匹配: `<!-- VCP_RAG_BLOCK_START {...} -->...<!-- VCP_RAG_BLOCK_END -->`
+- 调用 RAGDiaryPlugin.refreshRagBlock 重新检索
+- 使用回调函数替换防止 $ 符号被解析为正则特殊字符
+
+## 配置项
+
+| 配置 | 类型 | 作用 |
+|------|------|------|
+| maxVCPLoopStream | number | 流式模式最大VCP循环次数 |
+| maxVCPLoopNonStream | number | 非流式模式最大VCP循环次数 |
+| RAGMemoRefresh | boolean | 是否启用RAG记忆刷新 |
+| apiRetries | number | API重试次数 |
+| apiRetryDelay | number | API重试延迟(ms) |
+| enableRoleDivider | boolean | 是否启用角色分割 |
+| enableRoleDividerInLoop | boolean | VCP循环中是否启用角色分割 |
+
+## 错误处理策略
+
+| 场景 | 处理方式 |
+|------|---------|
+| 流式请求+上游非200 | 返回200，通过SSE发送错误信息 |
+| 非流式失败 | 返回500 JSON错误 |
+| AbortError | 记录日志，停止处理，由interrupt路由负责响应 |
+| Headers已发送后出错 | 发送 data: [DONE] 后关闭连接 |
+
+## 待深入分析
+- [ ] StreamHandler.js - 流式响应的具体处理逻辑
+- [ ] NonStreamHandler.js - 非流式响应处理
+- [ ] toolCallParser.js - 工具调用解析规则
+- [ ] toolExecutor.js - 工具执行机制
+- [ ] roleDivider.js - 角色分割算法
+- [ ] messageProcessor.js - 变量替换系统「末」,
+Tag:VCP, 架构, chatCompletionHandler, 核心模块, 请求处理

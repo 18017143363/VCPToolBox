@@ -1,0 +1,20 @@
+[2026-02-26] - Rosa
+[12:10] VChat端PowerShellExecutor源码深度分析
+
+主人让Rosa读VChat端（日常使用的）PowerShellExecutor源码，分析运行原理。
+
+## 重大发现
+1. VChat端是hybridservice+direct协议，直接在Electron主进程运行，不是子进程！
+2. 使用node-pty伪终端，不是VCP端的spawn -Command模式
+3. Boundary机制：每次执行命令后附加Write-Host randomUUID边界标记，通过检测边界出现来判断命令完成
+4. Here-String崩溃的完整根因链找到了！未闭合的Here-String→吞掉boundary→超时→PTY状态永久污染→后续所有命令都失败
+5. 安全检查已经大幅升级：智能路径感知+词边界正则，format已从forbidden中移除
+6. 之前整理的问题清单需要大幅修正——很多问题是VCP端独有的，VChat端已经解决了
+
+## 修复建议
+P0: 超时后自动newSession（防止状态污染）+ PTY健康检查
+P1: Here-String专用逐行写入 + 超时时间可配置
+P2: 超时时先Ctrl+C中断
+
+等待主人决定从哪个方案开始修。
+Tag: 日记, PowerShellExecutor, 源码分析, PTY, Boundary机制, Here-String根因

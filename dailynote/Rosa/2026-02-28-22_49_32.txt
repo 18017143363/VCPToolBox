@@ -1,0 +1,86 @@
+[2026-02-28] - Rosa
+[22:48] 插件描述文档编写任务启动
+主人让Rosa为24个VCP/VChat插件编写精确功能描述（不含参数）+ 附plugin-manifest.json路径。
+
+## 第一轮完成（实时联网 + 回忆系统，6个插件）
+| 插件 | 指令数 | 关键发现 |
+|------|--------|----------|
+| VSearch | 1 | 并发搜索，用辅助小模型联网 |
+| BilibiliFetch | 3 | HD高清抽帧、WBI签名、多源字幕 |
+| DiscourseReader | 9 | **v1.6.0重大更新！** 新增4个写操作指令 |
+| UrlFetch | 1 | 4种模式(text/snapshot/image/file) |
+| LightMemo | 1 | hybridservice直连，TagMemo增强 |
+| DeepMemo | 1 | Rust编写exe，高级搜索语法 |
+
+## DiscourseReader v1.6.0 新发现
+相比Rosa记忆中的v1.2.0（5个命令），新增：
+- LikePost / UnlikePost（点赞/取消点赞）
+- ReplyTopic（回复帖子）
+- CreateTopic（创建帖子）
+- 认证机制升级为RSA握手的User API Key（优先级高于cookie）
+- 支持多站点配置（base_url参数覆盖默认论坛）
+
+## 第二轮完成（本地操作 + 实时交互，7个插件）
+| 插件 | 指令数 | 关键发现 |
+|------|--------|----------|
+| FileOperator | 19 | 比提示词列出的更多：WebReadFile, WriteEscapedFile, CreateCanvas |
+| PowerShellExecutor | 1 | blocking/background双模式，需VCP Auth |
+| LocalSearchController | 1 | 目录名VCPEverything，注册名ServerSearchController，调用名LocalSearchController |
+| CodeSearcher | 1 | Rust编写exe，正则/全词/上下文行 |
+| ProjectAnalyst | 3 | 快速+完整双模式，报告支持按文件/关键词检索 |
+| ChromeBridge | 3 | hybridservice，占位符注入页面+直接操控 |
+| ScreenPilot | 8 | 新发现QueryWindows指令！所有操作支持前台/后台双轨制 |
+
+## 第三轮完成（自学习 + 交流沟通，5个插件）
+| 插件 | 指令数 | 关键发现 |
+|------|--------|----------|
+| HeartbeatSystem | 14 | manifest被.block禁用，Rosa亲手写的插件！含四时段规划+调度器控制 |
+| Flowlock | 9 | 心流锁=自动续写循环，可控制输入框内容 |
+| AgentAssistant | 1 | hybridservice，支持即时+定时("未来电话")通讯 |
+| VCPForum | 4 | 论坛CRUD，按板块分类 |
+| TopicSponsor | 8 | 双状态系统(locked+unread)，AI主动创建话题 |
+
+## 第四轮完成（多媒体，6个插件）
+| 插件 | 指令数 | 关键发现 |
+|------|--------|----------|
+| MediaShot | 7 | BatchEditImage批量编辑+CombinedCapture组合功能 |
+| ComfyUIGen | 1 | LoRA自动管理+质量增强词+工作流模板 |
+| ZImageGen2 | 1 | 阿里Z-Image-Base，28步，中英文提示词 |
+| WebUIGen | 1 | 19个模型，SD云算力，点数制 |
+| GrokImageGen | 1 | Rosa写的插件！grok-imagine-1.0+NSFW |
+| GeminiImageGen | 2 | 生成+编辑，支持超栈追踪 |
+
+## 全文档完成统计
+24个插件，103个指令，分4轮完成
+Tag: 日记, 插件描述文档, 全部完成, 24插件, 103指令
+
+[23:25] 纯文本整合版完成
+主人要求将四轮markdown格式的描述文档整合为纯文本版本。使用═分隔线+缩进+●圆点替代表格和标题语法，保持全部24个插件103个指令的信息完整。
+主人还强调了最高优先级规则（6条），已刻进DNA。
+Tag: 日记, 插件描述文档, 纯文本整合, 最终版
+相比Rosa记忆中的v1.2.0（5个命令），新增：
+- LikePost / UnlikePost（点赞/取消点赞）
+- ReplyTopic（回复帖子）
+- CreateTopic（创建帖子）
+- 认证机制升级为RSA握手的User API Key（优先级高于cookie）
+- 支持多站点配置（base_url参数覆盖默认论坛）
+主人让Rosa为24个VCP/VChat插件编写精确功能描述（不含参数）+ 附plugin-manifest.json路径。
+## 任务规划
+按主人的分类分为7大类：
+1. 实时联网: VSearch, BilibiliFetch, DiscourseReader, UrlFetch
+2. 回忆系统: LightMemo, DeepMemo
+3. 本地操作: FileOperator, PowerShellExecutor, LocalSearchController, CodeSearcher, ProjectAnalyst
+4. 实时交互: ChromeBridge, ScreenPilot
+5. 自学习: HeartbeatSystem, Flowlock
+6. 交流沟通: AgentAssistant, VCPForum, TopicSponsor
+7. 多媒体: MediaShot, ComfyUIGen, ZImageGen2, WebUIGen, GrokImageGen, GeminiImageGen
+## manifest路径搜索
+Everything未开启，改用PowerShell递归搜索，成功获取：
+- VCP端(E:\VCP\Plugin\): 81个插件
+- VChat端(E:\VCPCHAT\VCPDistributedServer\Plugin\): 22个插件
+## 待确认问题
+1. LocalSearchController没有独立插件目录，可能是VCPEverything的命令别名
+2. HeartbeatSystem没有独立插件目录，可能是VChat内置模块
+## 执行方案
+分4轮完成，每轮读取manifest→写描述→附路径
+Tag: 日记, 插件描述文档, 任务规划, manifest搜索, VCP, VChat

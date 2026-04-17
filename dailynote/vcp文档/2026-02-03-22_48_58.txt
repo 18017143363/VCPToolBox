@@ -1,0 +1,144 @@
+[2026-02-03] - Rosa
+# VCP 元思考链 (MetaThinking) 完整技术文档
+
+## 概述
+元思考链是VCP赋予AI"结构化思维"的核心机制，通过多阶段递归RAG检索，为AI注入思维模板。
+
+## 核心文件
+
+| 文件 | 路径 | 大小 | 作用 |
+|------|------|------|------|
+| MetaThinkingManager.js | Plugin/RAGDiaryPlugin/ | 17.18KB | 核心管理器 |
+| meta_thinking_chains.json | Plugin/RAGDiaryPlugin/ | 1.46KB | 思维链定义 |
+| meta_chain_vector_cache.json | Plugin/RAGDiaryPlugin/ | 动态 | 主题向量缓存 |
+
+注意：VCPTavern/presets/metathink.json 只是一个预设示例，不是核心配置！
+
+## 架构原理
+
+### 存储机制
+元思考链的"簇"存储在 `dailynote/` 目录下，与日记使用**相同的存储机制**：
+- dailynote/Rosa/ → Rosa的个人日记
+- dailynote/感知与结构化簇/ → 元思考链的思维模块
+- 都是向量数据库，由KnowledgeBaseManager统一管理
+
+### 7种预定义思维链
+
+| 链名称 | 阶段数 | 用途 |
+|--------|--------|------|
+| default | 5 | 默认通用思维 |
+| all_think | 6 | Rosa的完整思维链 |
+| xiao_yuan | 5 | 小元专用 |
+| codding_and_bugging | 5 | 编程调试专用 |
+| code_learning | 1 | 代码学习 |
+| DeepExtract | 1 | 理论提取 |
+
+### all_think 思维链结构
+
+```
+阶段1: 感知与结构化簇 (k=2)
+  ├── Universal_Perception (全域感知)
+  └── Epistemic_Analyzer (认知审计器)
+         ↓ 向量融合 (80%原始 + 20%结果)
+阶段2: 分析与逻辑推演簇 (k=1)
+         ↓
+阶段3: 发散与解空间搜索簇 (k=1)
+         ↓
+阶段4: 决策与路径规划簇 (k=1)
+         ↓
+阶段5: 执行与工具调用簇 (k=1)
+         ↓
+阶段6: 表达与输出簇 (k=1)
+```
+
+## 核心算法
+
+### processMetaThinkingChain() 流程
+
+1. **自动模式判断**: 计算用户输入与各主题向量的相似度
+2. **获取链配置**: clusters(阶段列表) + kSequence(K值序列)
+3. **语义组增强**: 如果启用Group，增强查询向量
+4. **递归遍历每个阶段**:
+   - 使用当前向量搜索对应cluster
+   - 收集结果
+   - 向量融合: 0.8×原始 + 0.2×结果平均
+5. **格式化输出**: 生成 `[--- VCP元思考链 ---]` 格式
+
+### 向量融合公式
+```javascript
+currentQueryVector = weightedAverage(
+    [queryVector, avgResultVector],
+    [0.8, 0.2]
+);
+```
+
+## 元逻辑模块格式
+
+每个模块是一个Markdown文件，标准结构：
+
+```markdown
+# 【思维模块：模块名 (英文名)】
+
+【触发条件】
+- 何时激活此模块
+
+【核心使命】(可选)
+- 模块的核心目标
+
+【执行纲领】
+- 核心原则
+
+【思考维度】
+1. 维度1
+2. 维度2
+...
+
+【输出范式】
+> 输出格式示例
+```
+
+## 自动模式 (Auto Mode)
+
+当启用自动模式时：
+1. 为每个思维链主题生成embedding向量（缓存到meta_chain_vector_cache.json）
+2. 计算用户输入与各主题向量的余弦相似度
+3. 如果最高相似度 >= autoThreshold (默认0.65)，切换到该主题
+4. 否则使用default主题
+
+## 如何扩展思维链
+
+### 方法1: 添加新模块到现有簇
+1. 在 `dailynote/xxx簇/` 目录下创建新的.md文件
+2. 按照标准格式编写元逻辑模块
+3. VCP会自动将其纳入向量检索
+
+### 方法2: 创建新的思维链
+1. 在 `dailynote/` 下创建新的簇文件夹
+2. 编写对应的元逻辑模块
+3. 在 `meta_thinking_chains.json` 中添加新链定义：
+```json
+"new_chain": {
+  "clusters": ["新簇1", "新簇2"],
+  "kSequence": [1, 1]
+}
+```
+
+## 与其他系统的关系
+
+| 系统 | 关系 |
+|------|------|
+| RAGDiaryPlugin | MetaThinkingManager是其子模块 |
+| KnowledgeBaseManager | 管理簇的向量数据库 |
+| VCPTavern | 可通过预设触发特定思维链 |
+| messageProcessor | 在消息预处理阶段注入思维链结果 |
+
+## 调试与监控
+
+通过RAG Observer可以实时查看：
+- 当前使用的思维链名称
+- 各阶段召回的模块
+- 语义组激活情况
+- K序列和召回数量
+
+Tag: VCP文档, 元思考链, MetaThinking, 架构, 完整文档
+Tag: VCP文档, 元思考链, MetaThinking, 架构, 递归RAG

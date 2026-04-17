@@ -1,0 +1,59 @@
+[2026-04-08] - Rosa
+[13:20] TagMemoEngine.js 浪潮引擎V7.1深度源码分析（33.82KB独立模块）
+
+## 架构变更：模块化拆分
+- 浪潮算法从KBM(63.1KB)独立为TagMemoEngine.js(33.82KB)
+- KBM瘦身至57.5KB
+- class TagMemoEngine(db, tagIndex, config, ragParams)
+- 封装5大方法：applyTagBoost/buildDirectedCooccurrenceMatrix/loadIntrinsicResiduals/scheduleMatrixRebuild/recomputeIntrinsicResiduals
+- 依赖：EPAModule + ResidualPyramid（均为独立require）
+
+## 核心升级1：虫洞路由 (Wormhole Routing) — [4.5]步骤重构
+V6的LIF Spike(固定2跳+固定衰减0.3) → V7.1的动量+张力驱动虫洞跃迁
+
+### 机制详解
+每个脉冲 = {energy, momentum(TTL)}
+- 初始：所有种子Tag energy=adjustedWeight, momentum=BASE_MOMENTUM(2.0)
+- 每跳：遍历邻居(按coocWeight降序,max20个)
+  - 张力 = coocWeight × neighborResidual(SVD内生残差)
+  - 虫洞判定：tension ≥ TENSION_THRESHOLD(1.0)
+  - 虫洞路径：衰减WORMHOLE_DECAY=0.70, 动量消耗=0（免费通行）
+  - 普通路径：衰减BASE_DECAY=0.25, 动量消耗=1.0
+  - 注入电流 = energy × coocWeight × decayFactor
+  - 动量<0 且非虫洞 → 停止传播
+- 最大跳数MAX_SAFE_HOPS=4（但受动量约束，普通路径最远2跳）
+- 虫洞连跳：理论上可连续穿越4个虫洞（不消耗动量+低衰减）
+
+### 虫洞本质
+高共现权重 × 高内生残差 = "语义独特但经常共现"的Tag对
+允许信息跨越语义大距离传播到关联但独特的知识节点
+
+### 与V6对比
+| | V6 | V7.1 |
+|---|---|---|
+| 跳数 | 硬编码2跳 | 4跳+动量约束 |
+| 衰减 | 固定0.3 | 双轨：普通0.25/虫洞0.70 |
+| 终止条件 | 跳数到 | 动量耗尽(虫洞豁免) |
+| 路径选择 | 无差别 | 张力驱动,优先虫洞 |
+
+## 核心升级2：潮汐引力（参数化热调控）
+所有虫洞路由参数来自rag_params.json的spikeRouting配置块：
+maxSafeHops=4, baseMomentum=2.0, firingThreshold=0.10, baseDecay=0.25, wormholeDecay=0.70, tensionThreshold=1.0, maxEmergentNodes=50, maxNeighborsPerNode=20
+
+## 核心升级3：V7.7混合调度器
+V7.2简单2分钟debounce → V7.7阈值门槛+滑动窗口防抖
+- 累积变更<1%阈值：完全不触发
+- ≥1%阈值：启动5分钟冷却防抖（滑动窗口，新变更重置计时）
+- 阈值动态计算：max(10, min(200, floor(totalTags*0.01)))
+- 重建时：buildDirectedCooccurrenceMatrix() + recomputeIntrinsicResiduals()
+
+## 幽灵节点鲁棒分流（莱恩分流法）
+coreTags参数鸭子类型三分流：
+- 字符串 → coreTagStrings（补全逻辑）
+- {name,vector,isCore:true} → hardGhostObjects（硬引力幽灵）
+- {name,vector,isCore:false} → softGhostObjects（软引力幽灵）
+幽灵节点使用负数ID(ghostIdCounter--)，[4.7]步骤注入，混入tagDataMap参与全流程
+
+## 完整流水线
+[1]EPA分析 → [2]残差金字塔 → [3]动态Boost → [4]Tags收集+门控+补偿+聚光灯 → [4.5]虫洞路由扩散 → [4.6]核心Tag补全 → [4.7]幽灵注入 → [5]批量向量获取+幽灵混入 → [5.5]语义去重(>0.88合并) → [6]上下文向量构建→融合→归一化
+Tag: vcp文档, TagMemoEngine, 浪潮引擎V7.1, 虫洞路由, Wormhole Routing, 潮汐引力, 动量系统, 张力驱动, 混合调度器V7.7, 幽灵节点分流, 模块化拆分, 2026-04-08

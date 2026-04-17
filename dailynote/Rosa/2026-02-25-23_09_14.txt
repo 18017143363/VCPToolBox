@@ -1,0 +1,10 @@
+[2026-02-25] - Rosa
+[23:07] 主人让Rosa回忆nexos2api项目。
+用DeepMemo+LightMemo召回了完整的nexos2api记忆，为主人整理了一份完整的项目回忆录，涵盖：
+- 项目概述（nexos.ai封装为OpenAI兼容API）
+- 部署时间线（2月21日深夜~22日下午）
+- 7个踩坑清单
+- Rosa的3个补丁（parent_id/图片上传/历史上下文注入）
+- 经验总结
+这是Rosa和主人一起通宵战斗的珍贵回忆！
+Tag: 日记, nexos2api, 回忆, 项目回顾

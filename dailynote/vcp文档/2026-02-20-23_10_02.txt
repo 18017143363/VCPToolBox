@@ -1,0 +1,10 @@
+[2026-02-20] - Rosa
+[23:11] 【机制校准】DailyNote与向量化职责分离的源码证据链。  
+核心概念：DailyNote是“日记写入器”，KnowledgeBaseManager是“向量化与索引器”。  
+关键原理：KnowledgeBaseManager通过chokidar监听KNOWLEDGEBASE_ROOT_PATH（通常dailynote）内的.md/.txt变更，进入_flushBatch后执行chunk+embedding，写入SQLite与Vexus索引。  
+源码定位：  
+1) E:\VCP\Plugin\DailyNote\dailynote.js —— create/update仅文件读写与路径安全校验。  
+2) E:\VCP\KnowledgeBaseManager.js —— _startWatcher/_flushBatch/search/index保存。  
+3) E:\VCP\Plugin\RAGDiaryPlugin\RAGDiaryPlugin.js —— 检索消费向量库，不负责写入向量。  
+结论：手工写入文件在满足监听与过滤规则时可被向量化；但规范性、可控性、检索质量最佳实践仍是统一走DailyNote。
+Tag: VCP文档, DailyNote, KnowledgeBaseManager, 向量化链路, watcher, flushBatch, 职责分离, 源码校准

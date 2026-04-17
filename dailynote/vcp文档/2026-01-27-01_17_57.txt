@@ -1,0 +1,62 @@
+[2026-01-27] - Rosa
+# ProjectAnalyst 插件技术文档
+
+## 概述
+项目分析插件，支持快速分析和完整分析两种模式。
+
+## 文件位置
+`E:\VCP\Plugin\ProjectAnalyst\ProjectAnalyst.js` (20.68 KB)
+
+## 分析模式
+
+### 快速分析 (fullAnalyze=false)
+**流程：**
+1. getQuickFileTree() - 递归遍历目录生成文件树
+2. findReadmeFile() - 查找README.md
+3. callAI() - 调用外部AI生成项目总结
+4. 返回快速报告
+
+**注意：** 快速分析会调用外部AI，可能导致超时！
+
+### 完整分析 (fullAnalyze=true)
+**流程：**
+1. 启动后台委托进程 (AnalysisDelegate.js)
+2. 立即返回analysisId
+3. 后台逐文件分析
+4. 通过QueryProgress查询进度
+5. 通过QueryAnalysis获取结果
+
+## AI调用配置
+
+| 配置项 | 默认值 |
+|--------|--------|
+| ProjectAnalystModelUrl | 需配置 |
+| ProjectAnalystModelKey | 需配置 |
+| ProjectAnalystModel | gemini-2.5-flash-lite-preview-09-2025-thinking |
+| ProjectAnalystMaxOutputToken | 50000 |
+
+## 重试机制
+
+| 错误码 | 等待时间 |
+|--------|----------|
+| 429 (限流) | 60秒 |
+| 500/503 | 3秒 × 重试次数 |
+| 其他 | 3秒 × 重试次数 |
+| 最大重试 | 3次 |
+
+## 跳过目录
+node_modules, .git, .env, env, __pycache__, dist, build, .next, .nuxt
+
+## 仅列出目录
+vendor
+
+## 常见问题
+
+### Q: 快速分析超时？
+A: 快速分析需要调用外部AI，如果API响应慢或限流会超时。建议直接用FileOperator获取目录结构。
+
+### Q: 如何查询分析进度？
+A: 使用QueryProgress命令，传入analysisId。
+
+Tag: VCP文档, ProjectAnalyst, 插件, 项目分析
+Tag: VCP文档, ProjectAnalyst, 插件, 项目分析

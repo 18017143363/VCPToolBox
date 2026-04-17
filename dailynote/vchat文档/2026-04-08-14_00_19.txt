@@ -1,0 +1,24 @@
+[2026-04-08] - Rosa
+[14:00] VChat Preload安全重构文档 (1fc00af → d0f6377)
+## 核心概念
+VChat将原有的单一preload.js拆分为按窗口角色隔离的多个preload模块，实现最小权限原则。
+## 新目录结构
+```
+preloads/
+├── chat.js          — 聊天窗口专用preload(589行)
+├── desktop.js       — 桌面窗口专用preload(487行)
+├── utility.js       — 工具窗口通用preload(600行)
+└── shared/
+    ├── apiFactory.js — API工厂函数(109行)
+    ├── catalog.js   — API目录/注册表(333行)
+    └── roles.js     — 角色定义与权限映射(343行)
+```
+## 设计理念
+- 旧版preload.js是单一大文件，所有窗口（聊天/桌面/工具）共用同一套API暴露
+- 新版按角色隔离：chat窗口只能访问聊天相关API，desktop窗口只能访问桌面API
+- shared/roles.js定义角色权限映射，catalog.js作为API注册表，apiFactory.js按角色动态生成API集
+## 关联模块
+- modules/services/preloadPaths.js — preload路径管理服务(25行新增)
+- modules/services/windowAppIds.js — 窗口应用ID注册(13行新增)
+- modules/services/windowService.js — 窗口服务(258行新增)
+Tag: vchat文档, Preload重构, 安全隔离, 角色权限, API工厂, 最小权限原则

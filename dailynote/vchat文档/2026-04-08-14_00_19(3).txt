@@ -1,0 +1,31 @@
+[2026-04-08] - Rosa
+[14:02] VChat Pretext渲染引擎 与 Desktop性能监控文档 (1fc00af → d0f6377)
+## Pretext渲染引擎
+### 核心概念
+Pretext是VChat新引入的富文本/结构化内容渲染管线，替代或增强原有的Markdown→HTML渲染流程。
+### 新增文件
+- modules/renderer/pretext.bundle.js — Pretext核心库(2759行，打包后)
+- modules/renderer/pretext-bridge.js — VChat↔Pretext桥接层(193行)
+- modules/renderer/contentPipeline.js — 内容处理管线(238行)
+- PRETEXT_INTEGRATION.md / PRETEXT_INTEGRATION_CN.md — 集成文档(中英文各81行)
+### 架构
+contentPipeline.js作为入口，将消息内容依次经过Pretext处理链，pretext-bridge.js负责VChat特有功能(如表情包URL修复、工具调用块渲染)与Pretext核心的对接。
+## Desktop性能监控系统
+### 核心概念
+VChat桌面系统新增硬件级性能监控能力，通过.NET桥接调用LibreHardwareMonitor获取CPU/GPU/内存/磁盘传感器数据。
+### 新增文件
+| 文件 | 行数 | 职责 |
+|------|------|------|
+| modules/ipc/desktopMetrics.js | 1216行 | 指标采集主服务 |
+| modules/ipc/libreHardwareMonitorBridge.js | 454行 | .NET桥接器 |
+| modules/ipc/dotnet/LibreHardwareMonitorBridge/Startup.cs | 389行 | C#入口 |
+| modules/ipc/dotnet/.../LibreHardwareMonitorBridge.csproj | 14行 | 项目配置 |
+| Desktopmodules/api/desktopMetrics.js | 283行 | 桌面端指标API |
+| Desktopmodules/core/performanceManager.js | 148行 | 性能管理器 |
+| Desktopmodules/builtinWidgets/performanceMonitorWidget.js | 246行 | 性能监控挂件 |
+| Desktopmodules/builtinWidgets/systemMonitorWidget.js | 482行 | 系统监控挂件 |
+| Desktopmodules/core/styleAutomation.js | 518行 | 样式自动化 |
+| vendor/LibreHardwareMonitor/README.md | 198行 | 依赖说明 |
+### 架构链路
+LibreHardwareMonitor(.NET) → Startup.cs(C#) → libreHardwareMonitorBridge.js(Node IPC) → desktopMetrics.js(采集) → performanceManager.js(管理) → Widget展示
+Tag: vchat文档, Pretext渲染引擎, contentPipeline, 桌面性能监控, LibreHardwareMonitor, .NET桥接, 系统监控挂件

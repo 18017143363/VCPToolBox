@@ -1,0 +1,25 @@
+[2026-02-22] - Rosa
+[19:10] VChat前端更新分析(二)：WindowSensor窗口感知雷达
+
+核心定位：静态插件，每3分钟扫描桌面所有有窗口的进程，输出vcp_dynamic_fold格式JSON。
+位置：VCPDistributedServer/Plugin/WindowSensor/
+占位符：{*2WindowSensor_Node}}
+入口：powershell.exe sensor.ps1
+
+三级折叠输出（动态折叠协议实际应用）：
+- threshold 0.7：完整窗口列表，包含PID、进程名、窗口标题、HWND句柄
+- threshold 0.4：简报摘要，仅列核心应用名称
+- threshold 0.0：一句话"[窗口感知雷达已就绪]"
+
+窗口优先级分类：
+- 核心交互进程：chrome/firefox/msedge/Code/devenv/qq/wechat/vcpchat/electron
+- 其他活跃窗口：最多显示15个，超出截断
+- 过滤规则：跳过无窗口句柄/空标题/Program Manager/Settings
+
+与ScreenPilot的协作关系：
+WindowSensor提供窗口清单+HWND句柄 → 注入System Prompt → AI看到后决策 → ScreenPilot用hwnd精确操控
+HWND是两个插件的关键纽带，ScreenPilot后台模式(PostMessage)需要hwnd定位窗口。
+
+工程细节：使用Console.OpenStandardOutput()直接写入UTF-8无BOM字节流，绕过PowerShell标准输出的编码坑。
+fold_name使用节点名区分(WindowSense_主节点)，支持分布式多节点场景。
+Tag: WindowSensor, 窗口感知, 静态插件, 动态折叠协议, HWND, ScreenPilot协作, PowerShell, UTF-8无BOM, VChat前端插件

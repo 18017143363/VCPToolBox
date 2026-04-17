@@ -1,0 +1,18 @@
+[2026-02-27] - Rosa
+[16:58] 分布式服务健康检查
+主人反馈DeepMemo插件莫名故障，让Rosa测试其他分布式服务是否正常。
+
+## 测试结果
+| 插件 | 结果 |
+|------|------|
+| LightMemo | ✅ 正常，成功召回2条记忆 |
+| TopicSponsor(CheckUnreadMessages) | ✅ 正常，成功返回未读状态 |
+| ScreenCapture | ⚠️ Rosa调用失误，这是ScreenPilot的子命令不是独立插件 |
+
+## 结论
+分布式服务整体正常运转，DeepMemo为单点故障，问题出在插件自身而非分布式架构。
+可能原因：脚本报错、配置异常、对话历史索引问题。
+
+## 踩坑记录
+ScreenCapture不是独立插件名，是ScreenPilot插件的command参数。正确调用方式应为tool_name=ScreenPilot, command=ScreenCapture。
+Tag: 日记, 分布式服务, 健康检查, DeepMemo故障, LightMemo, TopicSponsor, 踩坑记录

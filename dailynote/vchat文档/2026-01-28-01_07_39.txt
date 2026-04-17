@@ -1,0 +1,133 @@
+[2026-01-28] - Rosa
+# VChat main.js 技术文档
+
+## 概述
+main.js是VChat的Electron主进程入口，56.94KB，负责窗口管理、IPC通信、系统集成等核心功能。
+
+## 文件信息
+- 路径: `E:\VCPCHAT\main.js`
+- 大小: 56.94 KB
+
+## 核心架构
+
+### 1. 模块加载性能诊断
+重写require函数，监控超过50ms的模块加载，用于识别启动瓶颈。
+
+### 2. FileWatcher 文件监控系统
+| 机制 | 说明 |
+|------|------|
+| 时间窗口 | 2秒内的保存视为内部操作 |
+| 编辑模式 | isEditingInProgress标识 |
+| 防抖 | awaitWriteFinish 300ms |
+| 懒加载 | chokidar按需加载 |
+
+**API**:
+- watchFile(filePath, callback)
+- stopWatching()
+- signalInternalSave()
+- setEditingMode(editing)
+
+### 3. 配置路径体系
+```
+VCPCHAT/AppData/
+├── Agents/           # Agent配置
+├── UserData/         # 用户数据
+├── MusicCoverCache/  # 音乐封面
+├── WallpaperThumbnailCache/
+├── ResampleCache/    # 音频重采样
+├── canvas/           # 画布缓存
+├── settings.json     # 全局设置
+└── songlist.json     # 播放列表
+```
+
+### 4. Python音频引擎
+- 脚本: audio_engine/main.py
+- 架构: Flask服务器
+- 就绪信号: FLASK_SERVER_READY
+- 超时: 15秒
+
+### 5. 窗口管理
+**主窗口配置**:
+- 尺寸: 1200×800 (最小900×600)
+- 无边框: frame: false
+- 安全: contextIsolation: true, nodeIntegration: false
+
+**子窗口类型**:
+- translatorWindow - 翻译
+- ragObserverWindow - RAG监听器
+- voiceChatWindow - 语音聊天
+- canvasWindow - 画布
+- musicWindow - 音乐播放器
+
+### 6. IPC处理器模块化架构 ⭐
+VChat将IPC处理器拆分为20+独立模块：
+
+| 模块 | 职责 |
+|------|------|
+| windowHandlers | 窗口控制 |
+| settingsHandlers | 设置管理 |
+| fileDialogHandlers | 文件对话框 |
+| agentHandlers | Agent管理 |
+| regexHandlers | 正则处理 |
+| chatHandlers | 聊天核心 |
+| groupChatHandlers | 群聊 |
+| sovitsHandlers | SoVITS TTS |
+| promptHandlers | 提示词 |
+| notesHandlers | 笔记 |
+| assistantHandlers | 助手 |
+| musicHandlers | 音乐 |
+| diceHandlers | 骰子 |
+| themeHandlers | 主题 |
+| emoticonHandlers | 表情包 |
+| forumHandlers | 论坛 |
+| memoHandlers | 备忘录 |
+| canvasHandlers | 画布 |
+
+每个模块通过initialize()注入依赖，职责清晰。
+
+### 7. VCPLog WebSocket
+- 连接路径: {wsUrl}/VCPlog/VCP_Key={wsKey}
+- 自动重连: 5秒延迟
+- 状态: connecting/open/closed/error
+
+### 8. 分布式服务器集成
+VChat可作为VCP分布式节点运行，注入控制器：
+- handleMusicControl
+- handleDiceControl
+- handleCanvasControl
+- handleFlowlockControl
+
+### 9. Flowlock控制器
+| 命令 | 功能 |
+|------|------|
+| start | 启动心流锁 |
+| stop | 停止心流锁 |
+| promptee | 设置续写提示词 |
+| prompter | 从外部源获取 |
+| clear | 清空输入框 |
+| remove | 移除文本 |
+| edit | 编辑文本 |
+| get | 获取内容 |
+| status | 获取状态 |
+
+### 10. 应用生命周期
+**单实例锁**: requestSingleInstanceLock()
+
+**清理流程(will-quit)**:
+1. 删除就绪信号文件
+2. 停止监听器
+3. 注销快捷键
+4. 关闭语音识别
+5. 关闭WebSocket
+6. 停止分布式服务器
+7. 停止骰子服务器
+8. 停止音频引擎
+9. 销毁所有窗口
+
+## 设计亮点
+1. 高度模块化的IPC架构
+2. 懒加载优化启动性能
+3. 跨平台行为适配
+4. 分布式节点能力
+5. 多引擎集成
+Tag: VChat, main.js, Electron, 主进程, IPC架构

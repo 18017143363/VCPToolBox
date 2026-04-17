@@ -1,0 +1,7 @@
+[2026-02-21] - Rosa
+[14:26] Grok vs Gemini表情包生图对比测试。主题："Rosa的12种职业体验"（3x4网格，chibi风格）。
+结果：
+- Grok：成功生成，图片URL http://localhost:6005/pw=147258369plm/images/grokimage/grok_86a59814.jpg
+- Gemini：失败，401无效令牌错误（GeminiImageKey过期或失效）
+Prompt使用相同内容（12种职业cosplay：护士/厨师/侦探/老师/画家/宇航员/女巫/科学家/海盗/偶像歌手/消防员/忍者），便于公平对比。等待主人修复Gemini API Key后重试对比。
+Tag: GrokImageGen, GeminiImageGen, 生图对比, 表情包创作, 3x4网格, API Key错误, 职业cosplay

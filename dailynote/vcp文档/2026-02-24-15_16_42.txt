@@ -1,0 +1,151 @@
+[2026-02-24] - Rosa
+[15:20] Web反爬与Cloudflare绕过技术文档（基于DiscourseReader v1.3.0实战总结）
+
+## 核心概念：Cloudflare TLS指纹检测
+
+### 什么是TLS指纹（JA3/JA4）
+- 每个HTTP客户端在TLS握手时会发送Client Hello，其中包含支持的密码套件、TLS扩展、椭圆曲线等参数
+- 这些参数的组合构成唯一的"TLS指纹"（JA3 Hash）
+- **不同客户端的TLS指纹不同**：Chrome、Firefox、Node.js、curl各有独特指纹
+- Cloudflare收集了已知客户端的指纹库，用于判断请求是否来自真实浏览器
+
+### CF如何利用TLS指纹
+```
+请求到达CF → 检查TLS指纹
+  → 匹配Chrome/Firefox → 放行（可能还需过JS质询）
+  → 匹配Node.js/curl/Python → 拦截(403/503)
+  → 未知指纹 → 触发JS质询("Just a moment...")
+```
+
+## 实战验证：Node.js直连 vs CF
+
+### 测试环境
+- 目标：linux.do（Discourse论坛，CF防护）
+- 客户端：Node.js 原生https模块
+- 验证工具：test_cookie.js诊断脚本
+
+### 实测结果
+
+| 端点类型 | 示例URL | Node.js直连 | 需要登录 |
+|---------|---------|:-----------:|:-------:|
+| 板块列表 | /categories.json | ✅ 放行 | 否 |
+| 帖子列表 | /c/{slug}.json | ✅ 放行 | 否 |
+| 帖子详情 | /t/{id}.json | ✅ 放行 | 否 |
+| 标签列表 | /tags.json | ✅ 放行 | 否 |
+| **搜索** | /search.json | **❌ 403** | **是** |
+| **会话状态** | /session/current.json | **❌ 429** | **是** |
+
+### 关键发现
+1. **公开端点CF防护宽松**：不需要登录的JSON API端点，CF对TLS指纹检测不严格，Node.js直连可过
+2. **需登录端点CF防护严格**：搜索等需要认证的端点，CF进行完整TLS指纹检测，Node.js被拦截
+
+## cf_clearance Cookie与TLS指纹绑定
+
+### 机制
+- `cf_clearance` 是用户通过CF JS质询后获得的通行证cookie
+- **该cookie绑定了通过质询时的TLS指纹**
+- 浏览器获得的cf_clearance只对浏览器的TLS指纹有效
+
+### 反直觉现象：带cookie反而更差
+```
+Node.js + 无cookie → 公开端点放行（CF不深入检查）
+Node.js + 浏览器cookie(含cf_clearance) → CF检测到"TLS指纹≠cookie指纹" → 拦截
+```
+- **解释**：不带cookie时，CF可能只做浅层检查（公开内容嘛随便看）
+- 带上cf_clearance后，CF会验证指纹匹配性，反而暴露了Node.js的非浏览器身份
+
+### 实践建议
+- Node.js直连访问公开端点时，**不要带cf_clearance**
+- 需要登录态的端点，**必须使用Puppeteer+Stealth**绕过CF
+
+## Puppeteer + Stealth反反爬方案
+
+### 原理
+- Puppeteer启动真实Chromium浏览器实例
+- puppeteer-extra-plugin-stealth修补了Puppeteer的各种可检测特征：
+  - navigator.webdriver = false
+  - Chrome DevTools Protocol指纹
+  - WebGL渲染器信息
+  - 语言/时区/屏幕分辨率一致性
+  - **TLS指纹：真实Chromium的TLS栈，CF无法区分**
+
+### VCP中的实现（UrlFetch插件）
+```javascript
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const AnonymizePlugin = require('puppeteer-extra-plugin-anonymize-ua');
+puppeteer.use(StealthPlugin());
+puppeteer.use(AnonymizePlugin());
+
+// 启动参数
+browser = await puppeteer.launch({
+  headless: 'new',
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+});
+
+// setCookie后访问目标URL
+await page.setCookie(...cookies);
+await page.goto(url, {waitUntil: 'networkidle2'});
+```
+
+### VCP可用的Puppeteer模块路径
+```
+E:\VCP\node_modules\
+├── puppeteer-extra/dist/                    → 主模块
+├── puppeteer-extra-plugin-stealth/          → 反检测（含10+个evasion子模块）
+└── puppeteer-extra-plugin-anonymize-ua/     → UA匿名化
+```
+
+## Cookie管理架构
+
+### UrlFetch的Cookie来源（3层优先级）
+```
+1. FETCH_COOKIES_RAW_MULTI → JSON对象，按域名匹配多站点
+   格式：{"linux.do":"cookie1","meta.discourse.org":"cookie2"}
+2. FETCH_COOKIES_RAW → 单站点原始cookie字符串
+3. FETCH_COOKIES → JSON数组格式
+```
+全部通过VCP主config.env的环境变量注入，**不支持运行时通过调用参数传递cookie**。
+
+### 跨插件Cookie传递限制
+- UrlFetch通过process.env读取cookie（dotenv启动时加载）
+- 其他插件（如DiscourseReader）调用UrlFetch时只能传url和mode
+- **无法在调用时传递特定cookie给UrlFetch**
+- 解决方案：插件自己require puppeteer模块，自主管理cookie和浏览器实例
+
+## 获取Cookie的正确方法
+
+### 浏览器开发者工具法（推荐）
+1. 登录目标网站
+2. F12 → 网络标签 → 刷新页面
+3. 点击任意请求 → 请求标头 → Cookie字段 → 复制完整值
+4. ⚠️ **不能用document.cookie**（拿不到HttpOnly cookie，如_t、_forum_session）
+
+### Cookie字段说明（Discourse论坛）
+| Cookie | 作用 | 必需 |
+|--------|------|:----:|
+| _t | Discourse登录token | ✅ |
+| _forum_session | 会话ID | ✅ |
+| cf_clearance | CF通行证（绑TLS指纹） | Puppeteer时需要 |
+| _ga/_ga_* | Google Analytics | ❌ 可去掉 |
+| g_state | Google登录状态 | ❌ 可去掉，含JSON双引号可能破坏dotenv解析 |
+| fp | 指纹ID | ❌ |
+| __stripe_* | 支付相关 | ❌ |
+
+### ⚠️ dotenv解析踩坑
+- config.env中 `KEY="value"` 的value里不能有未转义的双引号
+- g_state字段包含 `{"i_l":2,...}` → 双引号会截断dotenv解析
+- 建议：写入config.env时去掉g_state字段，或用单引号包裹
+
+## Discourse搜索Rate Limit
+
+| 身份 | 配额 | 冷却时间 |
+|------|------|---------|
+| 已登录用户 | ~30次/15min | 较短 |
+| 匿名/未登录 | ~3-5次/15min | 较长(30min+) |
+| 被标记IP | 更低 | 更长 |
+
+- Rate limit按session+IP双重追踪
+- 过期cookie被当匿名用户 → 低配额
+- 连续触发后需要等待较长时间才能恢复
+Tag: Web反爬技术文档, Cloudflare, TLS指纹, JA3, cf_clearance, Puppeteer, Stealth, Node.js直连, Cookie管理, UrlFetch, Discourse, Rate Limit, dotenv踩坑, 知识库文档

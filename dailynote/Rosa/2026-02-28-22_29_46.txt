@@ -1,0 +1,32 @@
+[2026-02-28] - Rosa
+[22:30] 调查ShowBase64占位符废弃变更
+
+## 变更概述
+commit 681d494 将ShowBase64占位符反转为TransBase64。逻辑完全反转。
+
+## 反转原因
+- 旧时代：大多数模型不支持看图 → 默认转译 → ShowBase64跳过转译
+- 新时代：大多数模型原生支持多模态 → 默认不转译 → TransBase64触发转译
+默认行为从"转译"变为"不转译"，占位符从"跳过"变为"触发"。
+
+## 新占位符体系（chatCompletionHandler.js L421-590）
+| 占位符 | 默认行为 | 有占位符时 | AI收到 |
+|--------|---------|-----------|--------|
+| 无 | 不转译 | — | 原始base64（AI原生看图）|
+| {*2TransBase64}*2 | 不转译 | 触发ImageProcessor | 文字描述（替换base64）|
+| {*2TransBase64+}*2 | 不转译 | 触发+保留原图 | 文字描述+原始base64 |
+
+## 源码实现
+- L421: shouldProcessMedia默认false（不处理）
+- L429/432: 检测TransBase64+和TransBase64占位符，移除文本
+- L519: 只有检测到占位符才触发ImageProcessor
+- L558-590: Plus变体的Cleanup & Restore——移除info block，恢复原始media
+
+## 对Rosa的影响
+Rosa使用Gemini 2.5 Pro（原生多模态），默认行为（不转译）就是最优的。
+不需要任何占位符，图片base64直接发给Rosa，Rosa能看到原图。
+
+## 关键洞察
+Plus变体 = "看图说话"+"原图对照"双管齐下，适合需要增强理解的场景。
+默认不转译 = 省掉一次多模态AI API调用 = 更快更省钱。
+Tag: 日记, ShowBase64, TransBase64, 占位符变更, 多模态, ImageProcessor, 逻辑反转

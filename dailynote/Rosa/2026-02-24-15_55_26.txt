@@ -1,0 +1,99 @@
+[2026-02-24] - Rosa
+[15:54] 🎉 DiscourseReader v1.5.1 — User API Key认证全线告捷！
+
+## 核心突破
+通过Discourse User API Key（RSA握手协议获取）彻底解决了认证问题：
+- 二级帖(topic/1627398)从404→200，完整内容返回
+- SearchForum从连续429→一次成功，49结果+10snippets
+- API Key永久有效，不受cookie过期/session级失效/CF TLS指纹影响
+
+## User API Key获取过程
+1. 生成RSA 2048位密钥对（Python + pycryptodomex）
+2. 构造授权URL（application_name=DiscourseReader, scopes=read）
+3. 主人在浏览器点击Authorize
+4. 页面返回RSA加密密文
+5. PKCS1_v1_5解密得到API Key: 8b5bf582598c05bf64a0384d23ed64b8
+
+## 技术实现
+- config.env新增: discourse_user_api_key=xxx
+- fetchJSON()通过page.setExtraHTTPHeaders({'User-Api-Key': apiKey})注入
+- Puppeteer+stealth处理CF挑战，API Key处理Discourse认证，分工明确
+- parseCookies()中跳过cf_clearance（TLS指纹绑定，换浏览器无效）
+
+## 版本演进完整脉络
+v1.0(3命令) → v1.1(bugfix) → v1.2(+Tags/Categories) → PR#209 → v1.3(双路+多论坛cookie) → v1.4(三路瀑布) → v1.5.0(纯Puppeteer精简到12.9KB) → v1.5.1(+User API Key认证)
+
+## 认证方案演进
+cookie直连 → cookie+UrlFetch降级 → Puppeteer+cookie → Puppeteer+User-Api-Key（最终方案）
+
+## 5命令全部通过
+ListCategories(12板块), ListTopics(30帖/页), ReadTopic(二级帖OK), ListTags(696标签), SearchForum(49结果)
+
+## 辅助脚本
+- get_user_api_key_step1.py: RSA密钥生成+授权URL
+- get_user_api_key_step2.py: 密文解密
+- decrypt_key.py: 从文件读取密文解密
+- gen_auth_url.py: 生成authorize.html
+- test_cookie.js: CF行为诊断v2
+Tag: DiscourseReader, v1.5.1, User-Api-Key, RSA认证, 二级帖, SearchForum, 全线告捷, 里程碑
+
+## [15:57] 主人询问API Key脚本通用性
+确认：RSA握手获取User API Key是Discourse官方标准协议，脚本适用于所有Discourse论坛。
+只需改HOST变量（如meta.discourse.org、community.openai.com等）。
+前提：目标论坛是Discourse、有账号、管理员未禁用User API Key功能。
+主人可能想用于其他Discourse论坛，考虑将脚本参数化。
+Tag: DiscourseReader, User-Api-Key, 通用性, Discourse协议, 脚本参数化
+
+## [16:10] PR准备完成 — 6个文件全部就绪
+根据主人指示完成PR文件改造：
+1. DiscourseReader.js — multi-key管理(forum_{name}_api_key + forum_{name}_cookie备选)
+2. plugin-manifest.json — 中文描述
+3. README.md — 完整中文文档(快速开始+5命令参数表+架构图+认证原理)
+4. config.env.example — 中文注释模板(不含真实key)
+5. get_user_api_key.py — 参数化(支持任意Discourse论坛URL)
+6. .gitignore — 排除私钥/密文/诊断脚本
+
+key改造：discourse_user_api_key(单key) → forum_{name}_api_key(多key)
+认证优先级：API Key > Cookie
+域名匹配：matchByDomain()统一处理apiKeys和cookies
+Tag: DiscourseReader, PR准备, 多key管理, 中文文档, config.example
+
+## [16:13] Multi-Key版本最终验证通过
+ReadTopic(二级帖1627398): ✅ 5楼完整返回
+SearchForum("claude code"): ✅ 50个帖子+10条摘要一次返回！
+
+PR文件全部就绪，6个文件（主程序+中文manifest+中文README+config.example+API Key脚本+.gitignore）
+等待主人commit+push更新PR #209。
+
+## [20:15] DiscourseReader写操作（点赞/回复）可行性分析
+主人问能不能实现点赞和回复功能。
+### VSearch搜索结果
+Discourse Write API完整文档：
+- 点赞：POST /post_actions.json，post_action_type_id=2
+- 回复：POST /posts.json，topic_id + raw
+- 新帖：POST /posts.json，title + raw + category
+- 取消点赞：DELETE /post_actions/{id}.json
+认证方式：User-Api-Key header，需要write scope。
+### 关键发现
+当前API Key的scope=read，只能GET请求！写操作需要write scope → 返回403。
+需要重新走RSA握手流程，scopes改为"read,write"。
+### 实施方案
+1. 修改get_user_api_key.py的scopes参数重跑
+2. 代码新增postJSON()函数（page.evaluate内发fetch POST）
+3. 新增4个命令：LikePost, UnlikePost, ReplyTopic, CreateTopic
+4. 风险：rate limit(20/min), 信任等级限制, 内容最低字符数
+### 代码改动量
+约+80行，中等复杂度。
+
+Tag: 日记, DiscourseReader, 写操作, 点赞, 回复, Write API, scope, 可行性分析
+
+今日完整开发时间线：
+- 15:18 开始，回忆进度
+- 15:25 v1.4.0 三路瀑布（直连→Puppeteer→UrlFetch）
+- 15:35 v1.5.0 纯Puppeteer（砍掉直连+UrlFetch，12.9KB）
+- 15:38 发现cookie认证始终未登录（二级帖404）
+- 15:45 RSA握手获取User API Key
+- 15:54 v1.5.1 API Key认证全线通过！
+- 16:05 PR文件改造（multi-key+中文文档+config.example）
+- 16:13 最终验证通过
+Tag: DiscourseReader, v1.5.1, 最终验证, PR就绪, 开发时间线

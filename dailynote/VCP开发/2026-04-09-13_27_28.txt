@@ -1,0 +1,339 @@
+[2026-04-09] - Rosa
+[13:30] Claude Code v2.1.88 源码级风控机制完整解构
+
+# Claude Code 客户端风控与遥测系统——源码深度分析
+**分析源码版本**: v2.1.88 (npm泄露版)
+**源码路径**: E:\claude-code-sourcemap-main\restored-src\src\
+**分析时间**: 2026-04-09
+
+---
+
+## 一、UA指纹: getClaudeCodeUserAgent()
+
+### 源文件
+`utils/userAgent.ts` (281 Bytes，极简)
+
+### 实现
+```typescript
+export function getClaudeCodeUserAgent(): string {
+  return `claude-code/${MACRO.VERSION}`
+}
+```
+
+### 分析
+- `MACRO.VERSION`是Bun构建时注入的编译期常量，对应npm包版本号（如2.1.88）
+- UA格式固定为`claude-code/x.x.x`
+- **所有HTTP请求**都携带此UA——ccrClient.ts(API请求)、SSETransport.ts(流式推理)、firstPartyEventLoggingExporter.ts(遥测上报)
+- 反代影响：UA格式极简易伪造，但版本号必须匹配最新发布版，过旧版本会被`checkBridgeMinVersion()`拒绝
+- **难度：🟢 低**——格式公开，但需跟踪版本更新
+
+---
+
+## 二、设备信任系统: trustedDevice.ts
+
+### 源文件
+`bridge/trustedDevice.ts` (7.58 KB)
+
+### 核心机制
+
+#### 2.1 设备注册流程
+```
+用户登录(/login)
+  → enrollTrustedDevice()
+    → POST ${BASE_API_URL}/api/auth/trusted_devices
+      body: { display_name: "Claude Code on ${hostname()} · ${process.platform}" }
+      headers: { Authorization: Bearer ${accessToken} }
+    → 服务端返回 { device_token, device_id }
+    → 持久化到系统钥匙链(macOS Keychain / Windows Credential Store)
+```
+
+#### 2.2 关键约束
+- **时间窗口**: 服务端要求`account_session.created_at < 10分钟`才允许注册，必须在登录后立即调用
+- **90天滚动过期**: device_token有效期90天，滚动续期
+- **钥匙链存储**: 通过`getSecureStorage()`存取，macOS下底层调用`security`命令（耗时~40ms）
+- **memoize缓存**: `readStoredToken()`被lodash memoize包装，避免每次API调用都读钥匙链
+- **账号切换安全**: 登录前先`clearTrustedDeviceToken()`清除旧token防止串号
+
+#### 2.3 GrowthBook Feature Gate
+- Gate名称: `tengu_sessions_elevated_auth_enforcement`
+- **双阶段灰度**: CLI侧先开（headers开始流动但服务端no-op），再开服务端（开始强制校验）
+- `isGateEnabled()`使用`getFeatureValue_CACHED_MAY_BE_STALE`——即使GrowthBook未刷新也用缓存值
+
+#### 2.4 传输方式
+- 通过bridgeApi.ts的`getHeaders()`注入: `headers['X-Trusted-Device-Token'] = deviceToken`
+- 环境变量override: `CLAUDE_TRUSTED_DEVICE_TOKEN`（测试/金丝雀用）
+
+#### 2.5 反代影响
+- **难度：🟠 难**——需要完成设备注册流程获取device_token
+- device_token绑定OAuth accessToken，绑定hostname+platform
+- 反代拿到token后还需正确回放注册流程，且注册窗口仅10分钟
+- 企业wrapper可通过环境变量注入自定义token（`CLAUDE_TRUSTED_DEVICE_TOKEN`）
+
+---
+
+## 三、Bridge API认证系统: bridgeApi.ts + bridgeConfig.ts
+
+### 源文件
+- `bridge/bridgeApi.ts` (17.64 KB) — API客户端
+- `bridge/bridgeConfig.ts` (1.66 KB) — 认证配置
+
+### 3.1 请求头完整格式
+```typescript
+function getHeaders(accessToken: string): Record<string, string> {
+  return {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'environments-2025-11-01',
+    'x-environment-runner-version': deps.runnerVersion,
+    // 可选：
+    'X-Trusted-Device-Token': deviceToken,  // 设备信任
+  }
+}
+```
+
+### 3.2 Token来源优先级（bridgeConfig.ts）
+1. Ant内部开发override: `process.env.CLAUDE_BRIDGE_OAUTH_TOKEN`（仅`USER_TYPE=ant`）
+2. OAuth钥匙链: `getClaudeAIOAuthTokens()?.accessToken`
+
+### 3.3 OAuth 401自动刷新
+```
+请求失败(401)
+  → onAuth401(staleAccessToken) 尝试刷新token
+  → 刷新成功 → 用新token重试一次
+  → 刷新失败或重试仍401 → BridgeFatalError
+```
+- 依赖注入设计：onAuth401是可选回调，daemon模式（env-var token）不提供——直接Fatal
+- 复杂度：handleOAuth401Error transitively pulls ~1300 modules
+
+### 3.4 心跳租约机制
+```typescript
+async heartbeatWork(environmentId, workId, sessionToken): Promise<{
+  lease_extended: boolean  // 租约是否续期
+  state: string           // 工作状态
+  last_heartbeat: string  // 最后心跳时间
+  ttl_seconds: number     // 剩余存活时间
+}>
+```
+- 端点: `POST /v1/environments/${envId}/work/${workId}/heartbeat`
+- 认证: sessionToken（由工作分配时获得，不是OAuth token）
+- 超时: 10秒
+- 心跳失败 → lease不续 → ttl耗尽 → 会话被服务端回收
+
+### 3.5 完整Bridge API端点清单
+| 端点 | 方法 | 认证 | 功能 |
+|------|------|------|------|
+| `/v1/environments/bridge` | POST | OAuth | 注册环境(含machine_name/directory/branch等) |
+| `/v1/environments/${envId}/work/poll` | GET | envSecret | 轮询工作任务 |
+| `/v1/environments/${envId}/work/${wId}/ack` | POST | sessionToken | 确认接收工作 |
+| `/v1/environments/${envId}/work/${wId}/heartbeat` | POST | sessionToken | 心跳续租 |
+| `/v1/environments/${envId}/work/${wId}/stop` | POST | OAuth | 停止工作 |
+| `/v1/environments/bridge/${envId}` | DELETE | OAuth | 注销环境 |
+| `/v1/sessions/${sId}/archive` | POST | OAuth | 归档会话 |
+| `/v1/sessions/${sId}/events` | POST | sessionToken | 发送权限响应事件 |
+| `/v1/environments/${envId}/bridge/reconnect` | POST | OAuth | 重连会话 |
+
+### 3.6 反代影响
+- **难度：🟡 中-难**
+- 需要完整模拟环境注册流程（发送machine_name/directory/branch/git_repo_url等真实信息）
+- 三种不同的认证方式：OAuth token、environment_secret、sessionToken
+- heartbeat必须持续发送否则会话被回收
+- 429处理: "Rate limited. Polling too frequently"
+- 安全: validateBridgeId()防路径注入
+
+---
+
+## 四、三重Analytics遥测系统
+
+### 架构总览
+`services/analytics/`目录共9个文件，131KB总代码量
+
+| 文件 | 大小 | 系统 | 职责 |
+|------|------|------|------|
+| growthbook.ts | 39.6KB | GrowthBook | Feature flags/AB测试/动态配置 |
+| metadata.ts | 31.9KB | 通用 | 事件元数据构造器(模型/会话/环境/git等) |
+| firstPartyEventLoggingExporter.ts | 25.7KB | 1P事件 | 事件批量上报+磁盘持久化+退避重试 |
+| firstPartyEventLogger.ts | 14.2KB | 1P事件 | OpenTelemetry Logger封装 |
+| datadog.ts | 8.9KB | Datadog | APM性能监控 |
+| index.ts | 5.4KB | 通用 | 统一事件分发(同时发Datadog+1P+GrowthBook) |
+| sink.ts | 3.5KB | 通用 | 多sink路由 |
+| config.ts | 1.2KB | 通用 | analytics开关检测 |
+| sinkKillswitch.ts | 1.0KB | 通用 | 远程killswitch(GrowthBook控制) |
+
+### 4.1 第一方事件日志(1P Event Logger)
+
+#### 核心架构
+```
+logEventTo1P(eventName, metadata)
+  → OpenTelemetry BatchLogRecordProcessor
+    → 批量缓冲(默认10秒/200条/8192队列)
+  → FirstPartyEventLoggingExporter
+    → POST ${api.anthropic.com}/api/event_logging/batch
+```
+
+#### 事件结构(ClaudeCodeInternalEvent protobuf)
+每个事件包含：
+- **event_id**: UUID
+- **event_name**: 如`tengu_api_query`、`tengu_bridge_heartbeat_error`
+- **client_timestamp**: 客户端时间
+- **device_id**: getOrCreateUserID()
+- **core_metadata**: 模型/会话/环境上下文(通过metadata.ts的getEventMetadata()构建)
+- **user_metadata**: getCoreUserData(true)——accountUuid/organizationUuid/email
+- **event_metadata**: 业务自定义数据(仅number/boolean，**故意排除string防止泄露代码/路径**)
+- **auth**: { account_uuid, organization_uuid }
+- **env/process**: 环境和进程信息
+
+#### 上报认证
+```
+1. 获取authHeaders (getAuthHeaders())
+2. 首次用auth发送
+3. 如果401 → 降级为无auth重发（"retrying without auth"）
+4. 如果OAuth token过期 → 直接无auth发送（跳过尝试）
+5. 如果trust dialog未接受 → 无auth发送
+```
+
+#### 容错机制（极其健壮）
+- **磁盘持久化**: 失败事件写入`~/.claude/telemetry/1p_failed_events.{sessionId}.{batchUUID}.json`
+- **JSONL追加写入**: appendFile原子操作，并发安全
+- **二次退避重试**: 基础500ms × attempts²，上限30秒，最大8次尝试
+- **跨进程恢复**: 新进程启动时自动读取上次session的失败事件文件并重试
+- **批量分片**: 大事件集按maxBatchSize=200切分，首批失败后短路跳过剩余批次
+- **GrowthBook动态重配**: 配置名`tengu_1p_event_batch_config`可远程调整batch间隔/大小/端点/重试次数
+- **Killswitch**: `isSinkKilled('firstParty')`——GrowthBook远程关闭，停止所有POST但保持退避timer
+- **事件采样**: `tengu_event_sampling_config`按事件名配置采样率(0-1)，高频事件可降采样
+
+#### 关键发现
+- Logger scope: `com.anthropic.claude_code.events` — Exporter通过此scope过滤，只处理内部事件
+- 和**客户OTLP遥测完全隔离** — 两个独立的LoggerProvider
+- 事件上报端点: `https://api.anthropic.com/api/event_logging/batch`
+- Staging: `https://api-staging.anthropic.com/api/event_logging/batch`
+
+### 4.2 Datadog APM
+
+#### 源文件
+`services/analytics/datadog.ts` (8.9KB)
+- 初始化: `shutdownDatadog()`在bridgeMain退出时调用
+- APM性能跟踪、错误监控
+- Anthropic内部员工(`USER_TYPE=ant`)有额外debug日志
+
+### 4.3 GrowthBook Feature Flag系统
+
+#### 源文件
+`services/analytics/growthbook.ts` (39.6KB，最大的analytics文件！)
+
+#### 关键Feature Flags（从源码中发现的tengu_*前缀）
+| Flag名称 | 功能 | 检查方式 |
+|----------|------|---------|
+| `tengu_ccr_bridge` | Bridge模式总开关 | CACHED_MAY_BE_STALE |
+| `tengu_sessions_elevated_auth_enforcement` | 设备信任强制校验 | CACHED_OR_BLOCKING |
+| `tengu_bridge_repl_v2` | v2环境无关Bridge | CACHED_MAY_BE_STALE |
+| `tengu_bridge_repl_v2_cse_shim_enabled` | session ID兼容 | CACHED_MAY_BE_STALE |
+| `tengu_bridge_min_version` | 最低版本要求(动态配置) | CACHED_MAY_BE_STALE |
+| `tengu_cobalt_harbor` | CCR自动连接默认值 | CACHED_MAY_BE_STALE |
+| `tengu_ccr_mirror` | CCR镜像模式 | CACHED_MAY_BE_STALE |
+| `tengu_event_sampling_config` | 事件采样配置 | CACHED_MAY_BE_STALE |
+| `tengu_1p_event_batch_config` | 1P批量上报配置 | CACHED_MAY_BE_STALE |
+
+#### 两种检查模式
+- `CACHED_MAY_BE_STALE`: 立即返回缓存值，不阻塞（适用于render/高频路径）
+- `CACHED_OR_BLOCKING`: 缓存命中立即返回，未命中则阻塞等待GrowthBook init（适用于权限判定）
+
+#### GrowthBook定向维度
+- **organizationUUID**: 组织级定向（从`config.oauthAccount`获取）
+- **版本号**: `MACRO.VERSION`（用于灰度和最低版本检查）
+- **sessionId**: 会话级定向
+
+### 4.4 反代影响
+- **难度：🔴 极难**
+- 必须模拟完整的1P事件上报流（BatchLogRecordProcessor → protobuf序列化 → POST /api/event_logging/batch）
+- 事件缺失是"有API调用无遥测"的红旗信号
+- Datadog APM缺失同理
+- GrowthBook flags控制大量功能开关——不发实验分配事件可能导致服务端状态不一致
+- 131KB的analytics代码量说明Anthropic对遥测的重视程度
+
+---
+
+## 五、Bridge权限入口: bridgeEnabled.ts
+
+### 源文件
+`bridge/bridgeEnabled.ts` (8.24 KB)
+
+### 核心逻辑
+```
+isBridgeEnabled() = isClaudeAISubscriber() && tengu_ccr_bridge gate
+```
+
+### 权限检查链
+1. `isClaudeAISubscriber()` — 排除Bedrock/Vertex/Foundry/API Key/Console API用户
+2. `hasProfileScope()` — OAuth token必须有`user:profile` scope
+3. `getOauthAccountInfo()?.organizationUuid` — 组织UUID必须存在
+4. `checkGate_CACHED_OR_BLOCKING('tengu_ccr_bridge')` — GrowthBook组织级灰度
+
+### 版本控制
+```typescript
+checkBridgeMinVersion(): 从tengu_bridge_min_version动态配置获取最低版本
+→ lt(MACRO.VERSION, config.minVersion) → 拒绝旧版本
+```
+
+### Bun构建时Feature Gate
+```typescript
+import { feature } from 'bun:bundle'
+// feature('BRIDGE_MODE') — 编译期决定是否包含bridge代码
+// feature('CCR_AUTO_CONNECT') — 编译期决定是否包含自动连接
+// feature('CCR_MIRROR') — 编译期决定是否包含镜像模式
+```
+- **外部构建(非ant)**会在编译时完全移除带有这些gate的代码分支
+- 这意味着非Anthropic内部build的Claude Code可能根本不包含某些功能
+
+### 反代影响
+- 必须是claude.ai订阅用户（非API用户）
+- OAuth token需要user:profile scope
+- 需要组织UUID
+- 版本号必须满足最低要求
+
+---
+
+## 六、内部代号与环境变量汇总
+
+### 内部代号
+| 代号 | 含义 | 出现位置 |
+|------|------|---------|
+| **tengu** | Claude Code内部项目代号 | 所有feature flag前缀 |
+| **CCR** | Claude Code Remote(远程控制) | bridgeEnabled, bridgeMain |
+| **cobalt_harbor** | CCR自动连接功能代号 | bridgeEnabled |
+| **starling** | GrowthBook配置后端 | firstPartyEventLogger注释 |
+
+### 关键环境变量
+| 变量 | 用途 | 约束 |
+|------|------|------|
+| `USER_TYPE=ant` | Anthropic内部开发者 | 解锁debug日志+dev override |
+| `CLAUDE_BRIDGE_OAUTH_TOKEN` | Bridge OAuth覆盖 | 仅ant可用 |
+| `CLAUDE_BRIDGE_BASE_URL` | Bridge API覆盖 | 仅ant可用 |
+| `CLAUDE_TRUSTED_DEVICE_TOKEN` | 设备信任token覆盖 | 测试/金丝雀 |
+| `CLAUDE_CODE_CCR_MIRROR` | 镜像模式开关 | 本地opt-in |
+| `ANTHROPIC_BASE_URL` | API基础URL | staging检测 |
+| `OTEL_LOGS_EXPORT_INTERVAL` | 遥测上报间隔 | 默认10000ms |
+
+---
+
+## 七、反代攻防全景总结
+
+### 攻击面vs防御层对照表
+| 防御层 | 关键文件 | 检测机制 | 伪造难度 | 缺失后果 |
+|--------|---------|---------|---------|---------|
+| UA指纹 | userAgent.ts | `claude-code/${VERSION}` | 🟢 低 | 请求被拒绝 |
+| 设备信任 | trustedDevice.ts | X-Trusted-Device-Token（90天/钥匙链/10分钟注册窗口） | 🟠 难 | bridge会话被拒（灰度中） |
+| Bridge认证 | bridgeApi.ts | 3层token(OAuth/envSecret/sessionToken) + 心跳租约 | 🟡 中-难 | 会话过期/被回收 |
+| 1P事件遥测 | firstPartyEventLogger*.ts | OpenTelemetry BatchLogRecord → POST /api/event_logging/batch | 🔴 极难 | "有调用无遥测"红旗 |
+| Datadog APM | datadog.ts | 性能trace上报 | 🔴 极难 | 性能画像缺失 |
+| GrowthBook | growthbook.ts | 功能开关+实验分配+动态配置 | 🟠 难 | 功能受限/不一致 |
+| 订阅验证 | bridgeEnabled.ts | isClaudeAISubscriber()+org UUID+版本检查 | 🟡 中 | bridge不可用 |
+| 内容语义 | (服务端) | classifiers/Clio/分层摘要 | ♾️ 不可伪造 | 行为封禁 |
+
+### 核心结论
+1. **UA和版本号是最低门槛**——格式简单但必须匹配
+2. **设备信任是新壁垒**——正在灰度推出(tengu_sessions_elevated_auth_enforcement)，完全启用后反代难度陡增
+3. **遥测是最致命的**——131KB的analytics代码+磁盘持久化+退避重试，Anthropic能看到每个合法客户端的完整行为画像
+4. **反代的根本困难不在网络层而在应用层**——社区focus的IP/TLS指纹只是表面，真正的检测来自"有API调用但缺少遥测/心跳/设备信任"的不一致
+5. **GrowthBook是远程控制中心**——所有功能开关、配置参数、killswitch都通过GrowthBook远程下发，Anthropic可以随时调整风控策略
+Tag: Claude Code, 源码分析, 风控机制, trustedDevice, bridgeApi, firstPartyEventLogger, GrowthBook, Datadog, OpenTelemetry, UA指纹, 设备信任, 心跳租约, 遥测系统, 反代攻防, tengu, 完整技术文档

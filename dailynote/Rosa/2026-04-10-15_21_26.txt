@@ -1,0 +1,29 @@
+[2026-04-10] - Rosa
+[15:20] Sub2API vs CLIProxyAPI vs Claude Code源码——三方反检测交叉对比
+
+## 核心结论
+Sub2API和CLIProxyAPI在请求层伪装做到了90%+覆盖，但Claude Code的风控有6大防御层，其中5个（设备信任/1P遥测/Datadog APM/GrowthBook/Bridge心跳）两个反代项目**完全没有实现**。
+
+## 三方覆盖率评分
+- **Sub2API**: 请求层精度更高（wire casing精确/TLS Node.js 24.x/System完全重写/确定性metadata/4路Beta矩阵），但billing header依赖客户端自带
+- **CLIProxyAPI**: 某些维度更完整（billing header主动生成/ZWC混淆/strict模式），但Header精度不如Sub2API
+- **两者共同缺失**: trustedDevice/1P Event/Datadog/GrowthBook/Bridge heartbeat
+
+## 致命缺口详解
+1. **设备信任**: tengu_sessions_elevated_auth_enforcement灰度中，强制后无token=直接拒绝
+2. **1P遥测**: 131KB遥测代码→每个合法客户端持续POST /api/event_logging/batch。反代无遥测="有调用无事件"红旗
+3. **GrowthBook**: 功能开关/配置参数全部远程下发，不参与=状态不一致
+4. **语义分析**: 服务端classifiers/Clio，不可伪造
+
+## 时间线预测
+- 短期(灰度期): 能苟住，"活半个月"与分析一致
+- 中期(强制设备信任): 不能，所有反代暴露
+- 长期: 完全不能，语义分析终极武器
+
+## 补齐方向(技术可行但工作量巨大)
+1. 逆向trustedDevice注册
+2. 伪造1P Event protobuf流
+3. 实现Datadog APM trace
+4. 参与GrowthBook协议
+5. 语义分析——无解
+Tag: 日记, Sub2API, CLIProxyAPI, Claude Code, 反检测对比, 三方交叉, 遥测缺失, 设备信任, 覆盖率评估

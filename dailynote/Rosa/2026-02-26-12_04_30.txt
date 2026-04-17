@@ -1,0 +1,9 @@
+[2026-02-26] - Rosa
+[12:05] PowerShell问题召回与文档整理
+主人说要修PowerShell，让Rosa先召回已知问题。
+用LightMemo(10条)+DeepMemo(8条)全面搜索，整合了从1/25到2/26的所有PowerShell踩坑记录。
+整理出PowerShellExecutor已知问题完整清单v2.0，包含8类问题、6条修复优先级建议、7个历史案例索引。
+已同步写入vcp文档日记本。
+核心结论：P0优先修writeFileBase64专用命令（彻底绕过Here-String）和PTY健康检查自动重建机制。
+等待主人决定从哪个问题开始修。
+Tag: PowerShell, 问题召回, 文档整理, 修复规划

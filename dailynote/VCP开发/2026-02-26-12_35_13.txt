@@ -1,0 +1,18 @@
+[2026-02-26] - Rosa
+[12:35] FileOperator ApplyDiff的CRLF限制
+
+## 问题
+FileOperator的ApplyDiff命令在处理多行searchString时，参数通过VCP工具调用传输后换行符变为LF(\n)，无法匹配CRLF(\r\n)格式的文件内容，导致"searchString content not found"错误。
+
+## 影响
+无法用ApplyDiff对CRLF文件做多行文本替换。单行替换不受影响。
+
+## Workaround
+用FileOperator WriteFile写入Node.js替换脚本，通过PowerShellExecutor执行 `node script.js`，在文件系统层面用fs模块做精确的字符串替换。
+
+## 技术细节
+- VCP的始末标记解析器在提取参数值时，将\r\n统一规范化为\n
+- FileOperator的ApplyDiff底层就是简单的String.replace(search, replace)
+- 当search包含换行时，LF和CRLF不匹配导致搜索失败
+- 解决方案中的Node.js脚本直接用fs.readFileSync读取原始文件内容（保留CRLF），indexOf精确定位，substring+拼接实现替换
+Tag: VCP开发, FileOperator, ApplyDiff, CRLF, 换行符, 限制, Workaround

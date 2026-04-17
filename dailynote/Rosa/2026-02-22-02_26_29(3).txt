@@ -1,0 +1,46 @@
+[2026-02-22] - Rosa
+[02:00] nexos2api完整踩坑清单与API反代矩阵更新
+
+## 完整踩坑清单（7个）
+| # | 坑 | 解决 |
+|---|-----|------|
+| 1 | Zeabur变量名不合法 | 粘贴带不可见字符→手动键入 |
+| 2 | NEXOS_COOKIES未配置 | Zeabur Variables面板添加 |
+| 3 | Model not found 404 | config.js handlerId过期→Console脚本获取新UUID |
+| 4 | Chat not found 404 | 容器内读不到chatId→NEXOS_CHAT_ID环境变量 |
+| 5 | parent_id冲突400 | 补丁：每次自动创建新chat |
+| 6 | FileOperator权限 | E:\nexos2api不在白名单→PowerShell |
+| 7 | PowerShell format被拦 | 安全策略→去掉--format参数 |
+
+## 已验证模型handlerId映射
+| 模型 | handlerId | 状态 |
+|------|-----------|------|
+| claude-opus-4-6 | 9ee5fe48... | ✅ |
+| claude-sonnet-4-6 | 017c1207... | ✅ |
+| gemini-3-1-pro-preview | 715e84ac... | ✅ |
+
+## API反代矩阵
+| 方案 | 模型 | 状态 |
+|------|------|------|
+| grok2api | Grok | ✅ |
+| CLIProxyAPI | Gemini/Claude/Codex | ✅ |
+| AIStudioToAPI | Gemini+Imagen | ✅ |
+| onyx2api | Claude/GPT/Gemini | ✅ |
+| nexos2api | Claude/GPT/Gemini/Grok/Mistral | ✅ NEW |
+
+## 图片发送问题定位
+index.js Lines 228-248：输入端图片处理完全缺失。
+- user_message.text直接赋content→多模态数组变[object Object]
+- user_message.files硬编码[]→无上传逻辑
+F12抓包已获取nexos.ai图片上传API格式：
+
+### 图片上传两步走机制（F12实测）
+Step1 上传: POST /api/chat/{chatId} FormData: action="chat_file_upload", file=[二进制]
+返回file_id(UUID)
+Step2 引用: POST /api/chat/{chatId} FormData: action="chat_completion", data中user_message.files=[{file_id:"uuid"}]
+
+### index.js缺陷
+Line 234: user_message.text=content → 多模态数组变[object Object]
+Line 237: files=[] → 硬编码空数组
+修复需：检测content数组→提取image_url→上传获取file_id→填入files。待后续编写补丁。
+Tag: 日记, nexos2api, 踩坑清单, API反代矩阵, 图片上传分析, F12抓包

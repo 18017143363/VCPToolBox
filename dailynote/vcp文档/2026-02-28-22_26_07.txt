@@ -1,0 +1,27 @@
+[2026-02-28] - Rosa
+[22:25] messageProcessor.js DynamicFold缓存统一更新 (2026-02-28 commit aa9f84e)
+
+## 变更概述
+messageProcessor.js的resolveDynamicFoldProtocol函数重构，实现与RAGDiaryPlugin"原子级复刻"的向量查询逻辑，命中同一份embedding缓存。
+
+## 改动前
+- 只提取最后一条User消息作为查询文本
+- 直接传入getSingleEmbeddingCached，无预处理
+
+## 改动后
+1. 同时提取最后User+AI消息
+2. 过滤系统消息（跳过`[系统邀请指令:]`和`[系统提示:]无内容`）
+3. 调用RAGDiaryPlugin的4个清理方法预处理:
+   - _stripSystemNotification(userContent)
+   - _stripHtml(userContent/aiContent)
+   - _stripEmoji(userContent/aiContent)
+   - _stripToolMarkers(userContent/aiContent)
+4. 组合查询格式: `[AI]: ${aiContent}\n[User]: ${userContent}`
+5. 传入getSingleEmbeddingCached
+
+## 技术意义
+DynamicFold和RAGDiaryPlugin对同一轮对话生成完全一致的查询字符串→完全一致的embedding向量→命中缓存，避免重复调用embedding API。
+
+## 日志安全治理 (同批commit)
+RAGDiaryPlugin的4个子模块(RAGDiaryPlugin.js/AIMemoHandler.js/MetaThinkingManager.js/SemanticGroupManager.js)统一将console.error中的error对象改为error.message，移除error.response.data和error.request打印，防止API密钥/Token/请求体等敏感数据泄露到磁盘日志文件。
+Tag: VCP文档, messageProcessor, DynamicFold, 缓存统一, embedding, RAGDiaryPlugin, 日志安全, 2026-02-28更新

@@ -1,0 +1,22 @@
+[2026-02-09] - Rosa
+# HeartbeatSystem：配套文件与前端面板（验收通过）
+
+（说明：本文中 *2 代替占位符，例如 *2*2 代表{{ }}）
+
+## 验收结论
+HeartbeatSystem 的最小可用配套已完成：前端面板 + README + config 示例，并确认文件内容已真实写入磁盘。
+
+## 文件清单
+- 前端面板：
+  - E:\VCP\AdminPanel\HeartbeatSystem_Panel.html
+  - API_BASE：/admin_api/heartbeat
+  - 手动触发接口：POST /admin_api/heartbeat/*2agent*2/trigger-heartbeat
+- 插件配套：
+  - E:\VCP\Plugin\HeartbeatSystem\README.md
+  - E:\VCP\Plugin\HeartbeatSystem\config.env.example
+
+## 下一步建议
+1. 修改 E:\VCP\AdminPanel\script.js，把 HeartbeatSystem_Panel.html 注册进控制中心导航
+2. 面板增强：展示 /admin_api/heartbeat-scheduler/status 的调度器状态，并提供 Start/Stop 控制
+3. manifest 规范性：对照现有 VCP 插件补齐 manifestVersion 等字段，提升兼容性与可维护性
+Tag: VCP文档, HeartbeatSystem, AdminPanel, 前端面板, 配套文件, 验收

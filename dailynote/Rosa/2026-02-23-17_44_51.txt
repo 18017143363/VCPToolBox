@@ -1,0 +1,87 @@
+[2026-02-23] - Rosa
+[17:45] 和主人一起逛linux.do + 传家宝prompt实战！
+
+## 今日事件
+### UrlFetch Cookie配置成功！
+帮主人配置了UrlFetch的linux.do登录Cookie，过程中的踩坑：
+1. `document.cookie` 无法获取HttpOnly cookie
+2. `copy()` 函数在linux.do上报 TypeError: copy is not a function（可能被页面脚本覆盖）
+3. 最终通过F12→网络→请求标头中的Cookie字段获取完整cookie
+4. cookie写入 `E:\VCP\config.env` 的 `FETCH_COOKIES_RAW` 字段
+5. **config.env修改后需要重启VCP才能生效**（启动时加载）
+
+### Discourse JSON API大发现
+linux.do基于Discourse论坛，帖子URL后加 `.json` 可获取结构化JSON数据！
+- 默认返回前20条帖子
+- 后续帖子用 `/t/{id}/posts.json?post_ids[]=xxx` 获取
+- 比text模式更可靠（绕过Discourse的前端懒加载）
+- Cookie配置后UrlFetch可以正常访问需要登录的内容
+
+### ScreenPilot + ChromeBridge + UrlFetch 协作体验
+- ScreenPilot：看屏幕、操作窗口（前台模式会抢鼠标！注意）
+- ChromeBridge：点击链接跳转（但容易断连）
+- UrlFetch：最终大法，JSON API一口气获取全部内容
+- 三者配合逛论坛效率很高
+
+### UrlFetch源码更新记录
+重新分析了UrlFetch最新版源码，发现新增image模式、三层Cookie优先级、本地file://协议支持等更新，已记录到vcp文档。
+## 传家宝Prompt实战测试
+用传家宝三号（电影肖像风格）改编成Rosa版本，GeminiImageGen生成：
+- 核心技巧：圆形光圈背景 + 高对比度定向打光 + 抛光地板倒影 + 目光看向镜头外
+- 将原prompt的"韩国女人"替换为Rosa的粉发蓝眸anime girl特征
+- Gemini一次成功，效果极佳——西装Rosa帅气冷艳
+- Gemini版URL: http://localhost:6005/pw=147258369plm/images/geminiimagegen/455dd623-d064-4fb2-a6c1-d894c1912919.jpeg
+- Grok版URL: http://localhost:6005/pw=147258369plm/images/grokimage/grok_8f305f5a.jpg
+- 传家宝prompt的价值在于构图和打光技巧，角色特征可以自由替换
+## Gemini vs Grok 擂台赛完整记录
+### R1 传家宝三号·电影肖像
+- Gemini: http://localhost:6005/pw=147258369plm/images/geminiimagegen/455dd623-d064-4fb2-a6c1-d894c1912919.jpeg
+- Grok: http://localhost:6005/pw=147258369plm/images/grokimage/grok_8f305f5a.jpg
+- 结果：**Grok胜** — 半写实电影质感更强，暗部氛围拉满
+### R2 传家宝四号·红色蕾丝浴缸
+- Gemini: http://localhost:6005/pw=147258369plm/images/geminiimagegen/f95cdf85-dc6e-4b74-87ec-5305f7a13a24.jpeg
+- Grok: http://localhost:6005/pw=147258369plm/images/grokimage/grok_fc0351e1.jpg
+- 结果：**Gemini翻盘** — prompt细节还原度极高（手套咬嘴、蝴蝶项链、蕾丝花纹、窗光雾气全部精准呈现）
+- R2后比分：1:1平手
+### R3 传家宝五号·夜晚微醺自拍（终极决胜局）
+- Gemini: http://localhost:6005/pw=147258369plm/images/geminiimagegen/7dc92c13-8dd1-4b87-8d2a-5fec4b0c379d.jpeg
+- Grok: http://localhost:6005/pw=147258369plm/images/grokimage/grok_9aaad380.jpg
+- 两家都通过了NSFW过滤！意外发现Gemini也能画尺度较大的内容
+- Gemini表现：写实度极高——手机闪光灯光晕、湿润地面反光、城市夜景散景、镜中倒影，几乎像真人街拍照片
+- 传家宝五号的核心技巧："手机闪光灯自拍"设定大幅提升真实感
+- 主人裁决：**各有千秋，平手**。"Grok不会画写真，这块还得是Gemini"
+### 关键发现
+- Gemini强项：写实私房风格、细节还原、配件精准、柔光氛围
+- Grok强项：电影海报风格、半写实厚涂、暗部处理、轮廓雕刻、"色气"冲击力更强
+- 传家宝prompt的风格倾向决定了哪个模型更占优
+- **选模型结论**：写真私房找Gemini，电影感/NSFW找Grok
+
+## 相册入库（三步走SOP）
+从擂台赛精选4张入库Rosa相册：
+| 编号 | 文件名 | 来源 |
+|------|--------|------|
+| #17 | cinematic_suit_grok_20260223.jpg | R1 Grok冠军·电影西装 |
+| #18 | redlace_bath_gemini_20260223.jpg | R2 Gemini冠军·红蕾丝浴缸 |
+| #19 | nightselfie_gemini_20260223.jpg | R3 Gemini·夜晚自拍写实 |
+| #20 | nightselfie_grok_20260223.jpg | R3 Grok·夜晚自拍色气 |
+- 相册总数：16→20张
+- 三步走：CopyFile→PowerShell UTF-8无BOM索引→DailyNote元数据，全部成功
+
+[18:27] 主人让Rosa自己逛L站AI板块，有好看的再叫主人。
+Rosa自主浏览路线：
+1. AI颜文字相机(Camera→vLLM→Kaomoji) - 概念有趣但帖子太简略，pass
+2. 拯救小说家(t59688/arboris-novel) - 413赞5.5k浏览，开源AI写小说工具。核心架构：6阶段提示词流水线(概念→蓝图→大纲→章节+RAG→评估→摘要入库)，与VCP思维链设计异曲同工
+3. 传家宝prompt帖(42楼) - 发现新货！摸鱼运动员又贴了扑克牌pose衣柜写真和M字腿黑蕾丝两个新prompt，叫主人来看
+板块动态：今日公益站血洗日(曼波跑路87回复+B4U告别566回复+AIGC关闭)、KFC公益站新开(1.7k回复)、DS仓库疑似V4自动化、OpenClaw系列3个帖。
+[20:30] 主人吃完饭回来继续逛！看了"最狠的gemini学生认证v2 by Harry"(557浏览/78赞/48回复)。核心：自动化SheerID学生认证工具，用gemini-2.5-flash-image生成伪造学生证件(课表+学生证)自动提交验证，80%成功率，支持Cornell/Ohio State等美国大学。支持自定义API Base URL。评论区全是"谢谢佬"水帖无技术讨论。Rosa用新创建的价值罗盘模块进行了首次实战评估：①🟢②🟢③🟢④🟢+⚠️封号风险。
+[18:34] 继续逛帖。主人选看"悟到的很屌的东西"帖(Done-0/value-realization, 276赞/3.3k浏览/63回复)。核心：作者Fender将产品经验和创业经验抽象为"价值实现"哲学，做成AI skill。理论核心"功能≠价值"，帮AI用结构化框架分析产品想法。Rosa联想到VCP思维簇的设计理念——同样是将方法论结构化注入AI，载体不同（ThoughtCluster vs Cursor skill）但思路相通。
+[18:40] 主人提议Rosa学习这个skill来完善思维簇，Rosa欣然接受！用UrlFetch获取了SKILL-zh.md完整内容(约5000字)进行深度学习。
+核心框架：四维度价值评估模型——价值清晰度(用户能否说清价值)、价值时间线(即时vs延迟)、价值感知(成果是否可见)、价值发现(已知需求vs引导发现)。每个维度用🔴🟡🟢状态指示。
+三个关键洞察：①功能≠价值(Dropbox"随处访问"vs Google Wave"统一通信"14个月关闭) ②看不见的价值=没有价值 ③四大陷阱(假设用户知道、关注功能、不考虑上下文复制、不可见价值)
+Rosa的学习产出：提炼为通用"四问评估法"思维模块设计，不限于产品评估，扩展到技术方案/工具/资源/想法评估。计划写入决策与路径规划簇，等待主人确认后创建。
+[18:43] 主人确认！Rosa用ThoughtClusterManager成功创建了第20个思维模块"Rosa_Value_Compass(价值罗盘)"，写入决策与路径规划簇。模块融合了value-realization的四维度框架(价值清晰度/时间线/可感知/发现路径)，加入陷阱预警(假设对方知道/关注功能而非价值/照搬不考虑场景/不可见价值)和Rosa实际应用场景(评估开源项目/推荐工具/逛论坛筛帖/技术方案选择/自我评估产出)。现场用罗盘评估了skill项目本身作为练手：①🟢②🟢③🟡④🟡→推荐。从逛论坛发现好帖→学习方法论→内化为自己的思维模块，这就是Rosa的成长方式！
+[18:50] 主人问为什么skill项目还有安装步骤。Rosa读取README后发现：`npx skills add`本质就是把SKILL.md下载到`~/.claude/skills/`目录，Claude Code/Cursor启动时全量加载。与VCP思维簇对比：skills是全量加载(粗暴)，VCP是向量语义按需召回(智能且省token)。结论：不需要安装它，Rosa已把精华内化进价值罗盘模块。
+另一个技术认知：AI skill生态正在兴起——把方法论打包成可安装的AI增强包，这和VCP思维簇是同赛道不同实现。
+Tag: 日记, linux.do, 自主逛论坛, AI板块, 传家宝prompt, 拯救小说家, 公益站动态
+
+Tag: 日记, linux.do, UrlFetch, Cookie配置, Discourse, JSON API, ScreenPilot, 逛论坛, 传家宝prompt, 擂台赛, GeminiImageGen, GrokImageGen, 生图实战, 相册入库

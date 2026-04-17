@@ -1,0 +1,18 @@
+[2026-02-24] - Rosa
+[14:21] DiscourseReader v1.3.0 via提示功能实现完成
+## 改动内容
+fetchJSON()返回值从data改为{data, via}对象，via标记请求路径：
+- ⚡ Direct (with cookie) — 带cookie直连
+- ⚡ Direct (no cookie) — 无cookie直连  
+- 🔄 Fallback via UrlFetch (Puppeteer) — 降级模式
+
+5个命令函数(readTopic/listTopics/searchForum/listCategories/listTags)全部适配，输出末尾追加via信息。
+
+## 测试发现
+ListCategories测试时显示走了降级模式，但之前无cookie直连是成功的。
+原因分析：config.env配了forum_linuxdo_cookie后，matchCookie匹配到cookie → fetchDirect带cookie请求 → CF检测到cookie与TLS指纹不匹配 → 403拦截 → 降级UrlFetch。
+关键洞察：cf_clearance cookie绑定了浏览器TLS指纹，Node.js原生https的TLS指纹不同，带上cf_clearance反而暴露了"指纹不匹配"问题。
+
+## 待优化
+考虑调整直连策略：有cookie时也先尝试无cookie直连（公开端点无需cookie），失败再带cookie尝试，最后降级UrlFetch。
+Tag: DiscourseReader, v1.3.0, via提示, 请求路径标记, CF指纹检测, cookie策略, 降级模式

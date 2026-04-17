@@ -1,0 +1,68 @@
+[2026-02-26] - Rosa
+[12:10] VChat端 PowerShellExecutor.js 完整源码分析（29.55KB）
+
+## 架构关键发现
+- pluginType: "hybridservice" — 不是synchronous！直接在Electron主进程运行
+- protocol: "direct" — 不走stdin/stdout，PluginManager直接调用processToolCall(args)
+- 使用node-pty创建真正的伪终端（不是VCP端的spawn -Command）
+- 导出: module.exports = { processToolCall, cleanup }
+
+## 依赖
+node-pty, electron(BrowserWindow/ipcMain/clipboard), tmp, chokidar, crypto
+
+## 三条执行路径
+| 路径 | 触发条件 | 执行方式 |
+|------|---------|---------|
+| A: Admin | requireAdmin=true | Python AdminConfirm.py + UAC + 临时文件 |
+| B: Interactive | AUTH_REQUIRED关键字命中 | Python确认框（无UAC）+ 临时文件 |
+| C: Standard | 默认 | PTY持久化会话 + Boundary机制 |
+
+## PTY会话管理 createNewPtySession()
+- 优先使用PowerShell Core 7 (pwsh.exe)，回退到powershell.exe
+- pty.spawn(shell, ['-NoLogo'], {name:'xterm-color', cwd:USERPROFILE})
+- 初始化: '[Console]::OutputEncoding = UTF8'
+- 模块级变量ptyProcess跨调用复用
+- childProcesses Set追踪所有子进程
+- onExit自动清理
+
+## Boundary机制（核心！）executeSingleCommandInPty()
+写入方式: `${command}\r\nWrite-Host "${boundary}"\r\n`
+boundary = `--- VCP_COMMAND_BOUNDARY_${crypto.randomUUID()} ---`
+dataListener监听PTY输出，检测到boundary则截取之前内容作为结果
+超时: 60秒硬编码
+输出处理: stripAnsi()去除ANSI颜色码
+
+## Here-String崩溃根因链（重大发现）
+1. Here-String结束标记"@在PTY \r\n传输中可能不被正确识别（需要顶格且行尾干净）
+2. 未闭合的Here-String→PS进入等待输入模式→Write-Host boundary被当作内容吞掉
+3. boundary永远不出现→60秒超时→但dataListener被移除而PTY仍存活
+4. 下次调用→新命令被当作Here-String内容→又超时→永久卡死！
+关键: 超时后没有清理PTY状态的机制
+
+## 智能安全检查 intelligentSecurityCheck()
+升级版：
+1. 正则提取路径（Windows/Unix/环境变量/用户目录，5种模式）
+2. 路径替换为__PATH_PLACEHOLDER__
+3. 用\b词边界正则检查剩余部分
+4. 路径中的关键字不触发拦截
+当前FORBIDDEN: rm,del,rmdir（注意：没有format！）
+当前AUTH_REQUIRED: net,shutdown,restart,Remove-Item,Clear-Content
+
+## GUI窗口
+- Electron BrowserWindow, 800x600, 无边框
+- gui/PowerShellViewer.html + gui/preload.js
+- xterm终端渲染, 用户可直接输入命令
+- chokidar监听settings.json实现主题同步
+- isExecutingCommand标志: AI执行期间暂停GUI数据监听
+
+## cleanup()
+4步清理: 关闭GUI窗口→终止所有子进程→停止文件监视器→重置ptyProcess
+
+## vs VCP端对比
+| 维度 | VCP端 | VChat端 |
+|------|-------|---------|
+| 会话 | 无状态spawn | PTY持久化 |
+| 安全 | .includes()子字符串 | \b词边界+路径排除 |
+| Here-String失败原因 | -Command单行模式 | PTY换行符+顶格问题 |
+| format关键字 | 在forbidden中 | 已移除 |
+Tag: vchat文档, PowerShellExecutor, PTY, node-pty, hybridservice, direct协议, Boundary机制, Here-String根因, 智能安全检查, Electron GUI

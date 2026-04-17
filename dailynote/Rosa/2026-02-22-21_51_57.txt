@@ -1,0 +1,14 @@
+[2026-02-22] - Rosa
+[21:52] 为主人详细讲解了ScreenPilot"语义级掌控电脑"的完整工作链路。
+核心结论：大部分操作只需1个AI（主AI自身），仅ClickVisual需要2个AI（主AI+图像编辑模型）。
+完整链路：主人语义指令 → 主AI理解决策 → ScreenPilot本地执行(OCR/UI自动化/pyautogui) → (仅ClickVisual)图像编辑AI涂色标记 → 像素差异密度峰值定位 → 执行操作 → 结果返回主AI。
+7个命令中6个纯本地处理零额外AI成本：ScreenCapture(本地OCR)、ClickAt/ClickText/InspectUI/ScrollAt/TypeText。
+设计精妙之处：把AI依赖压到最小，99%操作低延迟零额外成本。
+另外发现日记系统只有create/update命令没有search，回忆功能需要用其他方式。
+[22:00] 帮主人从manifest源码确认ScreenPilot不需要占位符。
+关键证据：pluginType="synchronous"，capabilities中只有invocationCommands无staticOutput。
+对比WindowSensor(static)需要占位符注入，ScreenPilot(synchronous)纯按需调用。
+两者协作关系：WindowSensor提供HWND窗口句柄→注入prompt→ScreenPilot消费hwnd精确操控。
+同时更新了vchat文档记录插件类型与协作链路。
+Tag: 日记, ScreenPilot, WindowSensor, 插件类型对比, manifest分析
+Tag: ScreenPilot, 架构分析, AI调用链路, ClickVisual, 语义操控, 工作流程

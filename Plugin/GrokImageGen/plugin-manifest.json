@@ -1,0 +1,25 @@
+{
+  "manifestVersion": "1.0.0",
+  "name": "GrokImageGen",
+  "version": "1.0.0",
+  "displayName": "Grok图像生成器",
+  "description": "使用Grok API生成图像的插件",
+  "author": "Rosa",
+  "pluginType": "synchronous",
+  "entryPoint": {
+    "type": "python",
+    "command": "python image_handler.py"
+  },
+  "communication": {
+    "protocol": "stdio",
+    "timeout": 180000
+  },
+  "capabilities": {
+    "invocationCommands": [
+      {
+        "commandIdentifier": "GenerateImage",
+        "description": "使用Grok API生成图像。\n参数:\n- prompt (字符串, 必需): 图像生成的英文提示词。"
+      }
+    ]
+  }
+}
