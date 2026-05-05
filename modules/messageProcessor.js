@@ -5,6 +5,7 @@ const lunarCalendar = require('chinese-lunar-calendar');
 const agentManager = require('./agentManager.js'); // 引入新的Agent管理器
 const tvsManager = require('./tvsManager.js'); // 引入新的TVS管理器
 const toolboxManager = require('./toolboxManager.js');
+const dynamicToolRegistry = require('./dynamicToolRegistry.js');
 const sarPromptManager = require('./sarPromptManager.js');
 
 const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || 'Asia/Shanghai';
@@ -486,6 +487,19 @@ async function replaceOtherVariables(text, model, role, context) {
         }
 
         const individualPluginDescriptions = pluginManager.getIndividualPluginDescriptions();
+        if (processedText.includes('{{VCPDynamicTools}}')) {
+            let dynamicToolsText = '[VCPDynamicTools information unavailable]';
+            try {
+                dynamicToolsText = await dynamicToolRegistry.buildInjection({
+                    messages: context.messages || context.originalMessages || [],
+                    pluginManager,
+                    debugMode: DEBUG_MODE
+                });
+            } catch (error) {
+                console.error('[replaceOtherVariables] Error processing {{VCPDynamicTools}}:', error);
+            }
+            processedText = processedText.replaceAll('{{VCPDynamicTools}}', dynamicToolsText);
+        }
         if (individualPluginDescriptions && individualPluginDescriptions.size > 0) {
             for (const [placeholderKey, description] of individualPluginDescriptions) {
                 processedText = processedText.replaceAll(`{{${placeholderKey}}}`, description || `[${placeholderKey} 信息不可用]`);
@@ -525,15 +539,20 @@ async function replaceOtherVariables(text, model, role, context) {
         }
     }
 
-    const asyncResultPlaceholderRegex = /\{\{VCP_ASYNC_RESULT::([a-zA-Z0-9_.-]+)::([a-zA-Z0-9_-]+)\}\}/g;
+    // 同时兼容标准双花括号、异常三花括号、以及被字符串转义后常见的四花括号格式
+    // 例如：
+    // {{VCP_ASYNC_RESULT::Plugin::id}}
+    // {{{VCP_ASYNC_RESULT::Plugin::id}}}
+    // {{{{VCP_ASYNC_RESULT::Plugin::id}}}}
+    const asyncResultPlaceholderRegex = /\{\{\{\{VCP_ASYNC_RESULT::([a-zA-Z0-9_.-]+)::([a-zA-Z0-9_-]+)\}\}\}\}|\{\{\{VCP_ASYNC_RESULT::([a-zA-Z0-9_.-]+)::([a-zA-Z0-9_-]+)\}\}\}|\{\{VCP_ASYNC_RESULT::([a-zA-Z0-9_.-]+)::([a-zA-Z0-9_-]+)\}\}/g;
     let asyncMatch;
     let tempAsyncProcessedText = processedText;
     const promises = [];
 
     while ((asyncMatch = asyncResultPlaceholderRegex.exec(processedText)) !== null) {
         const placeholder = asyncMatch[0];
-        const pluginName = asyncMatch[1];
-        const requestId = asyncMatch[2];
+        const pluginName = asyncMatch[1] || asyncMatch[3] || asyncMatch[5];
+        const requestId = asyncMatch[2] || asyncMatch[4] || asyncMatch[6];
 
         promises.push(
             (async () => {
