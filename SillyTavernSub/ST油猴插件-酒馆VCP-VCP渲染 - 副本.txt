@@ -1,0 +1,514 @@
+// ==UserScript==
+// @name         VCPSub Enhanced UI for SillyTavern (Mobile Enhanced)
+// @namespace    http://tampermonkey.net/
+// @version      1.7-mobile
+// @description  Prettifies VCP-ToolUse and Maid Diary blocks with mobile adaptation, reduced-motion fallback, and audio responsiveness.
+// @author       Xiaoke & Ryan (Modified by Roo, Mobile Enhanced by AI)
+// @match        *://localhost:8000/*
+// @match        *://127.0.0.1:8000/*
+// @match        *://*/*:8000/*
+// @include      /^https?:\/\/.*:8000\//
+// @grant        GM_addStyle
+// @run-at       document_idle
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const MOBILE_BREAKPOINT = 768;
+    const isMobile = () => window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+    const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Debounce utility for prettifyBlock calls during streaming
+    const debounceTimers = new WeakMap();
+    const DESKTOP_DEBOUNCE_DELAY = 400;      // general blocks
+    const MOBILE_DEBOUNCE_DELAY = 650;       // mobile适当提高，减轻重排频率
+    const DIARY_DEBOUNCE_DELAY = 3000;       // Maid Diary blocks
+    const MOBILE_DIARY_DEBOUNCE_DELAY = 3600;
+
+    console.log('VCPSub Prettifier (Mobile Enhanced): Script started.');
+
+    function createVcpPrettifierStyles() {
+        GM_addStyle(`
+            :root {
+                --vcp-mobile-breakpoint: ${MOBILE_BREAKPOINT}px;
+            }
+
+            /* Keyframes */
+            @keyframes vcp-bubble-background-flow-kf {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+
+            @keyframes vcp-bubble-border-flow-kf {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 200% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+
+            @keyframes vcp-icon-rotate {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            @keyframes vcp-icon-heartbeat {
+                0% { transform: scale(1); opacity: 0.6; }
+                50% { transform: scale(1.15); opacity: 0.9; }
+                100% { transform: scale(1); opacity: 0.6; }
+            }
+
+            @keyframes vcp-toolname-color-flow-kf {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 150% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+
+            /* 通用防溢出 */
+            .vcp-tool-use-bubble,
+            .maid-diary-bubble {
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                -webkit-font-smoothing: antialiased;
+                text-rendering: optimizeLegibility;
+            }
+
+            /* 主气泡样式 - VCP ToolUse */
+            .vcp-tool-use-bubble {
+                background: linear-gradient(145deg, #3a7bd5 0%, #00d2ff 100%) !important;
+                background-size: 200% 200% !important;
+                animation: vcp-bubble-background-flow-kf 20s ease-in-out infinite;
+                border-radius: 10px !important;
+                padding: 8px 15px 8px 35px !important;
+                color: #ffffff !important;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                margin-bottom: 10px !important;
+                position: relative;
+                overflow: hidden;
+                line-height: 1.5;
+            }
+
+            .vcp-tool-use-bubble::after {
+                content: "";
+                position: absolute;
+                box-sizing: border-box;
+                top: 0; left: 0; width: 100%; height: 100%;
+                border-radius: inherit;
+                padding: 2px;
+                background: linear-gradient(60deg, #76c4f7, #00d2ff, #3a7bd5, #ffffff, #3a7bd5, #00d2ff, #76c4f7);
+                background-size: 300% 300%;
+                animation: vcp-bubble-border-flow-kf 7s linear infinite;
+                -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                -webkit-mask-composite: xor;
+                mask-composite: exclude;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            .vcp-tool-use-bubble code,
+            .vcp-tool-use-bubble code span {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                color: inherit !important;
+                display: inline !important;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+                font-size: 0.95em !important;
+                vertical-align: baseline;
+                position: relative;
+                z-index: 1;
+                white-space: pre-wrap !important;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+
+            .vcp-tool-use-bubble .vcp-tool-label {
+                font-weight: bold;
+                color: #f1c40f;
+                margin-right: 6px;
+            }
+
+            .vcp-tool-use-bubble .vcp-tool-name-highlight {
+                background: linear-gradient(90deg, #f1c40f, #ffffff, #00d2ff, #f1c40f) !important;
+                background-size: 300% 100% !important;
+                -webkit-background-clip: text !important;
+                background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                text-fill-color: transparent !important;
+                font-style: normal !important;
+                font-weight: bold !important;
+                padding: 2px 5px !important;
+                border-radius: 4px !important;
+                animation: vcp-toolname-color-flow-kf 4s linear infinite;
+            }
+
+            .vcp-tool-use-bubble::before {
+                content: "⚙️";
+                position: absolute;
+                top: 12px;
+                left: 12px;
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.75);
+                z-index: 2;
+                animation: vcp-icon-rotate 4s linear infinite;
+                transform-origin: center center;
+            }
+
+            .vcp-tool-use-bubble code .code-copy {
+                display: none !important;
+            }
+
+            /* 女仆日记气泡样式 */
+            .maid-diary-bubble {
+                background: linear-gradient(145deg, #fdeff2 0%, #fce4ec 100%) !important;
+                background-size: 200% 200% !important;
+                animation: vcp-bubble-background-flow-kf 14s ease-in-out infinite;
+                border-radius: 10px !important;
+                padding: 8px 15px 8px 35px !important;
+                color: #5d4037 !important;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+                margin-bottom: 10px !important;
+                position: relative;
+                overflow: hidden;
+                line-height: 1.5;
+            }
+
+            .maid-diary-bubble::after {
+                content: "";
+                position: absolute;
+                box-sizing: border-box;
+                top: 0; left: 0; width: 100%; height: 100%;
+                border-radius: inherit;
+                padding: 2px;
+                background: linear-gradient(60deg, #f8bbd0, #fce4ec, #e91e63, #ffffff, #e91e63, #fce4ec, #f8bbd0);
+                background-size: 300% 300%;
+                animation: vcp-bubble-border-flow-kf 20s linear infinite;
+                -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                -webkit-mask-composite: xor;
+                mask-composite: exclude;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            .maid-diary-bubble code,
+            .maid-diary-bubble code span {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                color: inherit !important;
+                display: inline !important;
+                font-family: 'Georgia', 'Times New Roman', serif !important;
+                font-size: 0.98em !important;
+                vertical-align: baseline;
+                position: relative;
+                z-index: 1;
+                white-space: pre-wrap !important;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+
+            .maid-diary-bubble .maid-label {
+                font-weight: bold;
+                color: #c2185b;
+                margin-right: 6px;
+                font-family: 'Georgia', 'Times New Roman', serif !important;
+            }
+
+            .maid-diary-bubble::before {
+                content: "🎀";
+                position: absolute;
+                top: 10px;
+                left: 12px;
+                font-size: 16px;
+                color: rgba(227, 96, 140, 0.85);
+                z-index: 2;
+                animation: vcp-icon-heartbeat 2.5s ease-in-out infinite;
+                transform-origin: center center;
+            }
+
+            .maid-diary-bubble code .code-copy {
+                display: none !important;
+            }
+
+            /* HTML5 音频播放器 */
+            audio[controls] {
+                background: linear-gradient(145deg, #3a7bd5 0%, #00d2ff 100%) !important;
+                border: 1px solid #2980b9 !important;
+                border-radius: 10px !important;
+                padding: 10px 15px !important;
+                color: #ffffff !important;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                margin-bottom: 10px !important;
+                display: block;
+                width: min(100%, 350px);
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            audio[controls]::-webkit-media-controls-panel {
+                background: #ffffff !important;
+                border-radius: 9px !important;
+                margin: 5px !important;
+                padding: 5px !important;
+                box-sizing: border-box !important;
+            }
+
+            audio[controls]::-webkit-media-controls-play-button,
+            audio[controls]::-webkit-media-controls-mute-button,
+            audio[controls]::-webkit-media-controls-fullscreen-button,
+            audio[controls]::-webkit-media-controls-overflow-button {
+                filter: brightness(0.3) contrast(1.5) !important;
+            }
+
+            audio[controls]::-webkit-media-controls-current-time-display,
+            audio[controls]::-webkit-media-controls-time-remaining-display {
+                color: #181818 !important;
+                text-shadow: none !important;
+            }
+
+            audio[controls]::-webkit-media-controls-timeline {
+                background-color: rgb(255, 255, 255) !important;
+                border-radius: 4px !important;
+                height: 6px !important;
+                margin: 0 5px !important;
+            }
+
+            audio[controls]::-webkit-media-controls-volume-slider {
+                background-color: rgb(255, 255, 255) !important;
+                border-radius: 3px !important;
+                height: 4px !important;
+                margin: 0 5px !important;
+            }
+
+            /* 移动端优化 */
+            @media (max-width: ${MOBILE_BREAKPOINT}px) {
+                .vcp-tool-use-bubble,
+                .maid-diary-bubble {
+                    border-radius: 12px !important;
+                    padding: 9px 12px 9px 32px !important;
+                    margin-bottom: 8px !important;
+                    line-height: 1.45;
+                }
+
+                .vcp-tool-use-bubble::before {
+                    top: 10px;
+                    left: 10px;
+                    font-size: 13px;
+                }
+
+                .maid-diary-bubble::before {
+                    top: 9px;
+                    left: 10px;
+                    font-size: 14px;
+                }
+
+                .vcp-tool-use-bubble code,
+                .vcp-tool-use-bubble code span,
+                .maid-diary-bubble code,
+                .maid-diary-bubble code span {
+                    font-size: 0.93em !important;
+                }
+
+                .vcp-tool-use-bubble .vcp-tool-name-highlight {
+                    padding: 1px 3px !important;
+                }
+
+                audio[controls] {
+                    width: 100% !important;
+                    padding: 8px 10px !important;
+                    border-radius: 12px !important;
+                }
+            }
+
+            /* 降动画：系统偏好 + 小屏 */
+            @media (prefers-reduced-motion: reduce), (max-width: ${MOBILE_BREAKPOINT}px) {
+                .vcp-tool-use-bubble,
+                .maid-diary-bubble {
+                    animation: none !important;
+                }
+                .vcp-tool-use-bubble::after,
+                .maid-diary-bubble::after {
+                    animation: none !important;
+                }
+                .vcp-tool-use-bubble::before,
+                .maid-diary-bubble::before,
+                .vcp-tool-use-bubble .vcp-tool-name-highlight {
+                    animation: none !important;
+                }
+            }
+        `);
+    }
+
+    function prettifyBlock(preElement) {
+        if (!preElement || preElement.nodeType !== Node.ELEMENT_NODE) return;
+
+        if (preElement.dataset.vcpPrettified || preElement.dataset.maidDiaryPrettified) {
+            return;
+        }
+
+        let codeElement = preElement.querySelector('code.hljs') || preElement.querySelector('code');
+        if (!codeElement) return;
+
+        const textContent = codeElement.textContent || "";
+        let htmlContent = codeElement.innerHTML || "";
+        htmlContent = htmlContent.replace(/<i class="fa-solid fa-copy code-copy.*?<\/i>/s, '');
+
+        if (textContent.trim().startsWith('VCP-ToolUse:')) {
+            preElement.classList.add('vcp-tool-use-bubble');
+
+            htmlContent = htmlContent.replace(/(VCP-ToolUse:)/, '<span class="vcp-tool-label">$1</span>');
+            const tempDivVcp = document.createElement('div');
+            tempDivVcp.innerHTML = htmlContent;
+
+            const vcpLabelElement = tempDivVcp.querySelector('span.vcp-tool-label');
+            if (vcpLabelElement) {
+                let sibling = vcpLabelElement.nextSibling;
+                while (sibling && sibling.nodeType === Node.TEXT_NODE && sibling.textContent.trim() === '') {
+                    sibling = sibling.nextSibling;
+                }
+                if (sibling && sibling.nodeType === Node.ELEMENT_NODE && sibling.matches('span.hljs-comment')) {
+                    const newToolNameSpan = document.createElement('span');
+                    newToolNameSpan.className = 'vcp-tool-name-highlight';
+                    newToolNameSpan.innerHTML = sibling.innerHTML;
+                    sibling.replaceWith(newToolNameSpan);
+                }
+            }
+
+            codeElement.innerHTML = tempDivVcp.innerHTML;
+            preElement.dataset.vcpPrettified = "true";
+        } else if (textContent.trim().startsWith('Maid')) {
+            preElement.classList.add('maid-diary-bubble');
+
+            const tempDivMaid = document.createElement('div');
+            tempDivMaid.innerHTML = htmlContent;
+            let maidLabelProcessed = false;
+
+            const firstSpanAttribute = tempDivMaid.querySelector('span.hljs-attribute');
+            if (firstSpanAttribute && firstSpanAttribute.textContent.trim() === 'Maid') {
+                const maidLabelSpan = document.createElement('span');
+                maidLabelSpan.className = 'maid-label';
+                maidLabelSpan.textContent = firstSpanAttribute.textContent;
+                firstSpanAttribute.replaceWith(maidLabelSpan);
+                codeElement.innerHTML = tempDivMaid.innerHTML;
+                maidLabelProcessed = true;
+            }
+
+            if (!maidLabelProcessed && htmlContent.trimStart().startsWith('Maid')) {
+                const maidRegex = /^(\s*Maid)(?![^<]*>)/;
+                if (maidRegex.test(htmlContent)) {
+                    htmlContent = htmlContent.replace(maidRegex, `<span class="maid-label">$1</span>`);
+                    codeElement.innerHTML = htmlContent;
+                }
+            }
+
+            preElement.dataset.maidDiaryPrettified = "true";
+        }
+    }
+
+    function observeChatForBlocks() {
+        let chatAreaObserverTarget = null;
+
+        const observerCallback = (mutationsList) => {
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+                        if (node.matches && node.matches('pre')) {
+                            prettifyBlock(node);
+                        }
+
+                        const preElements = node.querySelectorAll ? node.querySelectorAll('pre') : [];
+                        if (preElements.length) preElements.forEach(prettifyBlock);
+                    });
+                } else if (mutation.type === 'characterData') {
+                    let targetNode = mutation.target;
+                    let preParent = null;
+
+                    while (targetNode && targetNode !== chatAreaObserverTarget && targetNode !== document.body) {
+                        if (targetNode.nodeName === 'PRE') {
+                            preParent = targetNode;
+                            break;
+                        }
+                        if (!targetNode.parentNode) break;
+                        targetNode = targetNode.parentNode;
+                    }
+
+                    if (preParent) {
+                        const preTextContent = preParent.textContent || "";
+                        const isDiary = preTextContent.trim().startsWith('Maid');
+
+                        let currentDelay;
+                        if (isDiary) {
+                            currentDelay = isMobile() ? MOBILE_DIARY_DEBOUNCE_DELAY : DIARY_DEBOUNCE_DELAY;
+                        } else {
+                            currentDelay = isMobile() || prefersReducedMotion() ? MOBILE_DEBOUNCE_DELAY : DESKTOP_DEBOUNCE_DELAY;
+                        }
+
+                        if (debounceTimers.has(preParent)) {
+                            clearTimeout(debounceTimers.get(preParent));
+                        }
+
+                        debounceTimers.set(preParent, setTimeout(() => {
+                            if (document.body.contains(preParent)) {
+                                delete preParent.dataset.vcpPrettified;
+                                delete preParent.dataset.maidDiaryPrettified;
+                                prettifyBlock(preParent);
+                            }
+                            debounceTimers.delete(preParent);
+                        }, currentDelay));
+                    }
+                }
+            }
+        };
+
+        const chatObserver = new MutationObserver(observerCallback);
+        const chatAreaSelectors = [
+            '#chat', '#chat_messages_container', '.message-list',
+            '#messages_container', '.chat_window .gm-scroll-view',
+            '#chat_story', '.chatbox'
+        ];
+
+        for (const selector of chatAreaSelectors) {
+            chatAreaObserverTarget = document.querySelector(selector);
+            if (chatAreaObserverTarget) break;
+        }
+
+        if (!chatAreaObserverTarget) {
+            chatAreaObserverTarget = document.body;
+            console.warn('VCPSub Enhanced UI: chat container not found, observing document.body (may impact performance).');
+        }
+
+        console.log(
+            'VCPSub Enhanced UI: observing in:',
+            chatAreaObserverTarget.id || chatAreaObserverTarget.className || chatAreaObserverTarget.tagName
+        );
+
+        // Initial pass
+        chatAreaObserverTarget.querySelectorAll('pre').forEach(prettifyBlock);
+
+        chatObserver.observe(chatAreaObserverTarget, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    }
+
+    function initializeScript() {
+        createVcpPrettifierStyles();
+        observeChatForBlocks();
+        console.log('VCPSub Prettifier (Mobile Enhanced): initialized.');
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initializeScript();
+    } else {
+        window.addEventListener('DOMContentLoaded', initializeScript);
+    }
+})();

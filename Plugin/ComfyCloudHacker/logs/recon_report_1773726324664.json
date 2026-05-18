@@ -1,0 +1,423 @@
+{
+  "title": "ComfyUI",
+  "url": "https://cloud.comfy.org/cloud/login",
+  "globalVars": {
+    "customProperties": [
+      {
+        "name": "0",
+        "type": "object",
+        "preview": "window, self, document, name, location, customElements, history, navigation, locationbar, menubar"
+      },
+      {
+        "name": "Function",
+        "type": "function",
+        "preview": "function Function() { [native code] }"
+      },
+      {
+        "name": "AggregateError",
+        "type": "function",
+        "preview": "function AggregateError() { [native code] }"
+      },
+      {
+        "name": "globalThis",
+        "type": "object",
+        "preview": "0, window, self, document, name, location, customElements, history, navigation, locationbar"
+      },
+      {
+        "name": "Intl",
+        "type": "object",
+        "preview": ""
+      },
+      {
+        "name": "ArrayBuffer",
+        "type": "function",
+        "preview": "function ArrayBuffer() { [native code] }"
+      },
+      {
+        "name": "Atomics",
+        "type": "object",
+        "preview": ""
+      },
+      {
+        "name": "Uint8Array",
+        "type": "function",
+        "preview": "function Uint8Array() { [native code] }"
+      },
+      {
+        "name": "Int8Array",
+        "type": "function",
+        "preview": "function Int8Array() { [native code] }"
+      },
+      {
+        "name": "Uint16Array",
+        "type": "function",
+        "preview": "function Uint16Array() { [native code] }"
+      },
+      {
+        "name": "Int16Array",
+        "type": "function",
+        "preview": "function Int16Array() { [native code] }"
+      },
+      {
+        "name": "Uint32Array",
+        "type": "function",
+        "preview": "function Uint32Array() { [native code] }"
+      },
+      {
+        "name": "Int32Array",
+        "type": "function",
+        "preview": "function Int32Array() { [native code] }"
+      },
+      {
+        "name": "Float32Array",
+        "type": "function",
+        "preview": "function Float32Array() { [native code] }"
+      },
+      {
+        "name": "Float64Array",
+        "type": "function",
+        "preview": "function Float64Array() { [native code] }"
+      },
+      {
+        "name": "Uint8ClampedArray",
+        "type": "function",
+        "preview": "function Uint8ClampedArray() { [native code] }"
+      },
+      {
+        "name": "BigUint64Array",
+        "type": "function",
+        "preview": "function BigUint64Array() { [native code] }"
+      },
+      {
+        "name": "BigInt64Array",
+        "type": "function",
+        "preview": "function BigInt64Array() { [native code] }"
+      },
+      {
+        "name": "DataView",
+        "type": "function",
+        "preview": "function DataView() { [native code] }"
+      },
+      {
+        "name": "BigInt",
+        "type": "function",
+        "preview": "function BigInt() { [native code] }"
+      },
+      {
+        "name": "FinalizationRegistry",
+        "type": "function",
+        "preview": "function FinalizationRegistry() { [native code] }"
+      },
+      {
+        "name": "WeakRef",
+        "type": "function",
+        "preview": "function WeakRef() { [native code] }"
+      },
+      {
+        "name": "escape",
+        "type": "function",
+        "preview": "function escape() { [native code] }"
+      },
+      {
+        "name": "unescape",
+        "type": "function",
+        "preview": "function unescape() { [native code] }"
+      },
+      {
+        "name": "Option",
+        "type": "function",
+        "preview": "function Option() { [native code] }"
+      },
+      {
+        "name": "Image",
+        "type": "function",
+        "preview": "function Image() { [native code] }"
+      },
+      {
+        "name": "Audio",
+        "type": "function",
+        "preview": "function Audio() { [native code] }"
+      },
+      {
+        "name": "WebKitMutationObserver",
+        "type": "function",
+        "preview": "function MutationObserver() { [native code] }"
+      },
+      {
+        "name": "WebKitCSSMatrix",
+        "type": "function",
+        "preview": "function DOMMatrix() { [native code] }"
+      },
+      {
+        "name": "XSLTProcessor",
+        "type": "function",
+        "preview": "function XSLTProcessor() { [native code] }"
+      },
+      {
+        "name": "XPathResult",
+        "type": "function",
+        "preview": "function XPathResult() { [native code] }"
+      },
+      {
+        "name": "XPathExpression",
+        "type": "function",
+        "preview": "function XPathExpression() { [native code] }"
+      },
+      {
+        "name": "XPathEvaluator",
+        "type": "function",
+        "preview": "function XPathEvaluator() { [native code] }"
+      },
+      {
+        "name": "XMLSerializer",
+        "type": "function",
+        "preview": "function XMLSerializer() { [native code] }"
+      },
+      {
+        "name": "XMLHttpRequestUpload",
+        "type": "function",
+        "preview": "function XMLHttpRequestUpload() { [native code] }"
+      },
+      {
+        "name": "XMLHttpRequestEventTarget",
+        "type": "function",
+        "preview": "function XMLHttpRequestEventTarget() { [native code] }"
+      },
+      {
+        "name": "XMLDocument",
+        "type": "function",
+        "preview": "function XMLDocument() { [native code] }"
+      },
+      {
+        "name": "WritableStreamDefaultWriter",
+        "type": "function",
+        "preview": "function WritableStreamDefaultWriter() { [native code] }"
+      },
+      {
+        "name": "WritableStreamDefaultController",
+        "type": "function",
+        "preview": "function WritableStreamDefaultController() { [native code] }"
+      },
+      {
+        "name": "WritableStream",
+        "type": "function",
+        "preview": "function WritableStream() { [native code] }"
+      },
+      {
+        "name": "Worker",
+        "type": "function",
+        "preview": "function Worker() { [native code] }"
+      },
+      {
+        "name": "WindowControlsOverlayGeometryChangeEvent",
+        "type": "function",
+        "preview": "function WindowControlsOverlayGeometryChangeEvent() { [native code] }"
+      },
+      {
+        "name": "WindowControlsOverlay",
+        "type": "function",
+        "preview": "function WindowControlsOverlay() { [native code] }"
+      },
+      {
+        "name": "Window",
+        "type": "function",
+        "preview": "function Window() { [native code] }"
+      },
+      {
+        "name": "WheelEvent",
+        "type": "function",
+        "preview": "function WheelEvent() { [native code] }"
+      },
+      {
+        "name": "WebGLVertexArrayObject",
+        "type": "function",
+        "preview": "function WebGLVertexArrayObject() { [native code] }"
+      },
+      {
+        "name": "WebGLUniformLocation",
+        "type": "function",
+        "preview": "function WebGLUniformLocation() { [native code] }"
+      },
+      {
+        "name": "WebGLTransformFeedback",
+        "type": "function",
+        "preview": "function WebGLTransformFeedback() { [native code] }"
+      },
+      {
+        "name": "WebGLTexture",
+        "type": "function",
+        "preview": "function WebGLTexture() { [native code] }"
+      },
+      {
+        "name": "WebGLSync",
+        "type": "function",
+        "preview": "function WebGLSync() { [native code] }"
+      }
+    ]
+  },
+  "comfyObjects": {
+    "comfyAPI": {
+      "type": "object",
+      "isFunction": false,
+      "isObject": true,
+      "keys": [
+        "api",
+        "domWidget",
+        "defaultGraph",
+        "imagePreview",
+        "widgets",
+        "types",
+        "constants",
+        "ebml",
+        "gltf",
+        "isobmff",
+        "json",
+        "mp3",
+        "ogg",
+        "svg",
+        "avif",
+        "flac",
+        "png",
+        "pnginfo",
+        "parser",
+        "changeTracker",
+        "dialog",
+        "settings",
+        "toggleSwitch",
+        "ui",
+        "utils",
+        "button",
+        "buttonGroup",
+        "popup",
+        "splitButton",
+        "asyncDialog"
+      ],
+      "hasGraphToPrompt": false,
+      "hasQueuePrompt": false
+    }
+  },
+  "detectedApis": [],
+  "keyElements": [
+    {
+      "tag": "button",
+      "text": "Log in with Google",
+      "id": "",
+      "classes": "relative inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-"
+    },
+    {
+      "tag": "button",
+      "text": "Log in with Github",
+      "id": "",
+      "classes": "relative inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-"
+    },
+    {
+      "tag": "button",
+      "text": "Use email instead",
+      "id": "",
+      "classes": "relative inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-"
+    },
+    {
+      "tag": "button",
+      "text": "Download ComfyUI",
+      "id": "",
+      "classes": "relative inline-flex items-center justify-center gap-2 cursor-pointer touch-manipulation whitespace-"
+    },
+    {
+      "tag": "button",
+      "text": "Close",
+      "id": "",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Close",
+      "id": "",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "⚙️",
+      "id": "",
+      "classes": "comfy-settings-btn"
+    },
+    {
+      "tag": "button",
+      "text": "×",
+      "id": "",
+      "classes": "comfy-close-menu-btn"
+    },
+    {
+      "tag": "button",
+      "text": "Queue Prompt",
+      "id": "queue-button",
+      "classes": "comfy-queue-btn"
+    },
+    {
+      "tag": "button",
+      "text": "Queue Front",
+      "id": "queue-front-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "View Queue",
+      "id": "comfy-view-queue-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "View History",
+      "id": "comfy-view-history-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Save",
+      "id": "comfy-save-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Save (API Format)",
+      "id": "comfy-dev-save-api-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Load",
+      "id": "comfy-load-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Refresh",
+      "id": "comfy-refresh-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Clipspace",
+      "id": "comfy-clipspace-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Clear",
+      "id": "comfy-clear-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Load Default",
+      "id": "comfy-load-default-button",
+      "classes": ""
+    },
+    {
+      "tag": "button",
+      "text": "Reset View",
+      "id": "comfy-reset-view-button",
+      "classes": ""
+    }
+  ],
+  "pageTextPreview": "Log in to your account\n\nNew here? Sign up with Google to get 400 free credits every month.\n\nLog in with Google\nLog in with Github\nUse email instead\n\nBy clicking \"Next\" or \"Sign Up\", you agree to our Terms of Use and Privacy Policy.\n\nSTART CREATING IN SECONDS\n\nZero setup required. Works on any device.\n\nGenerate multiple outputs at once. Share workflows with ease.\n\nWant to run ComfyUI locally instead?\n\nDownload ComfyUI"
+}

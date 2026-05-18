@@ -119,7 +119,7 @@ async function getRealAuthCode(debugMode = false) {
 async function fetchWithRetry(
   url,
   options,
-  { retries = 3, delay = 1000, debugMode = false, onRetry = null, connectionTimeout = 120000 } = {},
+  { retries = 3, delay = 1000, debugMode = false, onRetry = null, connectionTimeout = 600000 } = {},
 ) {
   const { default: fetch } = await import('node-fetch');
   for (let i = 0; i < retries; i++) {

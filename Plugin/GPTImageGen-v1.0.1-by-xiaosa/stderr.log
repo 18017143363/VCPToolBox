@@ -1,0 +1,17 @@
+[GPTImageGen DEBUG] Received args: {"command":"GPTGenerateImage","prompt":"A simple red circle on white background","size":"1024x1024","quality":"low"}
+[GPTImageGen DEBUG] Generate mode
+[GPTImageGen DEBUG] Parsed params: {
+  prompt: 'A simple red circle on white background',
+  size: '1024x1024',
+  quality: 'low',
+  background: 'auto',
+  n: 1,
+  response_format: 'b64_json'
+}
+[GPTImageGen DEBUG] API Request URL: http://154.40.47.229:3005/v1/images/generations
+[GPTImageGen DEBUG] API Request Body: {"model":"gpt-image-2","prompt":"A simple red circle on white background","n":1,"size":"1024x1024","quality":"low","background":"auto","response_format":"b64_json"}
+[GPTImageGen DEBUG] HTTP POST http://154.40.47.229:3005/v1/images/generations
+[GPTImageGen DEBUG] API Response Status: 200
+[GPTImageGen DEBUG] API Response Body (first 500 chars): {"created":1777096572,"data":[{"b64_json":"iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAIAAADwf7zUAABnL2NhQlgAAGcvanVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAZwlqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOjYzYjczNmZiLWI4OTAtNGViZS1hY2Q1LTg0NGI0MTk2ZTU4NwAAABblanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAJ0Wp1bWIAAAA7anVtZEDLDDK7ikidpwsq1vR/Q2kTYzJwYS5pY29uAAAAABhjMnNognvNtz4qdL1UmCf4ZzdO3gAAABdiZmRiAGltYWdlL3N2Zyt4bWwAAAAJd2JpZGI8c3ZnIHdpZHRoPSI3MTYiIGhlaWdodD0iNzE2IiB2aWV3Qm94P
+[GPTImageGen DEBUG] Image 0 saved to: d:\VCP\VCPToolBox-latest\VCPToolBox-main\image\gptimagegen\5f76e53f-68c9-402a-a861-dd7850515a3a.png
+[GPTImageGen DEBUG] Image 0: saved as 5f76e53f-68c9-402a-a861-dd7850515a3a.png, accessible at http://localhost:5000/pw=/images/gptimagegen/5f76e53f-68c9-402a-a861-dd7850515a3a.png

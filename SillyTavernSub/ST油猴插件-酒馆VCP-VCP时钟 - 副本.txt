@@ -1,0 +1,303 @@
+// ==UserScript==
+// @name         SillyTavern Floating Clock & VCP Button (Mobile Enhanced)
+// @namespace    http://tampermonkey.net/
+// @version      1.5-mobile
+// @description  Adds floating clock + VCP button with mobile adaptation (safe-area, touch targets, reduced animation, responsive layout).
+// @author       Xiaoke & Ryan (Modified by Roo, Mobile Enhanced by AI)
+// @match        *://localhost:8000/*
+// @match        *://127.0.0.1:8000/*
+// @match        *://*/*:8000/*
+// @include      /^https?:\/\/.*:8000\//
+// @grant        GM_addStyle
+// @run-at       document_idle
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const CONTAINER_ID = 'st-floating-container';
+    const TIME_ID = 'st-clock-time';
+    const DATE_ID = 'st-clock-date';
+    const BTN_ID = 'st-vcp-admin-button';
+    const MOBILE_BREAKPOINT = 768;
+
+    // 你可以改成自己的地址
+    const ADMIN_PANEL_URL = 'http://100.69.90.2:6005/AdminPanel/';
+
+    let timer = null;
+    let dateFormatterDesktop = null;
+    let dateFormatterMobile = null;
+
+    console.log('ST Floating Clock (Mobile Enhanced): Script started.');
+
+    function isMobileViewport() {
+        return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+    }
+
+    function ensureFormatters() {
+        const locale = navigator.language || 'zh-CN';
+        dateFormatterDesktop = new Intl.DateTimeFormat(locale, {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric'
+        });
+        dateFormatterMobile = new Intl.DateTimeFormat(locale, {
+            month: 'numeric',
+            day: 'numeric',
+            weekday: 'short'
+        });
+    }
+
+    function injectStyles() {
+        GM_addStyle(`
+            :root {
+                --st-safe-top: env(safe-area-inset-top, 0px);
+                --st-safe-right: env(safe-area-inset-right, 0px);
+                --st-safe-left: env(safe-area-inset-left, 0px);
+            }
+
+            @keyframes st-colon-blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.25; }
+            }
+
+            @keyframes st-soft-circular-ripple-effect {
+                0% {
+                    transform: translate(-50%, -50%) scale(0);
+                    opacity: 0.7;
+                }
+                80% {
+                    transform: translate(-50%, -50%) scale(18);
+                    opacity: 0;
+                }
+                100% {
+                    transform: translate(-50%, -50%) scale(0);
+                    opacity: 0;
+                }
+            }
+
+            #${CONTAINER_ID} {
+                position: fixed;
+                top: calc(10px + var(--st-safe-top));
+                right: max(10px, var(--st-safe-right));
+                z-index: 9999;
+                background-color: rgba(48, 49, 54, 0.82);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                padding: 4px 10px;
+                border-radius: 10px;
+                font-family: 'Segoe UI', Roboto, sans-serif;
+                color: #fff;
+                text-align: center;
+                cursor: default;
+                overflow: hidden;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: manipulation;
+            }
+
+            #${CONTAINER_ID}::before {
+                content: '';
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 10px;
+                height: 10px;
+                background-image: radial-gradient(
+                    circle,
+                    rgba(190, 210, 240, 0.45) 0%,
+                    rgba(190, 210, 240, 0.3) 40%,
+                    rgba(190, 210, 240, 0) 70%
+                );
+                border-radius: 50%;
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+                animation: st-soft-circular-ripple-effect 3.8s ease-out infinite;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            #${TIME_ID},
+            #${DATE_ID},
+            #${BTN_ID} {
+                position: relative;
+                z-index: 1;
+            }
+
+            #${TIME_ID} {
+                font-size: 28px;
+                font-weight: 700;
+                line-height: 1.2;
+                margin-top: -3px;
+                letter-spacing: 0.5px;
+                white-space: nowrap;
+            }
+
+            #${TIME_ID} .st-clock-colon {
+                animation: st-colon-blink 1s infinite;
+            }
+
+            #${DATE_ID} {
+                font-size: 12px;
+                margin-top: -2px;
+                display: block;
+                opacity: 0.92;
+                white-space: nowrap;
+            }
+
+            #${BTN_ID} {
+                display: block;
+                margin: 6px auto 0;
+                width: 70%;
+                min-width: 92px;
+                min-height: 28px;
+                padding: 4px 8px;
+                border: 1px solid #606060;
+                border-radius: 6px;
+                background-color: #404040;
+                color: #fff;
+                font-size: 12px;
+                line-height: 1.2;
+                cursor: pointer;
+                transition: background-color .2s ease, box-shadow .2s ease, transform .08s ease;
+                touch-action: manipulation;
+            }
+
+            #${BTN_ID}:hover {
+                background-color: #505050;
+                box-shadow: 0 0 6px rgba(0, 210, 255, 0.45);
+            }
+
+            #${BTN_ID}:active {
+                transform: scale(0.98);
+                background-color: #5a5a5a;
+            }
+
+            /* 移动端 */
+            @media (max-width: ${MOBILE_BREAKPOINT}px) {
+                #${CONTAINER_ID} {
+                    top: calc(8px + var(--st-safe-top));
+                    right: max(8px, var(--st-safe-right));
+                    left: auto;
+                    min-width: 148px;
+                    max-width: 58vw;
+                    padding: 6px 10px 8px;
+                    border-radius: 12px;
+                }
+
+                #${TIME_ID} {
+                    font-size: 22px;
+                    letter-spacing: 0.2px;
+                    margin-top: -1px;
+                }
+
+                #${DATE_ID} {
+                    font-size: 11px;
+                    margin-top: 0;
+                    opacity: 0.9;
+                }
+
+                #${BTN_ID} {
+                    width: 100%;
+                    min-height: 34px; /* 触控友好 */
+                    font-size: 13px;
+                    border-radius: 8px;
+                    margin-top: 7px;
+                }
+            }
+
+            /* 系统偏好减少动画 */
+            @media (prefers-reduced-motion: reduce) {
+                #${CONTAINER_ID}::before,
+                #${TIME_ID} .st-clock-colon {
+                    animation: none !important;
+                }
+            }
+        `);
+    }
+
+    function createFloatingClockAndButton() {
+        // 避免重复创建
+        if (document.getElementById(CONTAINER_ID)) {
+            console.log('ST Floating Clock: already exists, skip create.');
+            return;
+        }
+
+        const clockContainer = document.createElement('div');
+        clockContainer.id = CONTAINER_ID;
+
+        const timeElement = document.createElement('div');
+        timeElement.id = TIME_ID;
+
+        const dateElement = document.createElement('div');
+        dateElement.id = DATE_ID;
+
+        const adminButton = document.createElement('button');
+        adminButton.id = BTN_ID;
+        adminButton.textContent = 'VCP管理器';
+        adminButton.type = 'button';
+
+        clockContainer.appendChild(timeElement);
+        clockContainer.appendChild(dateElement);
+        clockContainer.appendChild(adminButton);
+        document.body.appendChild(clockContainer);
+
+        adminButton.addEventListener('click', () => {
+            // 用户手势触发，移动端通常可打开
+            window.open(ADMIN_PANEL_URL, '_blank', 'noopener,noreferrer');
+        });
+
+        function updateClock() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+
+            timeElement.innerHTML = `${hh}<span class="st-clock-colon">:</span>${mm}<span class="st-clock-colon">:</span>${ss}`;
+
+            if (isMobileViewport()) {
+                dateElement.textContent = dateFormatterMobile.format(now);
+            } else {
+                dateElement.textContent = dateFormatterDesktop.format(now);
+            }
+        }
+
+        updateClock();
+        timer = setInterval(updateClock, 1000);
+
+        // 横竖屏切换时刷新一遍
+        window.addEventListener('resize', updateClock, { passive: true });
+        window.addEventListener('orientationchange', updateClock, { passive: true });
+
+        // 页面隐藏时降负载
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (timer) {
+                    clearInterval(timer);
+                    timer = null;
+                }
+            } else {
+                if (!timer) {
+                    updateClock();
+                    timer = setInterval(updateClock, 1000);
+                }
+            }
+        });
+
+        console.log('ST Floating Clock: created and running.');
+    }
+
+    function initializeScript() {
+        ensureFormatters();
+        injectStyles();
+        createFloatingClockAndButton();
+        console.log('ST Floating Clock (Mobile Enhanced): initialized.');
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initializeScript();
+    } else {
+        window.addEventListener('DOMContentLoaded', initializeScript);
+    }
+})();

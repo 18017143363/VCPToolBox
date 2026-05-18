@@ -1,0 +1,16 @@
+[2026-03-17T10:04:56.780Z] [INFO] ========== ComfyCloudHacker Recon UserDataDir v1.0 ==========
+[2026-03-17T10:04:56.783Z] [INFO] Target: https://cloud.comfy.org
+[2026-03-17T10:04:56.784Z] [INFO] Account: 1
+[2026-03-17T10:04:56.785Z] [INFO] Debug Mode: true
+[2026-03-17T10:04:56.786Z] [INFO] Profile Dir: E:\VCP\Plugin\ComfyCloudHacker\profiles\account_1
+[2026-03-17T10:04:56.787Z] [INFO] Launching browser with userDataDir: E:\VCP\Plugin\ComfyCloudHacker\profiles\account_1
+[2026-03-17T10:04:57.798Z] [INFO] Navigating to https://cloud.comfy.org
+[2026-03-17T10:04:59.687Z] [ERROR] Fatal: Navigating frame was detached
+[2026-03-17T10:04:59.688Z] [ERROR] Error: Navigating frame was detached
+    at #onFrameDetached (E:\VCP\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\LifecycleWatcher.js:103:47)
+    at E:\VCP\node_modules\puppeteer-core\lib\cjs\third_party\mitt\mitt.js:62:7
+    at Array.map (<anonymous>)
+    at Object.emit (E:\VCP\node_modules\puppeteer-core\lib\cjs\third_party\mitt\mitt.js:61:20)
+    at CdpFrame.emit (E:\VCP\node_modules\puppeteer-core\lib\cjs\puppeteer\common\EventEmitter.js:83:23)
+    at #removeFramesRecursively (E:\VCP\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\FrameManager.js:450:15)
+    at #onClientDisconnect (E:\VCP\node_modules\puppeteer-core\lib\cjs\puppeteer\cdp\FrameManager.js:94:42)

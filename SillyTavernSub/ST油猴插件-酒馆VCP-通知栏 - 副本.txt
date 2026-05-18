@@ -1,0 +1,510 @@
+// ==UserScript==
+// @name         ST-VCP通知栏 (移动端增强版)
+// @namespace    http://tampermonkey.net/
+// @version      0.4-mobile
+// @description  SillyTavern VCP 通知栏（支持移动端布局、触控优化、复制兼容、ws/wss自适配）
+// @author       You
+// @match        *://localhost:8000/*
+// @match        *://127.0.0.1:8000/*
+// @match        *://*/*:8000/*
+// @include      /^https?:\/\/.*:8000\//
+// @grant        GM_addStyle
+// @run-at       document_idle
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // --- Configuration ---
+    const VCP_KEY = '147258369plm'; // 替换为你的 VCP Key
+    const WS_SERVER_HOST = '100.69.90.2:6005'; // 替换为你的服务地址
+    const WS_PROTOCOL = location.protocol === 'https:' ? 'wss' : 'ws';
+    const WS_URL = `${WS_PROTOCOL}://${WS_SERVER_HOST}/VCPlog/VCP_Key=${VCP_KEY}`;
+
+    const NOTIFICATION_TIMEOUT = 7000;
+    const CLOCK_ELEMENT_ID = 'st-floating-container';
+    const NOTIFICATION_AREA_ID = 'vcp-notification-area';
+    const MAX_VISIBLE_NOTIFICATIONS = 5;
+    const MOBILE_BREAKPOINT = 768;
+
+    let ws;
+
+    console.log('SillyTavern VCP Notifier (Mobile Enhanced): Script started.');
+
+    // --- Styles ---
+    GM_addStyle(`
+        :root {
+            --vcp-mobile-breakpoint: ${MOBILE_BREAKPOINT}px;
+            --vcp-safe-top: env(safe-area-inset-top, 0px);
+            --vcp-safe-right: env(safe-area-inset-right, 0px);
+            --vcp-safe-left: env(safe-area-inset-left, 0px);
+        }
+
+        @keyframes vcp-shimmer-bg {
+            0% { background-position: 150% 0; }
+            100% { background-position: -150% 0; }
+        }
+
+        @keyframes vcp-flow-border {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #${NOTIFICATION_AREA_ID} {
+            position: fixed;
+            top: 60px;
+            right: 10px;
+            z-index: 9998;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            pointer-events: none; /* 容器不吃点击 */
+        }
+
+        .vcp-notification-bubble {
+            position: relative;
+            pointer-events: auto; /* 只有气泡可点击 */
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            color: white;
+            padding: 10px 15px;
+            padding-right: 35px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            width: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+            overflow: hidden;
+            word-break: break-word;
+
+            background-image: linear-gradient(
+                110deg,
+                rgba(60, 60, 70, 0.85) 0%,
+                rgba(60, 60, 70, 0.85) 40%,
+                rgba(85, 85, 95, 0.92) 50%,
+                rgba(60, 60, 70, 0.85) 60%,
+                rgba(60, 60, 70, 0.85) 100%
+            );
+            background-size: 250% 100%;
+            animation: vcp-shimmer-bg 7s linear infinite;
+        }
+
+        .vcp-notification-bubble::before {
+            content: "";
+            position: absolute;
+            box-sizing: border-box;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            padding: 2px;
+            background: linear-gradient(
+                60deg,
+                #76c4f7,
+                #a8d8ff,
+                #d0eaff,
+                #a8d8ff,
+                #76c4f7
+            );
+            background-size: 250% 250%;
+            animation: vcp-flow-border 5s linear infinite;
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity 0.45s ease 0.05s;
+            pointer-events: none;
+        }
+
+        .vcp-notification-bubble.visible::before {
+            opacity: 0.75;
+        }
+
+        .vcp-notification-copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,255,255,0.12);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            opacity: 0.85;
+            transition: opacity 0.2s, background-color 0.2s, transform 0.1s;
+            z-index: 2;
+            min-width: 24px;
+            min-height: 24px;
+        }
+        .vcp-notification-copy-btn:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.22);
+        }
+        .vcp-notification-copy-btn:active {
+            transform: scale(0.96);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .vcp-notification-bubble.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .vcp-notification-bubble strong {
+            color: rgba(168, 216, 255, 0.92);
+            position: relative;
+            z-index: 1;
+        }
+
+        .vcp-notification-bubble > br,
+        .vcp-notification-bubble > pre,
+        .vcp-notification-bubble > span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .vcp-notification-bubble pre {
+            max-height: 180px;
+            overflow: auto;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: ${MOBILE_BREAKPOINT}px) {
+            #${NOTIFICATION_AREA_ID} {
+                right: max(8px, var(--vcp-safe-right));
+                left: max(8px, var(--vcp-safe-left));
+                width: auto;
+                top: calc(56px + var(--vcp-safe-top));
+                align-items: stretch;
+            }
+
+            .vcp-notification-bubble {
+                font-size: 14px;
+                border-radius: 12px;
+                margin-bottom: 10px;
+                padding: 12px 44px 12px 12px;
+                transform: translateY(-8px);
+                transition: opacity .28s ease, transform .28s ease;
+            }
+
+            .vcp-notification-bubble.visible {
+                transform: translateY(0);
+            }
+
+            .vcp-notification-copy-btn {
+                top: 6px;
+                right: 6px;
+                min-width: 32px;
+                min-height: 32px;
+                font-size: 14px;
+                border-radius: 8px;
+                padding: 4px 6px;
+            }
+        }
+
+        /* 动画减负（系统偏好 + 手机） */
+        @media (prefers-reduced-motion: reduce), (max-width: ${MOBILE_BREAKPOINT}px) {
+            .vcp-notification-bubble {
+                animation: none;
+            }
+            .vcp-notification-bubble::before {
+                animation: none;
+            }
+        }
+    `);
+
+    function isMobileViewport() {
+        return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+    }
+
+    function getNotificationArea() {
+        let area = document.getElementById(NOTIFICATION_AREA_ID);
+        if (!area) {
+            area = document.createElement('div');
+            area.id = NOTIFICATION_AREA_ID;
+            document.body.appendChild(area);
+            adjustNotificationAreaPosition();
+        }
+        return area;
+    }
+
+    function adjustNotificationAreaPosition() {
+        const area = document.getElementById(NOTIFICATION_AREA_ID);
+        if (!area) return;
+
+        const clockElement = document.getElementById(CLOCK_ELEMENT_ID);
+
+        if (clockElement) {
+            const clockRect = clockElement.getBoundingClientRect();
+            const topPx = Math.max(clockRect.bottom + 10, isMobileViewport() ? 56 : 70);
+            area.style.top = `${topPx}px`;
+        } else {
+            area.style.top = isMobileViewport() ? '56px' : '70px';
+            console.warn('VCP Notifier: Clock element not found, using default top position.');
+        }
+    }
+
+    async function copyTextCompat(text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) {
+            // fallback below
+        }
+
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', 'readonly');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function showNotification(dataOrString, explicitType = null, originalRawMessage = null) {
+        const notificationArea = getNotificationArea();
+        if (!notificationArea) return;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'vcp-notification-bubble';
+
+        const textToCopy = originalRawMessage !== null
+            ? originalRawMessage
+            : (typeof dataOrString === 'object' && dataOrString !== null
+                ? JSON.stringify(dataOrString, null, 2)
+                : String(dataOrString));
+
+        let titleText = 'VCP Info:';
+        let mainContent = '';
+        let contentIsPreformatted = false;
+
+        if (explicitType === 'connection') {
+            titleText = 'Connection:';
+            mainContent = String(dataOrString);
+        } else if (explicitType === 'error') {
+            titleText = 'Error:';
+            mainContent = String(dataOrString);
+        } else if (typeof dataOrString === 'object' && dataOrString !== null) {
+            if (dataOrString.type === 'vcp_log' && dataOrString.data && typeof dataOrString.data === 'object') {
+                const vcpData = dataOrString.data;
+                if (vcpData.tool_name && vcpData.status) {
+                    titleText = `${vcpData.tool_name} ${vcpData.status}`;
+                    if (typeof vcpData.content !== 'undefined') {
+                        let rawContentString = String(vcpData.content);
+                        mainContent = rawContentString;
+                        contentIsPreformatted = true;
+
+                        try {
+                            const parsedInnerContent = JSON.parse(rawContentString);
+                            let titleSuffix = '';
+                            if (parsedInnerContent.MaidName) {
+                                titleSuffix += ` by ${parsedInnerContent.MaidName}`;
+                            }
+                            if (parsedInnerContent.timestamp && typeof parsedInnerContent.timestamp === 'string' && parsedInnerContent.timestamp.length >= 16) {
+                                const timePart = parsedInnerContent.timestamp.substring(11, 16);
+                                titleSuffix += `${parsedInnerContent.MaidName ? ' ' : ''}@ ${timePart}`;
+                            }
+                            if (titleSuffix) {
+                                titleText += ` (${titleSuffix.trim()})`;
+                            }
+                            if (typeof parsedInnerContent.original_plugin_output !== 'undefined') {
+                                mainContent = String(parsedInnerContent.original_plugin_output);
+                                contentIsPreformatted = false;
+                            }
+                        } catch (e) {
+                            console.warn('VCP Notifier: Could not parse vcpData.content as JSON:', e);
+                        }
+                    } else {
+                        mainContent = '(No content provided)';
+                    }
+                } else {
+                    titleText = 'VCP Log Entry:';
+                    mainContent = JSON.stringify(vcpData, null, 2);
+                    contentIsPreformatted = true;
+                }
+            } else if (dataOrString.type === 'daily_note_created' && dataOrString.data && typeof dataOrString.data === 'object') {
+                const noteData = dataOrString.data;
+                titleText = `日记: ${noteData.maidName || 'N/A'} (${noteData.dateString || 'N/A'})`;
+                if (noteData.status === 'success') {
+                    mainContent = noteData.message || '日记已成功创建。';
+                } else {
+                    mainContent = noteData.message || `日记处理状态: ${noteData.status || '未知'}`;
+                }
+            } else if (dataOrString.type === 'connection_ack' && dataOrString.message) {
+                titleText = 'VCP Info:';
+                mainContent = String(dataOrString.message);
+            } else if (dataOrString.tool_name && dataOrString.status) {
+                titleText = `${dataOrString.tool_name} ${dataOrString.status}`;
+                if (dataOrString.content) {
+                    mainContent = String(dataOrString.content);
+                    contentIsPreformatted = true;
+                } else {
+                    mainContent = '(No further content details)';
+                }
+            } else {
+                titleText = 'VCP Data:';
+                mainContent = JSON.stringify(dataOrString, null, 2);
+                contentIsPreformatted = true;
+            }
+        } else {
+            titleText = 'VCP Message:';
+            mainContent = String(dataOrString);
+        }
+
+        const strongTitle = document.createElement('strong');
+        strongTitle.textContent = titleText;
+        bubble.appendChild(strongTitle);
+
+        if (mainContent) {
+            bubble.appendChild(document.createElement('br'));
+            const clipped = mainContent.substring(0, 300) + (mainContent.length > 300 ? '...' : '');
+
+            if (contentIsPreformatted) {
+                const pre = document.createElement('pre');
+                pre.style.whiteSpace = 'pre-wrap';
+                pre.style.margin = '0';
+                pre.style.fontFamily = 'inherit';
+                pre.style.fontSize = 'inherit';
+                pre.textContent = clipped;
+                bubble.appendChild(pre);
+            } else {
+                const textSpan = document.createElement('span');
+                textSpan.textContent = clipped;
+                bubble.appendChild(textSpan);
+            }
+        }
+
+        const copyButton = document.createElement('button');
+        copyButton.className = 'vcp-notification-copy-btn';
+        copyButton.textContent = '📋';
+        copyButton.title = 'Copy message';
+        copyButton.onclick = async (e) => {
+            e.stopPropagation();
+            const originalText = copyButton.textContent;
+            copyButton.disabled = true;
+            const ok = await copyTextCompat(textToCopy);
+            copyButton.textContent = ok ? '✅' : '❌';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+                copyButton.disabled = false;
+            }, 1200);
+        };
+        bubble.appendChild(copyButton);
+
+        bubble.onclick = () => {
+            bubble.style.opacity = '0';
+            bubble.style.transform = isMobileViewport() ? 'translateY(-8px)' : 'translateX(100%)';
+
+            setTimeout(() => {
+                if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
+                updateNotificationDisplay();
+            }, 300);
+        };
+
+        notificationArea.appendChild(bubble);
+        setTimeout(() => bubble.classList.add('visible'), 30);
+
+        const timeoutId = setTimeout(() => {
+            if (bubble && bubble.parentNode) bubble.onclick();
+        }, NOTIFICATION_TIMEOUT);
+
+        bubble.dataset.timeoutId = String(timeoutId);
+        updateNotificationDisplay();
+    }
+
+    function updateNotificationDisplay() {
+        const notificationArea = document.getElementById(NOTIFICATION_AREA_ID);
+        if (!notificationArea) return;
+
+        const bubbles = Array.from(notificationArea.children);
+        while (bubbles.length > MAX_VISIBLE_NOTIFICATIONS) {
+            const oldest = bubbles.shift();
+            if (!oldest) break;
+            const id = Number(oldest.dataset.timeoutId);
+            if (!Number.isNaN(id)) clearTimeout(id);
+            oldest.onclick();
+        }
+    }
+
+    function connectWebSocket() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            console.log('VCP Notifier: WebSocket already open/connecting.');
+            return;
+        }
+
+        console.log(`VCP Notifier: Connecting to ${WS_URL}`);
+        ws = new WebSocket(WS_URL);
+
+        ws.onopen = function () {
+            console.log('VCP Notifier: WebSocket connected.');
+            showNotification('VCP Notifier Connected!', 'connection');
+        };
+
+        ws.onmessage = function (event) {
+            const raw = event.data;
+            console.log('VCP Notifier: Received:', raw);
+            let payload;
+            try {
+                payload = JSON.parse(raw);
+            } catch {
+                payload = raw;
+            }
+            showNotification(payload, null, raw);
+        };
+
+        ws.onclose = function () {
+            console.log('VCP Notifier: WebSocket closed. Reconnecting in 3s...');
+            ws = null;
+            setTimeout(connectWebSocket, 3000);
+        };
+
+        ws.onerror = function (error) {
+            console.error('VCP Notifier: WebSocket error:', error);
+            showNotification('VCP Notifier WebSocket error.', 'error');
+        };
+    }
+
+    function initialize() {
+        console.log('VCP Notifier: Initializing...');
+        getNotificationArea();
+        adjustNotificationAreaPosition();
+        connectWebSocket();
+
+        setInterval(adjustNotificationAreaPosition, 3000);
+        window.addEventListener('resize', adjustNotificationAreaPosition, { passive: true });
+        window.addEventListener('orientationchange', adjustNotificationAreaPosition, { passive: true });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initialize();
+    } else {
+        window.addEventListener('DOMContentLoaded', initialize);
+    }
+})();

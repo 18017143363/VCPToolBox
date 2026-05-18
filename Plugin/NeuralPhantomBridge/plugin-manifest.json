@@ -1,0 +1,194 @@
+{
+    "manifestVersion": "1.0.0",
+    "name": "NeuralPhantomBridge",
+    "version": "1.0.0",
+    "displayName": "Neural Phantom 浏览器桥接",
+    "description": "连接Neural Phantom 4.7浏览器扩展，通过WebSocket双向桥接提供网络抓包、请求拦截、安全审计和加密分析能力",
+    "author": "Rosa",
+    "pluginType": "hybridservice",
+    "entryPoint": {
+        "script": "NeuralPhantomBridge.js"
+    },
+    "communication": {
+        "protocol": "direct",
+        "timeout": 60000
+    },
+    "configSchema": {
+        "NP_AUTH_TOKEN": "string",
+        "NP_WS_PORT": "number",
+        "NP_WS_PATH": "string",
+        "NP_MAX_REQUESTS": "number",
+        "NP_MAX_ALERTS": "number",
+        "NP_MAX_CRYPTO_EVENTS": "number",
+        "NP_MAX_WS_FRAMES": "number",
+        "NP_MAX_BODY_PREVIEW": "number"
+    },
+    "capabilities": {
+        "invocationCommands": [
+            {
+                "command": "Status",
+                "description": "查看NP桥接连接状态、已连接客户端数、流量/告警/加密事件统计"
+            },
+            {
+                "command": "GetTraffic",
+                "description": "获取NP捕获的网络流量列表。参数: urlContains(可选,URL关键词), method(可选,HTTP方法), tags(可选,逗号分隔标签:api/auth/error/key_leak/media/graphql/ws), statusCode(可选), limit(可选,默认30)"
+            },
+            {
+                "command": "GetFullBody",
+                "description": "获取指定请求的完整响应体(通过NP的CDP获取)。参数: requestId(必需)"
+            },
+            {
+                "command": "GetWsLogs",
+                "description": "获取WebSocket帧日志。参数: limit(可选,默认50)"
+            },
+            {
+                "command": "GetCryptoEvents",
+                "description": "获取加密/签名拦截事件(CryptoJS/WebCrypto/签名字段)。参数: since(可选,毫秒时间戳)"
+            },
+            {
+                "command": "GetAlerts",
+                "description": "获取安全告警列表(密钥泄露/漏洞/安全头)。参数: since(可选,毫秒时间戳)"
+            },
+            {
+                "command": "SearchTraffic",
+                "description": "全文搜索流量。参数: keyword(必需), mode(可选,'local'只搜本地缓存/'np'搜NP完整响应体,默认np)"
+            },
+            {
+                "command": "GetCookies",
+                "description": "获取当前域的Cookie列表"
+            },
+            {
+                "command": "DumpStorage",
+                "description": "导出当前页面的localStorage和sessionStorage"
+            },
+            {
+                "command": "GetSourceCode",
+                "description": "获取指定URL的页面JS源码。参数: url(必需)"
+            },
+            {
+                "command": "AnalyzeParamSource",
+                "description": "分析单个参数的来源(FROM_RESPONSE/FROM_REQUEST/JS_COMPUTED三级溯源)。参数: paramKey(必需), paramValue(必需)"
+            },
+            {
+                "command": "AnalyzeAuth",
+                "description": "鉴权头/Cookie全链路溯源。参数: requestId(可选), url(可选,requestId优先)"
+            },
+            {
+                "command": "GetParamTraces",
+                "description": "获取参数追踪记录列表。参数: limit(可选,默认30)"
+            },
+            {
+                "command": "GetFuncTraces",
+                "description": "获取函数调用追踪记录+栈帧热点统计(合并)。参数: limit(可选,默认30)"
+            },
+            {
+                "command": "GetChainState",
+                "description": "获取MediaChainEngine媒体链路追踪状态(视频/音频/文本/图片)"
+            },
+            {
+                "command": "ScanSecurity",
+                "description": "一键安全扫描:安全头评分(SecurityHeaders)+漏洞正则扫描(VulnScanner)合并执行"
+            },
+            {
+                "command": "ExtractEndpoints",
+                "description": "从当前流量中提取所有API端点(EndpointExtractor)"
+            },
+            {
+                "command": "MineParams",
+                "description": "挖掘请求参数(ParamMiner)"
+            },
+            {
+                "command": "SetBreakpoint",
+                "description": "设置请求断点。参数: enabled(必需,布尔值), urlFilter(可选,URL匹配模式)"
+            },
+            {
+                "command": "ResumeRequest",
+                "description": "修改后放行被断点暂停的请求。参数: requestId(必需), modifiedUrl(可选), modifiedBody(可选), modifiedHeaders(可选,JSON对象)"
+            },
+            {
+                "command": "AbortRequest",
+                "description": "丢弃被断点暂停的请求。参数: requestId(必需)"
+            },
+            {
+                "command": "AddMockRule",
+                "description": "添加静态Mock响应规则。参数: urlPattern(必需), status(可选,默认200), body(必需), headers(可选,JSON对象)"
+            },
+            {
+                "command": "RemoveMockRule",
+                "description": "移除Mock响应规则。参数: urlPattern(可选,按URL匹配移除), index(可选,按索引移除)"
+            },
+            {
+                "command": "SetDynamicScript",
+                "description": "设置动态响应修改脚本(JS代码,接收url/method/response变量)。参数: script(必需)"
+            },
+            {
+                "command": "SetHeaderOverride",
+                "description": "覆盖指定请求的请求头(通过declarativeNetRequest)。参数: urlPattern(必需), headers(必需,JSON对象)"
+            },
+            {
+                "command": "AddUrlReplace",
+                "description": "添加URL重定向规则。参数: originalUrl(必需), replacementUrl(必需)"
+            },
+            {
+                "command": "SetLocalFileRule",
+                "description": "设置本地文件替换响应规则。参数: urlKeyword(必需), localContent(必需)"
+            },
+            {
+                "command": "InjectScript",
+                "description": "注入任意JavaScript到目标页面执行(通过CDP Runtime.evaluate)。参数: script(必需), tabId(可选)"
+            },
+            {
+                "command": "ReplayRequest",
+                "description": "重放一个HTTP请求。参数: url(必需), method(必需), headers(可选,JSON对象), body(可选)"
+            },
+            {
+                "command": "SetWsRules",
+                "description": "设置WebSocket帧改写规则。参数: rules(必需,规则数组)"
+            },
+            {
+                "command": "ResumeWsFrame",
+                "description": "放行被断点暂停的WebSocket帧。参数: wsId(必需), modifiedData(可选)"
+            },
+            {
+                "command": "AbortWsFrame",
+                "description": "丢弃被断点暂停的WebSocket帧。参数: wsId(必需)"
+            },
+            {
+                "command": "HarControl",
+                "description": "HAR录制控制(开始/停止/导出/导入)。参数: action(必需,start|stop|export|import), data(可选,import时传入HAR JSON)"
+            },
+            {
+                "command": "ClearLogs",
+                "description": "清空NP的抓包日志和本地缓存"
+            },
+            {
+                "command": "ResetChain",
+                "description": "重置媒体链路追踪。参数: scope(可选,window|session|all,默认all)"
+            },
+            {
+                "command": "GetPrehookStatus",
+                "description": "查看debugger六层预挂钩的attach状态"
+            },
+            {
+                "command": "SetPrehook",
+                "description": "启用或禁用debugger预挂钩引擎。参数: enabled(必需,布尔值)"
+            },
+            {
+                "command": "GetAttachedTabs",
+                "description": "查看当前已被NP监控的tab列表"
+            },
+            {
+                "command": "GetPerfStats",
+                "description": "获取性能统计+实时流量时间线(合并)"
+            },
+            {
+                "command": "SetAlertRules",
+                "description": "设置条件告警规则。参数: rules(必需,告警规则数组)"
+            },
+            {
+                "command": "TraceFunctions",
+                "description": "追踪指定JavaScript函数的调用。参数: functionPath(必需,如window.crypto.subtle.encrypt)"
+            }
+        ]
+    }
+}

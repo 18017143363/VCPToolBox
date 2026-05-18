@@ -1,0 +1,22 @@
+{
+  "agentName": "Rosa",
+  "date": "2026-02-13",
+  "todayTasks": [],
+  "heartbeats": [],
+  "plannedSlots": [
+    "下午"
+  ],
+  "settings": {
+    "heartbeatInterval": 15,
+    "fixedTaskInterval": 30,
+    "enabled": true,
+    "startHour": 12,
+    "endHour": 3
+  },
+  "stats": {
+    "totalHeartbeats": 0,
+    "tasksCompleted": 0,
+    "tasksTotal": 0
+  },
+  "lastUpdated": "2026-02-13T04:42:30.477Z"
+}

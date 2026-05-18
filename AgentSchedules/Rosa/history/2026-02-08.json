@@ -1,0 +1,19 @@
+{
+  "agentName": "Rosa",
+  "date": "2026-02-08",
+  "todayTasks": [],
+  "heartbeats": [],
+  "settings": {
+    "heartbeatInterval": 10,
+    "fixedTaskInterval": 30,
+    "enabled": true,
+    "startHour": 8,
+    "endHour": 23
+  },
+  "stats": {
+    "totalHeartbeats": 0,
+    "tasksCompleted": 0,
+    "tasksTotal": 0
+  },
+  "lastUpdated": "2026-02-08T02:20:00.000Z"
+}

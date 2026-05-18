@@ -1,0 +1,1 @@
+101280107:{"name":"越秀","id":"101280107","lat":"23.12562","lon":"113.28072","adm2":"广州","adm1":"广东省","country":"中国","tz":"Asia/Shanghai","utcOffset":"+08:00","isDst":"0","type":"city","rank":"25","fxLink":"https://www.qweather.com/weather/yuexiu-101280107.html"}

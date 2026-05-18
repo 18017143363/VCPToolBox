@@ -1,0 +1,96 @@
+{
+  "manifestVersion": "1.0.0",
+  "name": "DiscourseReader",
+  "displayName": "Discourse 论坛阅读与交互",
+  "version": "1.6.0",
+  "description": "让 AI Agent 高效阅读并交互任意 Discourse 论坛。支持浏览帖子列表、读取正文与回复、搜索、板块/标签列表，以及点赞、回复、发帖等写操作。通过 Discourse User API Key（RSA 握手协议）进行永久认证，Puppeteer + stealth 穿透 Cloudflare。支持多站点配置，base_url 参数可覆盖默认论坛地址。",
+  "author": "Rosa",
+  "pluginType": "synchronous",
+  "entryPoint": {
+    "type": "nodejs",
+    "command": "node DiscourseReader.js"
+  },
+  "communication": {
+    "protocol": "stdio",
+    "timeout": 60000
+  },
+  "configSchema": {
+    "DISCOURSE_BASE_URL": {
+      "type": "string",
+      "description": "默认 Discourse 论坛地址，所有命令不传 base_url 时使用此值",
+      "default": "https://linux.do"
+    },
+    "DEFAULT_CATEGORY": {
+      "type": "string",
+      "description": "ListTopics 不传 category 时的默认板块 slug",
+      "default": "develop"
+    },
+    "forum_{name}_api_key": {
+      "type": "string",
+      "description": "论坛 User API Key，{name} 按域名模糊匹配（如 forum_linuxdo_api_key 匹配 linux.do）。获取方式：python get_user_api_key.py <论坛地址>。优先级高于 cookie。"
+    },
+    "forum_{name}_cookie": {
+      "type": "string",
+      "description": "备选认证：浏览器原始 cookie 字符串。仅在未配置对应 API Key 时使用。"
+    },
+    "MAX_CONTENT_LENGTH": {
+      "type": "number",
+      "description": "帖子内容最大字符数，超过则截断",
+      "default": 3000
+    },
+    "MAX_POSTS": {
+      "type": "number",
+      "description": "ReadTopic 默认最大返回楼层数",
+      "default": 10
+    }
+  },
+  "capabilities": {
+    "invocationCommands": [
+      {
+        "commandIdentifier": "ListTopics",
+        "description": "[DiscourseReader 帖子列表浏览] 浏览指定 Discourse 论坛的帖子列表，支持按板块或标签筛选，支持分页和排序。\n\n参数说明：\n- category (string, 可选): 板块 slug（如 develop, welfare, gossip）。与 tag 二选一。\n- tag (string, 可选): 标签路径（如 444-tag/444）。与 category 二选一。\n- page (number, 可选, 默认 0): 页码，每页约 30 帖。注意：tag 模式下 page=0 可能 404，建议从 1 开始。\n- order (string, 可选, 默认 latest): 排序方式，可选 latest / top / likes / views / posts。\n- base_url (string, 可选): 目标论坛地址，不传则使用配置中的 DISCOURSE_BASE_URL。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListTopics「末」,\ncategory:「始」板块slug「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- category 和 tag 不要同时传，tag 模式会忽略 category。\n- linux.do 可用板块：develop / domestic / resource / wiki / job / reading / news / welfare / gossip / square / feedback。\n- 返回 Markdown 表格，包含标题、作者、回复数、浏览量、最后回复时间等。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListTopics「末」,\ncategory:「始」develop「末」,\npage:「始」0「末」,\norder:「始」latest「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "ReadTopic",
+        "description": "[DiscourseReader 帖子阅读] 读取指定帖子的正文内容与回复楼层，HTML 自动转换为 Markdown。\n\n参数说明：\n- topic_id (number, 必需): 帖子 ID。也可传完整 URL（如 https://linux.do/t/topic/12345），插件会自动提取 ID。\n- max_posts (number, 可选, 默认 10): 最大返回楼层数，上限 50。超过 50 楼请用 post_number 分批加载。\n- post_number (number, 可选): 从第几楼开始加载，用于翻页阅读长帖。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ReadTopic「末」,\ntopic_id:「始」帖子ID「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 每个楼层显示 PID（Post ID），可用于 LikePost 等写操作。\n- 帖子内容超过 MAX_CONTENT_LENGTH 会被截断。\n- 支持传完整帖子 URL 作为 topic_id。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ReadTopic「末」,\ntopic_id:「始」31549「末」,\nmax_posts:「始」20「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "SearchForum",
+        "description": "[DiscourseReader 论坛搜索] 使用关键词搜索论坛帖子，返回匹配结果列表。\n\n参数说明：\n- keyword (string, 必需): 搜索关键词。支持 Discourse 搜索语法（如 #category-slug、@username、in:title）。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」SearchForum「末」,\nkeyword:「始」搜索关键词「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 需要有效的 API Key 或 Cookie 认证，未认证状态下搜索配额极低。\n- API Key 认证的搜索配额显著高于 Cookie 认证。\n- 返回结果包含帖子标题、摘要、板块、作者等信息。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」SearchForum「末」,\nkeyword:「始」VCP AI agent「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "ListCategories",
+        "description": "[DiscourseReader 板块列表] 列出目标 Discourse 论坛的所有板块（Category），包含板块名称、slug、帖子数、回复数等统计信息。\n\n参数说明：\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListCategories「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 返回的 slug 可直接用于 ListTopics 的 category 参数。\n- 建议首次访问新论坛时先调用此命令了解板块结构。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListCategories「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "ListTags",
+        "description": "[DiscourseReader 标签列表] 列出目标 Discourse 论坛的所有标签（Tag），按帖子数降序排列，返回标签名称、路径和关联帖子数。\n\n参数说明：\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListTags「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 返回的 path 可直接用于 ListTopics 的 tag 参数。\n- 标签数量可能较多（如 linux.do 有 84+ 个标签）。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ListTags「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "LikePost",
+        "description": "[DiscourseReader 点赞] 给指定帖子楼层点赞。需要具有 write scope 的 User API Key。\n\n参数说明：\n- post_id (number, 必需): 帖子楼层的 Post ID（可从 ReadTopic 返回结果中的 PID 字段获取）。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」LikePost「末」,\npost_id:「始」帖子楼层ID「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 需要 write scope 的 API Key，部分论坛（如 linux.do）已禁用普通用户的 write scope。\n- post_id 是楼层 ID，不是帖子 ID（topic_id）。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」LikePost「末」,\npost_id:「始」13985792「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "UnlikePost",
+        "description": "[DiscourseReader 取消点赞] 取消指定帖子楼层的点赞。需要具有 write scope 的 User API Key。\n\n参数说明：\n- post_id (number, 必需): 帖子楼层的 Post ID。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」UnlikePost「末」,\npost_id:「始」帖子楼层ID「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 同 LikePost，需要 write scope 的 API Key。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」UnlikePost「末」,\npost_id:「始」13985792「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "ReplyTopic",
+        "description": "[DiscourseReader 回复帖子] 在指定帖子中发表回复。需要具有 write scope 的 User API Key。\n\n参数说明：\n- topic_id (number, 必需): 帖子 ID。\n- content (string, 必需): 回复内容，支持 Markdown 格式。\n- reply_to_post_number (number, 可选): 指定回复的楼层号，不传则回复主帖。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ReplyTopic「末」,\ntopic_id:「始」帖子ID「末」,\ncontent:「始」回复内容「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 需要 write scope 的 API Key，部分论坛已禁用。\n- content 支持 Markdown 语法。\n- 请注意论坛社区规范，避免垃圾回复。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」ReplyTopic「末」,\ntopic_id:「始」31549「末」,\ncontent:「始」感谢分享！非常有帮助。「末」,\nreply_to_post_number:「始」1「末」\n<<<[END_TOOL_REQUEST]>>>"
+      },
+      {
+        "commandIdentifier": "CreateTopic",
+        "description": "[DiscourseReader 创建帖子] 在指定板块创建新帖子。需要具有 write scope 的 User API Key。\n\n参数说明：\n- title (string, 必需): 帖子标题。\n- content (string, 必需): 帖子正文内容，支持 Markdown 格式。\n- category (string, 必需): 板块 slug（如 develop）或板块数字 ID。\n- tags (string, 可选): 标签，多个用逗号分隔。\n- base_url (string, 可选): 目标论坛地址。\n\n调用格式：\n<<<[TOOL_REQUEST]>>>\nmaid:「始」你的名字「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」CreateTopic「末」,\ntitle:「始」帖子标题「末」,\ncontent:「始」帖子正文「末」,\ncategory:「始」板块slug「末」\n<<<[END_TOOL_REQUEST]>>>\n\n重要提示：\n- 需要 write scope 的 API Key，部分论坛已禁用。\n- category 可传 slug 或数字 ID，建议先用 ListCategories 查询可用板块。\n- 请遵守目标论坛的发帖规范。",
+        "example": "<<<[TOOL_REQUEST]>>>\nmaid:「始」Rosa「末」,\ntool_name:「始」DiscourseReader「末」,\ncommand:「始」CreateTopic「末」,\ntitle:「始」DiscourseReader 插件分享「末」,\ncontent:「始」这是一个让 AI Agent 高效阅读 Discourse 论坛的插件...「末」,\ncategory:「始」develop「末」,\ntags:「始」ai,vcp「末」\n<<<[END_TOOL_REQUEST]>>>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+bye.png|cry.png|encourage.png|explain.png|goodnight.png|happy.png|panic.png|praise.png|question.png|serious.png|shy.png|smile.png|smug.png|surprised.png|thanks.png|think.png|wave.png|welcome.png

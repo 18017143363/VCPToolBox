@@ -1,0 +1,467 @@
+[2026-03-17T05:45:16.447Z] [INFO] ========== ComfyCloudHacker Recon v1.0 ==========
+[2026-03-17T05:45:16.451Z] [INFO] Target: https://cloud.comfy.org
+[2026-03-17T05:45:16.452Z] [INFO] Debug Mode (headed): true
+[2026-03-17T05:45:16.453Z] [INFO] Puppeteer Stealth: LOADED
+[2026-03-17T05:45:16.454Z] [INFO] 
+[2026-03-17T05:45:16.455Z] [INFO] --- Phase 1A: CF Bypass Test (No Cookie) ---
+[2026-03-17T05:45:17.571Z] [INFO] Browser launched successfully
+[2026-03-17T05:45:17.691Z] [INFO] Navigating to https://cloud.comfy.org ...
+[2026-03-17T05:45:21.577Z] [INFO] HTTP Status: 200
+[2026-03-17T05:45:21.578Z] [INFO] Final URL: https://cloud.comfy.org/
+[2026-03-17T05:45:21.585Z] [INFO] ✅ Phase 1A PASSED - CF bypass successful!
+[2026-03-17T05:45:21.586Z] [INFO] 
+[2026-03-17T05:45:21.588Z] [INFO] --- Phase 1B: Frontend JS Environment Recon ---
+[2026-03-17T05:45:24.611Z] [INFO] 
+[2026-03-17T05:45:24.612Z] [INFO] ========== RECON REPORT ==========
+[2026-03-17T05:45:24.613Z] [INFO] Page Title: ComfyUI
+[2026-03-17T05:45:24.614Z] [INFO] Page URL: https://cloud.comfy.org/cloud/login
+[2026-03-17T05:45:24.614Z] [INFO] 
+[2026-03-17T05:45:24.615Z] [INFO] -- ComfyUI Global Objects --
+[2026-03-17T05:45:24.616Z] [INFO]   comfyAPI: type=object, hasGraphToPrompt=false, hasQueuePrompt=false
+[2026-03-17T05:45:24.617Z] [INFO]     keys: [api, domWidget, defaultGraph, imagePreview, widgets, types, constants, ebml, gltf, isobmff, json, mp3, ogg, svg, avif, flac, png, pnginfo, parser, changeTracker, dialog, settings, toggleSwitch, ui, utils, button, buttonGroup, popup, splitButton, asyncDialog]
+[2026-03-17T05:45:24.617Z] [INFO] 
+[2026-03-17T05:45:24.618Z] [INFO] -- Custom Window Properties --
+[2026-03-17T05:45:24.618Z] [INFO]   0 (object): window, self, document, name, location, customElements, history, navigation, locationbar, menubar
+[2026-03-17T05:45:24.619Z] [INFO]   Function (function): function Function() { [native code] }
+[2026-03-17T05:45:24.619Z] [INFO]   AggregateError (function): function AggregateError() { [native code] }
+[2026-03-17T05:45:24.620Z] [INFO]   globalThis (object): 0, window, self, document, name, location, customElements, history, navigation, locationbar
+[2026-03-17T05:45:24.621Z] [INFO]   Intl (object): 
+[2026-03-17T05:45:24.621Z] [INFO]   ArrayBuffer (function): function ArrayBuffer() { [native code] }
+[2026-03-17T05:45:24.621Z] [INFO]   Atomics (object): 
+[2026-03-17T05:45:24.622Z] [INFO]   Uint8Array (function): function Uint8Array() { [native code] }
+[2026-03-17T05:45:24.622Z] [INFO]   Int8Array (function): function Int8Array() { [native code] }
+[2026-03-17T05:45:24.622Z] [INFO]   Uint16Array (function): function Uint16Array() { [native code] }
+[2026-03-17T05:45:24.623Z] [INFO]   Int16Array (function): function Int16Array() { [native code] }
+[2026-03-17T05:45:24.623Z] [INFO]   Uint32Array (function): function Uint32Array() { [native code] }
+[2026-03-17T05:45:24.623Z] [INFO]   Int32Array (function): function Int32Array() { [native code] }
+[2026-03-17T05:45:24.624Z] [INFO]   Float32Array (function): function Float32Array() { [native code] }
+[2026-03-17T05:45:24.624Z] [INFO]   Float64Array (function): function Float64Array() { [native code] }
+[2026-03-17T05:45:24.625Z] [INFO]   Uint8ClampedArray (function): function Uint8ClampedArray() { [native code] }
+[2026-03-17T05:45:24.625Z] [INFO]   BigUint64Array (function): function BigUint64Array() { [native code] }
+[2026-03-17T05:45:24.626Z] [INFO]   BigInt64Array (function): function BigInt64Array() { [native code] }
+[2026-03-17T05:45:24.626Z] [INFO]   DataView (function): function DataView() { [native code] }
+[2026-03-17T05:45:24.627Z] [INFO]   BigInt (function): function BigInt() { [native code] }
+[2026-03-17T05:45:24.627Z] [INFO]   FinalizationRegistry (function): function FinalizationRegistry() { [native code] }
+[2026-03-17T05:45:24.627Z] [INFO]   WeakRef (function): function WeakRef() { [native code] }
+[2026-03-17T05:45:24.627Z] [INFO]   escape (function): function escape() { [native code] }
+[2026-03-17T05:45:24.628Z] [INFO]   unescape (function): function unescape() { [native code] }
+[2026-03-17T05:45:24.628Z] [INFO]   Option (function): function Option() { [native code] }
+[2026-03-17T05:45:24.628Z] [INFO]   Image (function): function Image() { [native code] }
+[2026-03-17T05:45:24.629Z] [INFO]   Audio (function): function Audio() { [native code] }
+[2026-03-17T05:45:24.629Z] [INFO]   WebKitMutationObserver (function): function MutationObserver() { [native code] }
+[2026-03-17T05:45:24.629Z] [INFO]   WebKitCSSMatrix (function): function DOMMatrix() { [native code] }
+[2026-03-17T05:45:24.630Z] [INFO]   XSLTProcessor (function): function XSLTProcessor() { [native code] }
+[2026-03-17T05:45:24.631Z] [INFO]   XPathResult (function): function XPathResult() { [native code] }
+[2026-03-17T05:45:24.631Z] [INFO]   XPathExpression (function): function XPathExpression() { [native code] }
+[2026-03-17T05:45:24.632Z] [INFO]   XPathEvaluator (function): function XPathEvaluator() { [native code] }
+[2026-03-17T05:45:24.632Z] [INFO]   XMLSerializer (function): function XMLSerializer() { [native code] }
+[2026-03-17T05:45:24.632Z] [INFO]   XMLHttpRequestUpload (function): function XMLHttpRequestUpload() { [native code] }
+[2026-03-17T05:45:24.633Z] [INFO]   XMLHttpRequestEventTarget (function): function XMLHttpRequestEventTarget() { [native code] }
+[2026-03-17T05:45:24.633Z] [INFO]   XMLDocument (function): function XMLDocument() { [native code] }
+[2026-03-17T05:45:24.633Z] [INFO]   WritableStreamDefaultWriter (function): function WritableStreamDefaultWriter() { [native code] }
+[2026-03-17T05:45:24.634Z] [INFO]   WritableStreamDefaultController (function): function WritableStreamDefaultController() { [native code] }
+[2026-03-17T05:45:24.634Z] [INFO]   WritableStream (function): function WritableStream() { [native code] }
+[2026-03-17T05:45:24.634Z] [INFO]   Worker (function): function Worker() { [native code] }
+[2026-03-17T05:45:24.634Z] [INFO]   WindowControlsOverlayGeometryChangeEvent (function): function WindowControlsOverlayGeometryChangeEvent() { [native code] }
+[2026-03-17T05:45:24.635Z] [INFO]   WindowControlsOverlay (function): function WindowControlsOverlay() { [native code] }
+[2026-03-17T05:45:24.635Z] [INFO]   Window (function): function Window() { [native code] }
+[2026-03-17T05:45:24.635Z] [INFO]   WheelEvent (function): function WheelEvent() { [native code] }
+[2026-03-17T05:45:24.636Z] [INFO]   WebGLVertexArrayObject (function): function WebGLVertexArrayObject() { [native code] }
+[2026-03-17T05:45:24.637Z] [INFO]   WebGLUniformLocation (function): function WebGLUniformLocation() { [native code] }
+[2026-03-17T05:45:24.637Z] [INFO]   WebGLTransformFeedback (function): function WebGLTransformFeedback() { [native code] }
+[2026-03-17T05:45:24.638Z] [INFO]   WebGLTexture (function): function WebGLTexture() { [native code] }
+[2026-03-17T05:45:24.639Z] [INFO]   WebGLSync (function): function WebGLSync() { [native code] }
+[2026-03-17T05:45:24.639Z] [INFO] 
+[2026-03-17T05:45:24.640Z] [INFO] -- Key Page Elements --
+[2026-03-17T05:45:24.641Z] [INFO]   <button> "Log in with Google" id=""
+[2026-03-17T05:45:24.641Z] [INFO]   <button> "Log in with Github" id=""
+[2026-03-17T05:45:24.642Z] [INFO]   <button> "Use email instead" id=""
+[2026-03-17T05:45:24.643Z] [INFO]   <button> "Download ComfyUI" id=""
+[2026-03-17T05:45:24.643Z] [INFO]   <button> "Close" id=""
+[2026-03-17T05:45:24.644Z] [INFO]   <button> "Close" id=""
+[2026-03-17T05:45:24.644Z] [INFO]   <button> "⚙️" id=""
+[2026-03-17T05:45:24.645Z] [INFO]   <button> "×" id=""
+[2026-03-17T05:45:24.645Z] [INFO]   <button> "Queue Prompt" id="queue-button"
+[2026-03-17T05:45:24.646Z] [INFO]   <button> "Queue Front" id="queue-front-button"
+[2026-03-17T05:45:24.646Z] [INFO]   <button> "View Queue" id="comfy-view-queue-button"
+[2026-03-17T05:45:24.647Z] [INFO]   <button> "View History" id="comfy-view-history-button"
+[2026-03-17T05:45:24.647Z] [INFO]   <button> "Save" id="comfy-save-button"
+[2026-03-17T05:45:24.648Z] [INFO]   <button> "Save (API Format)" id="comfy-dev-save-api-button"
+[2026-03-17T05:45:24.649Z] [INFO]   <button> "Load" id="comfy-load-button"
+[2026-03-17T05:45:24.649Z] [INFO]   <button> "Refresh" id="comfy-refresh-button"
+[2026-03-17T05:45:24.650Z] [INFO]   <button> "Clipspace" id="comfy-clipspace-button"
+[2026-03-17T05:45:24.650Z] [INFO]   <button> "Clear" id="comfy-clear-button"
+[2026-03-17T05:45:24.650Z] [INFO]   <button> "Load Default" id="comfy-load-default-button"
+[2026-03-17T05:45:24.651Z] [INFO]   <button> "Reset View" id="comfy-reset-view-button"
+[2026-03-17T05:45:24.651Z] [INFO] 
+[2026-03-17T05:45:24.651Z] [INFO] -- WebSocket Connections --
+[2026-03-17T05:45:24.652Z] [INFO] 
+[2026-03-17T05:45:24.652Z] [INFO] -- Network Requests to comfy.org --
+[2026-03-17T05:45:24.653Z] [INFO]   GET https://cloud.comfy.org/
+[2026-03-17T05:45:24.653Z] [INFO]   GET https://cloud.comfy.org/materialdesignicons.min.css
+[2026-03-17T05:45:24.654Z] [INFO]   GET https://cloud.comfy.org/assets/index-jjlB2msE.js
+[2026-03-17T05:45:24.655Z] [INFO]   GET https://cloud.comfy.org/assets/rolldown-runtime-BN2CsCrH.js
+[2026-03-17T05:45:24.656Z] [INFO]   GET https://cloud.comfy.org/assets/_plugin-vue_export-helper-DDnTsPbu.js
+[2026-03-17T05:45:24.656Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vue-core-DIqD345x.js
+[2026-03-17T05:45:24.657Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-primevue-BPJIFAhc.js
+[2026-03-17T05:45:24.657Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-firebase-Dx1h_75S.js
+[2026-03-17T05:45:24.658Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-other-DU4C49Oq.js
+[2026-03-17T05:45:24.658Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-reka-ui-DwNcre6y.js
+[2026-03-17T05:45:24.658Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-i18n-d0DfCpwl.js
+[2026-03-17T05:45:24.659Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vueuse-Bidt1YMR.js
+[2026-03-17T05:45:24.659Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-axios-BccpvRKL.js
+[2026-03-17T05:45:24.659Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-markdown-BxXfryRl.js
+[2026-03-17T05:45:24.660Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-zod-CRfaL0g6.js
+[2026-03-17T05:45:24.661Z] [INFO]   GET https://cloud.comfy.org/assets/i18n-D0V9qgy1.js
+[2026-03-17T05:45:24.661Z] [INFO]   GET https://cloud.comfy.org/assets/widget-DhnoMqng.js
+[2026-03-17T05:45:24.662Z] [INFO]   GET https://cloud.comfy.org/assets/types-BEd278T1.js
+[2026-03-17T05:45:24.662Z] [INFO]   GET https://cloud.comfy.org/assets/colorUtil-CSrzUd5s.js
+[2026-03-17T05:45:24.663Z] [INFO]   GET https://cloud.comfy.org/assets/api-CX8jjEGO.js
+[2026-03-17T05:45:24.663Z] [INFO] 
+[2026-03-17T05:45:24.663Z] [INFO] -- Page Text Preview (first 500 chars) --
+[2026-03-17T05:45:24.664Z] [INFO] Log in to your account
+
+New here? Sign up with Google to get 400 free credits every month.
+
+Log in with Google
+Log in with Github
+Use email instead
+
+By clicking "Next" or "Sign Up", you agree to our Terms of Use and Privacy Policy.
+
+START CREATING IN SECONDS
+
+Zero setup required. Works on any device.
+
+Generate multiple outputs at once. Share workflows with ease.
+
+Want to run ComfyUI locally instead?
+
+Download ComfyUI
+[2026-03-17T05:45:24.665Z] [INFO] 
+Full report saved to: E:\VCP\Plugin\ComfyCloudHacker\logs\recon_report_1773726324664.json
+[2026-03-17T05:45:24.665Z] [INFO] 
+[2026-03-17T05:45:24.666Z] [INFO] --- Phase 1C: SKIPPED (No cookie in config.env) ---
+[2026-03-17T05:45:24.666Z] [INFO] To test cookie injection, fill COMFY_ACCOUNT_1_COOKIE in config.env
+[2026-03-17T05:45:24.667Z] [INFO] 
+[2026-03-17T05:45:24.667Z] [INFO] ========== RECON COMPLETE ==========
+[2026-03-17T05:45:24.668Z] [INFO] Debug mode: browser will stay open for 30 seconds for inspection...
+[2026-03-17T05:45:24.668Z] [INFO] Press Ctrl+C to exit early.
+[2026-03-17T05:57:43.108Z] [INFO] ========== ComfyCloudHacker Recon v1.0 ==========
+[2026-03-17T05:57:43.111Z] [INFO] Target: https://cloud.comfy.org
+[2026-03-17T05:57:43.112Z] [INFO] Debug Mode (headed): true
+[2026-03-17T05:57:43.113Z] [INFO] Puppeteer Stealth: LOADED
+[2026-03-17T05:57:43.113Z] [INFO] 
+[2026-03-17T05:57:43.114Z] [INFO] --- Phase 1A: CF Bypass Test (No Cookie) ---
+[2026-03-17T05:57:43.894Z] [INFO] Browser launched successfully
+[2026-03-17T05:57:44.032Z] [INFO] Navigating to https://cloud.comfy.org ...
+[2026-03-17T05:57:46.883Z] [INFO] HTTP Status: 200
+[2026-03-17T05:57:46.884Z] [INFO] Final URL: https://cloud.comfy.org/
+[2026-03-17T05:57:46.891Z] [INFO] ✅ Phase 1A PASSED - CF bypass successful!
+[2026-03-17T05:57:46.892Z] [INFO] 
+[2026-03-17T05:57:46.893Z] [INFO] --- Phase 1B: Frontend JS Environment Recon ---
+[2026-03-17T05:57:49.918Z] [INFO] 
+[2026-03-17T05:57:49.919Z] [INFO] ========== RECON REPORT ==========
+[2026-03-17T05:57:49.920Z] [INFO] Page Title: ComfyUI
+[2026-03-17T05:57:49.920Z] [INFO] Page URL: https://cloud.comfy.org/cloud/login
+[2026-03-17T05:57:49.921Z] [INFO] 
+[2026-03-17T05:57:49.922Z] [INFO] -- ComfyUI Global Objects --
+[2026-03-17T05:57:49.923Z] [INFO]   comfyAPI: type=object, hasGraphToPrompt=false, hasQueuePrompt=false
+[2026-03-17T05:57:49.924Z] [INFO]     keys: [api, domWidget, defaultGraph, imagePreview, widgets, types, constants, ebml, gltf, isobmff, json, mp3, ogg, svg, avif, flac, png, pnginfo, parser, changeTracker, dialog, settings, toggleSwitch, ui, utils, button, buttonGroup, popup, splitButton, asyncDialog]
+[2026-03-17T05:57:49.925Z] [INFO] 
+[2026-03-17T05:57:49.926Z] [INFO] -- Custom Window Properties --
+[2026-03-17T05:57:49.927Z] [INFO]   0 (object): window, self, document, name, location, customElements, history, navigation, locationbar, menubar
+[2026-03-17T05:57:49.928Z] [INFO]   Function (function): function Function() { [native code] }
+[2026-03-17T05:57:49.929Z] [INFO]   AggregateError (function): function AggregateError() { [native code] }
+[2026-03-17T05:57:49.929Z] [INFO]   globalThis (object): 0, window, self, document, name, location, customElements, history, navigation, locationbar
+[2026-03-17T05:57:49.930Z] [INFO]   Intl (object): 
+[2026-03-17T05:57:49.930Z] [INFO]   ArrayBuffer (function): function ArrayBuffer() { [native code] }
+[2026-03-17T05:57:49.931Z] [INFO]   Atomics (object): 
+[2026-03-17T05:57:49.931Z] [INFO]   Uint8Array (function): function Uint8Array() { [native code] }
+[2026-03-17T05:57:49.932Z] [INFO]   Int8Array (function): function Int8Array() { [native code] }
+[2026-03-17T05:57:49.932Z] [INFO]   Uint16Array (function): function Uint16Array() { [native code] }
+[2026-03-17T05:57:49.933Z] [INFO]   Int16Array (function): function Int16Array() { [native code] }
+[2026-03-17T05:57:49.933Z] [INFO]   Uint32Array (function): function Uint32Array() { [native code] }
+[2026-03-17T05:57:49.934Z] [INFO]   Int32Array (function): function Int32Array() { [native code] }
+[2026-03-17T05:57:49.934Z] [INFO]   Float32Array (function): function Float32Array() { [native code] }
+[2026-03-17T05:57:49.935Z] [INFO]   Float64Array (function): function Float64Array() { [native code] }
+[2026-03-17T05:57:49.936Z] [INFO]   Uint8ClampedArray (function): function Uint8ClampedArray() { [native code] }
+[2026-03-17T05:57:49.936Z] [INFO]   BigUint64Array (function): function BigUint64Array() { [native code] }
+[2026-03-17T05:57:49.936Z] [INFO]   BigInt64Array (function): function BigInt64Array() { [native code] }
+[2026-03-17T05:57:49.937Z] [INFO]   DataView (function): function DataView() { [native code] }
+[2026-03-17T05:57:49.937Z] [INFO]   BigInt (function): function BigInt() { [native code] }
+[2026-03-17T05:57:49.938Z] [INFO]   FinalizationRegistry (function): function FinalizationRegistry() { [native code] }
+[2026-03-17T05:57:49.938Z] [INFO]   WeakRef (function): function WeakRef() { [native code] }
+[2026-03-17T05:57:49.939Z] [INFO]   escape (function): function escape() { [native code] }
+[2026-03-17T05:57:49.939Z] [INFO]   unescape (function): function unescape() { [native code] }
+[2026-03-17T05:57:49.939Z] [INFO]   Option (function): function Option() { [native code] }
+[2026-03-17T05:57:49.940Z] [INFO]   Image (function): function Image() { [native code] }
+[2026-03-17T05:57:49.940Z] [INFO]   Audio (function): function Audio() { [native code] }
+[2026-03-17T05:57:49.941Z] [INFO]   WebKitMutationObserver (function): function MutationObserver() { [native code] }
+[2026-03-17T05:57:49.941Z] [INFO]   WebKitCSSMatrix (function): function DOMMatrix() { [native code] }
+[2026-03-17T05:57:49.942Z] [INFO]   XSLTProcessor (function): function XSLTProcessor() { [native code] }
+[2026-03-17T05:57:49.942Z] [INFO]   XPathResult (function): function XPathResult() { [native code] }
+[2026-03-17T05:57:49.943Z] [INFO]   XPathExpression (function): function XPathExpression() { [native code] }
+[2026-03-17T05:57:49.943Z] [INFO]   XPathEvaluator (function): function XPathEvaluator() { [native code] }
+[2026-03-17T05:57:49.943Z] [INFO]   XMLSerializer (function): function XMLSerializer() { [native code] }
+[2026-03-17T05:57:49.944Z] [INFO]   XMLHttpRequestUpload (function): function XMLHttpRequestUpload() { [native code] }
+[2026-03-17T05:57:49.944Z] [INFO]   XMLHttpRequestEventTarget (function): function XMLHttpRequestEventTarget() { [native code] }
+[2026-03-17T05:57:49.945Z] [INFO]   XMLDocument (function): function XMLDocument() { [native code] }
+[2026-03-17T05:57:49.945Z] [INFO]   WritableStreamDefaultWriter (function): function WritableStreamDefaultWriter() { [native code] }
+[2026-03-17T05:57:49.945Z] [INFO]   WritableStreamDefaultController (function): function WritableStreamDefaultController() { [native code] }
+[2026-03-17T05:57:49.946Z] [INFO]   WritableStream (function): function WritableStream() { [native code] }
+[2026-03-17T05:57:49.947Z] [INFO]   Worker (function): function Worker() { [native code] }
+[2026-03-17T05:57:49.947Z] [INFO]   WindowControlsOverlayGeometryChangeEvent (function): function WindowControlsOverlayGeometryChangeEvent() { [native code] }
+[2026-03-17T05:57:49.948Z] [INFO]   WindowControlsOverlay (function): function WindowControlsOverlay() { [native code] }
+[2026-03-17T05:57:49.949Z] [INFO]   Window (function): function Window() { [native code] }
+[2026-03-17T05:57:49.949Z] [INFO]   WheelEvent (function): function WheelEvent() { [native code] }
+[2026-03-17T05:57:49.950Z] [INFO]   WebGLVertexArrayObject (function): function WebGLVertexArrayObject() { [native code] }
+[2026-03-17T05:57:49.950Z] [INFO]   WebGLUniformLocation (function): function WebGLUniformLocation() { [native code] }
+[2026-03-17T05:57:49.950Z] [INFO]   WebGLTransformFeedback (function): function WebGLTransformFeedback() { [native code] }
+[2026-03-17T05:57:49.951Z] [INFO]   WebGLTexture (function): function WebGLTexture() { [native code] }
+[2026-03-17T05:57:49.951Z] [INFO]   WebGLSync (function): function WebGLSync() { [native code] }
+[2026-03-17T05:57:49.952Z] [INFO] 
+[2026-03-17T05:57:49.952Z] [INFO] -- Key Page Elements --
+[2026-03-17T05:57:49.953Z] [INFO]   <button> "Log in with Google" id=""
+[2026-03-17T05:57:49.953Z] [INFO]   <button> "Log in with Github" id=""
+[2026-03-17T05:57:49.954Z] [INFO]   <button> "Use email instead" id=""
+[2026-03-17T05:57:49.955Z] [INFO]   <button> "Download ComfyUI" id=""
+[2026-03-17T05:57:49.955Z] [INFO]   <button> "Close" id=""
+[2026-03-17T05:57:49.956Z] [INFO]   <button> "Close" id=""
+[2026-03-17T05:57:49.956Z] [INFO]   <button> "⚙️" id=""
+[2026-03-17T05:57:49.956Z] [INFO]   <button> "×" id=""
+[2026-03-17T05:57:49.957Z] [INFO]   <button> "Queue Prompt" id="queue-button"
+[2026-03-17T05:57:49.957Z] [INFO]   <button> "Queue Front" id="queue-front-button"
+[2026-03-17T05:57:49.958Z] [INFO]   <button> "View Queue" id="comfy-view-queue-button"
+[2026-03-17T05:57:49.958Z] [INFO]   <button> "View History" id="comfy-view-history-button"
+[2026-03-17T05:57:49.959Z] [INFO]   <button> "Save" id="comfy-save-button"
+[2026-03-17T05:57:49.959Z] [INFO]   <button> "Save (API Format)" id="comfy-dev-save-api-button"
+[2026-03-17T05:57:49.960Z] [INFO]   <button> "Load" id="comfy-load-button"
+[2026-03-17T05:57:49.960Z] [INFO]   <button> "Refresh" id="comfy-refresh-button"
+[2026-03-17T05:57:49.960Z] [INFO]   <button> "Clipspace" id="comfy-clipspace-button"
+[2026-03-17T05:57:49.961Z] [INFO]   <button> "Clear" id="comfy-clear-button"
+[2026-03-17T05:57:49.962Z] [INFO]   <button> "Load Default" id="comfy-load-default-button"
+[2026-03-17T05:57:49.962Z] [INFO]   <button> "Reset View" id="comfy-reset-view-button"
+[2026-03-17T05:57:49.963Z] [INFO] 
+[2026-03-17T05:57:49.963Z] [INFO] -- WebSocket Connections --
+[2026-03-17T05:57:49.963Z] [INFO] 
+[2026-03-17T05:57:49.964Z] [INFO] -- Network Requests to comfy.org --
+[2026-03-17T05:57:49.965Z] [INFO]   GET https://cloud.comfy.org/
+[2026-03-17T05:57:49.965Z] [INFO]   GET https://cloud.comfy.org/materialdesignicons.min.css
+[2026-03-17T05:57:49.966Z] [INFO]   GET https://cloud.comfy.org/assets/index-jjlB2msE.js
+[2026-03-17T05:57:49.966Z] [INFO]   GET https://cloud.comfy.org/assets/rolldown-runtime-BN2CsCrH.js
+[2026-03-17T05:57:49.966Z] [INFO]   GET https://cloud.comfy.org/assets/_plugin-vue_export-helper-DDnTsPbu.js
+[2026-03-17T05:57:49.967Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vue-core-DIqD345x.js
+[2026-03-17T05:57:49.967Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-primevue-BPJIFAhc.js
+[2026-03-17T05:57:49.968Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-firebase-Dx1h_75S.js
+[2026-03-17T05:57:49.968Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-other-DU4C49Oq.js
+[2026-03-17T05:57:49.968Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-reka-ui-DwNcre6y.js
+[2026-03-17T05:57:49.969Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-i18n-d0DfCpwl.js
+[2026-03-17T05:57:49.969Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vueuse-Bidt1YMR.js
+[2026-03-17T05:57:49.969Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-axios-BccpvRKL.js
+[2026-03-17T05:57:49.969Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-markdown-BxXfryRl.js
+[2026-03-17T05:57:49.971Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-zod-CRfaL0g6.js
+[2026-03-17T05:57:49.972Z] [INFO]   GET https://cloud.comfy.org/assets/i18n-D0V9qgy1.js
+[2026-03-17T05:57:49.972Z] [INFO]   GET https://cloud.comfy.org/assets/widget-DhnoMqng.js
+[2026-03-17T05:57:49.973Z] [INFO]   GET https://cloud.comfy.org/assets/types-BEd278T1.js
+[2026-03-17T05:57:49.973Z] [INFO]   GET https://cloud.comfy.org/assets/colorUtil-CSrzUd5s.js
+[2026-03-17T05:57:49.974Z] [INFO]   GET https://cloud.comfy.org/assets/api-CX8jjEGO.js
+[2026-03-17T05:57:49.975Z] [INFO] 
+[2026-03-17T05:57:49.976Z] [INFO] -- Page Text Preview (first 500 chars) --
+[2026-03-17T05:57:49.976Z] [INFO] Log in to your account
+
+New here? Sign up with Google to get 400 free credits every month.
+
+Log in with Google
+Log in with Github
+Use email instead
+
+By clicking "Next" or "Sign Up", you agree to our Terms of Use and Privacy Policy.
+
+START CREATING IN SECONDS
+
+Zero setup required. Works on any device.
+
+Generate multiple outputs at once. Share workflows with ease.
+
+Want to run ComfyUI locally instead?
+
+Download ComfyUI
+[2026-03-17T05:57:49.978Z] [INFO] 
+Full report saved to: E:\VCP\Plugin\ComfyCloudHacker\logs\recon_report_1773727069977.json
+[2026-03-17T05:57:49.979Z] [INFO] 
+[2026-03-17T05:57:49.979Z] [INFO] --- Phase 1C: SKIPPED (No cookie in config.env) ---
+[2026-03-17T05:57:49.980Z] [INFO] To test cookie injection, fill COMFY_ACCOUNT_1_COOKIE in config.env
+[2026-03-17T05:57:49.980Z] [INFO] 
+[2026-03-17T05:57:49.981Z] [INFO] ========== RECON COMPLETE ==========
+[2026-03-17T05:57:49.982Z] [INFO] Debug mode: browser will stay open for 30 seconds for inspection...
+[2026-03-17T05:57:49.982Z] [INFO] Press Ctrl+C to exit early.
+[2026-03-17T06:13:06.423Z] [INFO] ========== ComfyCloudHacker Recon v1.0 ==========
+[2026-03-17T06:13:06.426Z] [INFO] Target: https://cloud.comfy.org
+[2026-03-17T06:13:06.427Z] [INFO] Debug Mode (headed): true
+[2026-03-17T06:13:06.428Z] [INFO] Puppeteer Stealth: LOADED
+[2026-03-17T06:13:06.429Z] [INFO] 
+[2026-03-17T06:13:06.430Z] [INFO] --- Phase 1A: CF Bypass Test (No Cookie) ---
+[2026-03-17T06:13:07.265Z] [INFO] Browser launched successfully
+[2026-03-17T06:13:07.387Z] [INFO] Navigating to https://cloud.comfy.org ...
+[2026-03-17T06:13:10.423Z] [INFO] HTTP Status: 200
+[2026-03-17T06:13:10.424Z] [INFO] Final URL: https://cloud.comfy.org/
+[2026-03-17T06:13:10.428Z] [INFO] ✅ Phase 1A PASSED - CF bypass successful!
+[2026-03-17T06:13:10.429Z] [INFO] 
+[2026-03-17T06:13:10.430Z] [INFO] --- Phase 1B: Frontend JS Environment Recon ---
+[2026-03-17T06:13:13.465Z] [INFO] 
+[2026-03-17T06:13:13.466Z] [INFO] ========== RECON REPORT ==========
+[2026-03-17T06:13:13.467Z] [INFO] Page Title: ComfyUI
+[2026-03-17T06:13:13.467Z] [INFO] Page URL: https://cloud.comfy.org/cloud/login
+[2026-03-17T06:13:13.468Z] [INFO] 
+[2026-03-17T06:13:13.469Z] [INFO] -- ComfyUI Global Objects --
+[2026-03-17T06:13:13.470Z] [INFO]   comfyAPI: type=object, hasGraphToPrompt=false, hasQueuePrompt=false
+[2026-03-17T06:13:13.470Z] [INFO]     keys: [api, domWidget, defaultGraph, imagePreview, widgets, types, constants, ebml, gltf, isobmff, json, mp3, ogg, svg, avif, flac, png, pnginfo, parser, changeTracker, dialog, settings, toggleSwitch, ui, utils, button, buttonGroup, popup, splitButton, asyncDialog]
+[2026-03-17T06:13:13.471Z] [INFO] 
+[2026-03-17T06:13:13.472Z] [INFO] -- Custom Window Properties --
+[2026-03-17T06:13:13.473Z] [INFO]   0 (object): window, self, document, name, location, customElements, history, navigation, locationbar, menubar
+[2026-03-17T06:13:13.473Z] [INFO]   Function (function): function Function() { [native code] }
+[2026-03-17T06:13:13.474Z] [INFO]   AggregateError (function): function AggregateError() { [native code] }
+[2026-03-17T06:13:13.474Z] [INFO]   globalThis (object): 0, window, self, document, name, location, customElements, history, navigation, locationbar
+[2026-03-17T06:13:13.475Z] [INFO]   Intl (object): 
+[2026-03-17T06:13:13.476Z] [INFO]   ArrayBuffer (function): function ArrayBuffer() { [native code] }
+[2026-03-17T06:13:13.476Z] [INFO]   Atomics (object): 
+[2026-03-17T06:13:13.477Z] [INFO]   Uint8Array (function): function Uint8Array() { [native code] }
+[2026-03-17T06:13:13.478Z] [INFO]   Int8Array (function): function Int8Array() { [native code] }
+[2026-03-17T06:13:13.478Z] [INFO]   Uint16Array (function): function Uint16Array() { [native code] }
+[2026-03-17T06:13:13.478Z] [INFO]   Int16Array (function): function Int16Array() { [native code] }
+[2026-03-17T06:13:13.479Z] [INFO]   Uint32Array (function): function Uint32Array() { [native code] }
+[2026-03-17T06:13:13.479Z] [INFO]   Int32Array (function): function Int32Array() { [native code] }
+[2026-03-17T06:13:13.480Z] [INFO]   Float32Array (function): function Float32Array() { [native code] }
+[2026-03-17T06:13:13.480Z] [INFO]   Float64Array (function): function Float64Array() { [native code] }
+[2026-03-17T06:13:13.481Z] [INFO]   Uint8ClampedArray (function): function Uint8ClampedArray() { [native code] }
+[2026-03-17T06:13:13.481Z] [INFO]   BigUint64Array (function): function BigUint64Array() { [native code] }
+[2026-03-17T06:13:13.482Z] [INFO]   BigInt64Array (function): function BigInt64Array() { [native code] }
+[2026-03-17T06:13:13.482Z] [INFO]   DataView (function): function DataView() { [native code] }
+[2026-03-17T06:13:13.483Z] [INFO]   BigInt (function): function BigInt() { [native code] }
+[2026-03-17T06:13:13.483Z] [INFO]   FinalizationRegistry (function): function FinalizationRegistry() { [native code] }
+[2026-03-17T06:13:13.484Z] [INFO]   WeakRef (function): function WeakRef() { [native code] }
+[2026-03-17T06:13:13.484Z] [INFO]   escape (function): function escape() { [native code] }
+[2026-03-17T06:13:13.485Z] [INFO]   unescape (function): function unescape() { [native code] }
+[2026-03-17T06:13:13.485Z] [INFO]   Option (function): function Option() { [native code] }
+[2026-03-17T06:13:13.486Z] [INFO]   Image (function): function Image() { [native code] }
+[2026-03-17T06:13:13.486Z] [INFO]   Audio (function): function Audio() { [native code] }
+[2026-03-17T06:13:13.486Z] [INFO]   WebKitMutationObserver (function): function MutationObserver() { [native code] }
+[2026-03-17T06:13:13.487Z] [INFO]   WebKitCSSMatrix (function): function DOMMatrix() { [native code] }
+[2026-03-17T06:13:13.487Z] [INFO]   XSLTProcessor (function): function XSLTProcessor() { [native code] }
+[2026-03-17T06:13:13.488Z] [INFO]   XPathResult (function): function XPathResult() { [native code] }
+[2026-03-17T06:13:13.488Z] [INFO]   XPathExpression (function): function XPathExpression() { [native code] }
+[2026-03-17T06:13:13.489Z] [INFO]   XPathEvaluator (function): function XPathEvaluator() { [native code] }
+[2026-03-17T06:13:13.490Z] [INFO]   XMLSerializer (function): function XMLSerializer() { [native code] }
+[2026-03-17T06:13:13.490Z] [INFO]   XMLHttpRequestUpload (function): function XMLHttpRequestUpload() { [native code] }
+[2026-03-17T06:13:13.491Z] [INFO]   XMLHttpRequestEventTarget (function): function XMLHttpRequestEventTarget() { [native code] }
+[2026-03-17T06:13:13.491Z] [INFO]   XMLDocument (function): function XMLDocument() { [native code] }
+[2026-03-17T06:13:13.492Z] [INFO]   WritableStreamDefaultWriter (function): function WritableStreamDefaultWriter() { [native code] }
+[2026-03-17T06:13:13.492Z] [INFO]   WritableStreamDefaultController (function): function WritableStreamDefaultController() { [native code] }
+[2026-03-17T06:13:13.492Z] [INFO]   WritableStream (function): function WritableStream() { [native code] }
+[2026-03-17T06:13:13.493Z] [INFO]   Worker (function): function Worker() { [native code] }
+[2026-03-17T06:13:13.493Z] [INFO]   WindowControlsOverlayGeometryChangeEvent (function): function WindowControlsOverlayGeometryChangeEvent() { [native code] }
+[2026-03-17T06:13:13.494Z] [INFO]   WindowControlsOverlay (function): function WindowControlsOverlay() { [native code] }
+[2026-03-17T06:13:13.495Z] [INFO]   Window (function): function Window() { [native code] }
+[2026-03-17T06:13:13.495Z] [INFO]   WheelEvent (function): function WheelEvent() { [native code] }
+[2026-03-17T06:13:13.496Z] [INFO]   WebGLVertexArrayObject (function): function WebGLVertexArrayObject() { [native code] }
+[2026-03-17T06:13:13.496Z] [INFO]   WebGLUniformLocation (function): function WebGLUniformLocation() { [native code] }
+[2026-03-17T06:13:13.497Z] [INFO]   WebGLTransformFeedback (function): function WebGLTransformFeedback() { [native code] }
+[2026-03-17T06:13:13.497Z] [INFO]   WebGLTexture (function): function WebGLTexture() { [native code] }
+[2026-03-17T06:13:13.498Z] [INFO]   WebGLSync (function): function WebGLSync() { [native code] }
+[2026-03-17T06:13:13.498Z] [INFO] 
+[2026-03-17T06:13:13.499Z] [INFO] -- Key Page Elements --
+[2026-03-17T06:13:13.499Z] [INFO]   <button> "Log in with Google" id=""
+[2026-03-17T06:13:13.499Z] [INFO]   <button> "Log in with Github" id=""
+[2026-03-17T06:13:13.500Z] [INFO]   <button> "Use email instead" id=""
+[2026-03-17T06:13:13.501Z] [INFO]   <button> "Download ComfyUI" id=""
+[2026-03-17T06:13:13.501Z] [INFO]   <button> "Close" id=""
+[2026-03-17T06:13:13.502Z] [INFO]   <button> "Close" id=""
+[2026-03-17T06:13:13.502Z] [INFO]   <button> "⚙️" id=""
+[2026-03-17T06:13:13.503Z] [INFO]   <button> "×" id=""
+[2026-03-17T06:13:13.503Z] [INFO]   <button> "Queue Prompt" id="queue-button"
+[2026-03-17T06:13:13.504Z] [INFO]   <button> "Queue Front" id="queue-front-button"
+[2026-03-17T06:13:13.505Z] [INFO]   <button> "View Queue" id="comfy-view-queue-button"
+[2026-03-17T06:13:13.505Z] [INFO]   <button> "View History" id="comfy-view-history-button"
+[2026-03-17T06:13:13.506Z] [INFO]   <button> "Save" id="comfy-save-button"
+[2026-03-17T06:13:13.506Z] [INFO]   <button> "Save (API Format)" id="comfy-dev-save-api-button"
+[2026-03-17T06:13:13.507Z] [INFO]   <button> "Load" id="comfy-load-button"
+[2026-03-17T06:13:13.507Z] [INFO]   <button> "Refresh" id="comfy-refresh-button"
+[2026-03-17T06:13:13.508Z] [INFO]   <button> "Clipspace" id="comfy-clipspace-button"
+[2026-03-17T06:13:13.509Z] [INFO]   <button> "Clear" id="comfy-clear-button"
+[2026-03-17T06:13:13.509Z] [INFO]   <button> "Load Default" id="comfy-load-default-button"
+[2026-03-17T06:13:13.510Z] [INFO]   <button> "Reset View" id="comfy-reset-view-button"
+[2026-03-17T06:13:13.511Z] [INFO] 
+[2026-03-17T06:13:13.511Z] [INFO] -- WebSocket Connections --
+[2026-03-17T06:13:13.512Z] [INFO] 
+[2026-03-17T06:13:13.512Z] [INFO] -- Network Requests to comfy.org --
+[2026-03-17T06:13:13.513Z] [INFO]   GET https://cloud.comfy.org/
+[2026-03-17T06:13:13.514Z] [INFO]   GET https://cloud.comfy.org/materialdesignicons.min.css
+[2026-03-17T06:13:13.515Z] [INFO]   GET https://cloud.comfy.org/assets/index-jjlB2msE.js
+[2026-03-17T06:13:13.515Z] [INFO]   GET https://cloud.comfy.org/assets/rolldown-runtime-BN2CsCrH.js
+[2026-03-17T06:13:13.516Z] [INFO]   GET https://cloud.comfy.org/assets/_plugin-vue_export-helper-DDnTsPbu.js
+[2026-03-17T06:13:13.517Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vue-core-DIqD345x.js
+[2026-03-17T06:13:13.518Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-primevue-BPJIFAhc.js
+[2026-03-17T06:13:13.518Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-firebase-Dx1h_75S.js
+[2026-03-17T06:13:13.519Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-other-DU4C49Oq.js
+[2026-03-17T06:13:13.520Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-reka-ui-DwNcre6y.js
+[2026-03-17T06:13:13.520Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-i18n-d0DfCpwl.js
+[2026-03-17T06:13:13.521Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-vueuse-Bidt1YMR.js
+[2026-03-17T06:13:13.522Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-axios-BccpvRKL.js
+[2026-03-17T06:13:13.522Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-markdown-BxXfryRl.js
+[2026-03-17T06:13:13.523Z] [INFO]   GET https://cloud.comfy.org/assets/vendor-zod-CRfaL0g6.js
+[2026-03-17T06:13:13.524Z] [INFO]   GET https://cloud.comfy.org/assets/i18n-D0V9qgy1.js
+[2026-03-17T06:13:13.524Z] [INFO]   GET https://cloud.comfy.org/assets/widget-DhnoMqng.js
+[2026-03-17T06:13:13.525Z] [INFO]   GET https://cloud.comfy.org/assets/types-BEd278T1.js
+[2026-03-17T06:13:13.525Z] [INFO]   GET https://cloud.comfy.org/assets/colorUtil-CSrzUd5s.js
+[2026-03-17T06:13:13.526Z] [INFO]   GET https://cloud.comfy.org/assets/api-CX8jjEGO.js
+[2026-03-17T06:13:13.527Z] [INFO] 
+[2026-03-17T06:13:13.527Z] [INFO] -- Page Text Preview (first 500 chars) --
+[2026-03-17T06:13:13.528Z] [INFO] Log in to your account
+
+New here? Sign up with Google to get 400 free credits every month.
+
+Log in with Google
+Log in with Github
+Use email instead
+
+By clicking "Next" or "Sign Up", you agree to our Terms of Use and Privacy Policy.
+
+START CREATING IN SECONDS
+
+Zero setup required. Works on any device.
+
+Generate multiple outputs at once. Share workflows with ease.
+
+Want to run ComfyUI locally instead?
+
+Download ComfyUI
+[2026-03-17T06:13:13.529Z] [INFO] 
+Full report saved to: E:\VCP\Plugin\ComfyCloudHacker\logs\recon_report_1773727993528.json
+[2026-03-17T06:13:13.530Z] [INFO] 
+[2026-03-17T06:13:13.530Z] [INFO] --- Phase 1C: Cookie Injection Test ---
+[2026-03-17T06:13:13.531Z] [INFO] Parsed 1 cookies from config
+[2026-03-17T06:13:13.534Z] [INFO] Cookies injected, reloading page...
+[2026-03-17T06:13:16.757Z] [INFO] After cookie injection:
+[2026-03-17T06:13:16.758Z] [INFO]   URL: https://cloud.comfy.org/cloud/login
+[2026-03-17T06:13:16.759Z] [INFO]   Title: ComfyUI
+[2026-03-17T06:13:16.759Z] [INFO]   Has user menu: false
+[2026-03-17T06:13:16.760Z] [INFO]   Auth localStorage keys: []
+[2026-03-17T06:13:16.761Z] [INFO]   Body preview: Log in to your account
+
+New here? Sign up with Google to get 400 free credits every month.
+
+Log in with Google
+Log in with Github
+Use email instead
+
+By clicking "Next" or "Sign Up", you agree to our Terms of Use and Privacy Policy.
+
+START CREATING IN SECONDS
+
+Zero setup required. Works on any device
+[2026-03-17T06:13:16.762Z] [WARN] ⚠️ Phase 1C - No obvious login indicators found. Check manually.
+[2026-03-17T06:13:16.762Z] [INFO] 
+[2026-03-17T06:13:16.763Z] [INFO] ========== RECON COMPLETE ==========
+[2026-03-17T06:13:16.763Z] [INFO] Debug mode: browser will stay open for 30 seconds for inspection...
+[2026-03-17T06:13:16.764Z] [INFO] Press Ctrl+C to exit early.
